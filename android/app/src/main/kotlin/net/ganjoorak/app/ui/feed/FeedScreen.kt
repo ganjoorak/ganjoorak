@@ -18,6 +18,7 @@ import net.ganjoorak.app.ui.common.ErrorScreen
 import net.ganjoorak.app.ui.common.LoadingScreen
 import net.ganjoorak.app.ui.feed.dialog.FeedPoetDialog
 import net.ganjoorak.app.ui.poem.PoemViewerScreen
+import net.ganjoorak.app.util.poemPoetKey
 
 @Composable
 fun FeedScreen(
@@ -25,9 +26,7 @@ fun FeedScreen(
     poemRepository: PoemRepository,
     settings: AppSettings,
     audioPlayer: PoemAudioPlayer,
-    onOpenSearch: () -> Unit,
-    onToggleZenLock: () -> Unit,
-    onNavigateToPoets: () -> Unit,
+    onNavigateToPoet: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -93,9 +92,7 @@ fun FeedScreen(
                 audioPlayer = audioPlayer,
                 onNext = viewModel::goNext,
                 onPrevious = viewModel::goPrevious,
-                onOpenSearch = onOpenSearch,
-                onToggleZenLock = onToggleZenLock,
-                onNavigateToPoets = onNavigateToPoets,
+                onNavigateToPoet = { onNavigateToPoet(poemPoetKey(poems[0])) },
                 isActivePage = true,
                 modifier = modifier.fillMaxSize(),
             )
@@ -117,9 +114,7 @@ fun FeedScreen(
                     audioPlayer = audioPlayer,
                     onNext = viewModel::goNext,
                     onPrevious = viewModel::goPrevious,
-                    onOpenSearch = onOpenSearch,
-                    onToggleZenLock = onToggleZenLock,
-                    onNavigateToPoets = onNavigateToPoets,
+                    onNavigateToPoet = { onNavigateToPoet(poemPoetKey(poem)) },
                     isActivePage = page == pagerState.settledPage,
                     modifier = Modifier.fillMaxSize(),
                 )
