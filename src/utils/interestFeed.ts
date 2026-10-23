@@ -1,31 +1,19 @@
 import ganjoorApi from "@/api/GanjoorApi";
-import { getInterestByKey, type PoemInterest } from "@/data/interests";
+import { getInterestByKey } from "@/data/interests";
 import type { Poem } from "@/types/poem";
-import { logger } from "@/utils/logger";
-
-const SEMANTIC_TOP_K = 50;
-const POOL_REFILL_THRESHOLD = 4;
-const QUALITY_SCORE_RATIO = 0.88;
-const MIN_KEPT_PER_QUERY = 10;
-const MAX_POEMS_PER_POET = 2;
-const MAX_REFILL_ATTEMPTS = 3;
 
 interface PoolEntry {
   poemId: number;
   poetSlug: string;
-  score: number;
 }
 
 interface InterestPool {
   pending: PoolEntry[];
-  servedIds: Set<number>;
-  usedQueryIndexes: Set<number>;
-  failedQueryIndexes: Set<number>;
   lastPoetSlug: string | null;
-  inFlight: Promise<void> | null;
 }
 
 const pools = new Map<string, InterestPool>();
+const entryLoads = new Map<string, Promise<PoolEntry[]>>();
 
 const getPool = (key: string): InterestPool => {
   const existing = pools.get(key);
@@ -33,14 +21,7 @@ const getPool = (key: string): InterestPool => {
     return existing;
   }
 
-  const created: InterestPool = {
-    pending: [],
-    servedIds: new Set<number>(),
-    usedQueryIndexes: new Set<number>(),
-    failedQueryIndexes: new Set<number>(),
-    lastPoetSlug: null,
-    inFlight: null,
-  };
+  const created: InterestPool = { pending: [], lastPoetSlug: null };
   pools.set(key, created);
   return created;
 };
@@ -54,106 +35,39 @@ const shuffle = <T>(items: T[]): T[] => {
   return copy;
 };
 
-const pickQueryIndex = (interest: PoemInterest, pool: InterestPool) => {
-  const total = interest.queries.length;
-
-  if (pool.failedQueryIndexes.size >= total) {
-    pool.failedQueryIndexes.clear();
+const fetchJson = async (url: string): Promise<unknown> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to load ${url}: ${response.status}`);
   }
-
-  const usable = interest.queries
-    .map((_, index) => index)
-    .filter((index) => !pool.failedQueryIndexes.has(index));
-
-  if (pool.usedQueryIndexes.size >= usable.length) {
-    pool.usedQueryIndexes.clear();
-  }
-
-  const available = usable.filter((index) => !pool.usedQueryIndexes.has(index));
-  const candidates = available.length > 0 ? available : usable;
-  const chosen =
-    candidates[Math.floor(Math.random() * candidates.length)] ?? 0;
-
-  pool.usedQueryIndexes.add(chosen);
-  return chosen;
+  return response.json();
 };
 
-const selectQualityEntries = (
-  results: Array<{ poemId: number; poetSlug: string; score: number }>,
-): PoolEntry[] => {
-  const usable = results
-    .map((result) => ({
-      poemId: Number(result.poemId),
-      poetSlug: result.poetSlug || "",
-      score: Number(result.score) || 0,
-    }))
-    .filter((entry) => Number.isFinite(entry.poemId) && entry.poemId > 0)
-    .sort((a, b) => b.score - a.score);
-
-  if (usable.length === 0) {
-    return [];
+const loadEntries = (key: string) => {
+  const existing = entryLoads.get(key);
+  if (existing) {
+    return existing;
   }
 
-  const topScore = usable[0].score;
-  const floor = topScore * QUALITY_SCORE_RATIO;
-  const aboveFloor = usable.filter((entry) => entry.score >= floor);
-  const kept =
-    aboveFloor.length >= MIN_KEPT_PER_QUERY
-      ? aboveFloor
-      : usable.slice(0, MIN_KEPT_PER_QUERY);
-
-  const perPoet = new Map<string, number>();
-  return kept.filter((entry) => {
-    const seen = perPoet.get(entry.poetSlug) ?? 0;
-    if (entry.poetSlug && seen >= MAX_POEMS_PER_POET) {
-      return false;
+  const load = fetchJson(`/data/interests/${key}.json`).then((data) => {
+    const { poemIds, poetSlugs } = (data ?? {}) as {
+      poemIds?: unknown;
+      poetSlugs?: unknown;
+    };
+    if (!Array.isArray(poemIds)) {
+      throw new Error(`Malformed interest file: ${key}`);
     }
-    perPoet.set(entry.poetSlug, seen + 1);
-    return true;
+    return poemIds
+      .map((poemId, index) => ({
+        poemId: Number(poemId),
+        poetSlug: Array.isArray(poetSlugs) ? String(poetSlugs[index] ?? "") : "",
+      }))
+      .filter((entry) => Number.isInteger(entry.poemId) && entry.poemId > 0);
   });
-};
-
-const refillPool = async (interest: PoemInterest, pool: InterestPool) => {
-  if (pool.inFlight) {
-    return pool.inFlight;
-  }
-
-  const task = (async () => {
-    for (let attempt = 0; attempt < MAX_REFILL_ATTEMPTS; attempt += 1) {
-      const queryIndex = pickQueryIndex(interest, pool);
-      const query = interest.queries[queryIndex];
-
-      try {
-        const response = await ganjoorApi.searchPoemsSemantic(query, {
-          topK: SEMANTIC_TOP_K,
-          disableScopeDetection: true,
-        });
-
-        const pendingIds = new Set(pool.pending.map((entry) => entry.poemId));
-        const fresh = selectQualityEntries(response.results).filter(
-          (entry) =>
-            !pool.servedIds.has(entry.poemId) && !pendingIds.has(entry.poemId),
-        );
-
-        if (fresh.length > 0) {
-          pool.pending = [...pool.pending, ...shuffle(fresh)];
-          return;
-        }
-      } catch (error) {
-        pool.failedQueryIndexes.add(queryIndex);
-        logger.error(
-          `Interest query failed for "${interest.key}" (${query}):`,
-          error,
-        );
-      }
-    }
-  })();
-
-  pool.inFlight = task.finally(() => {
-    pool.inFlight = null;
-  });
-
-  return pool.inFlight;
+  // Forget failed loads so the next request retries instead of reusing the rejection.
+  load.catch(() => entryLoads.delete(key));
+  entryLoads.set(key, load);
+  return load;
 };
 
 const takeEntry = (pool: InterestPool, preferredPoetSlugs: Set<string>) => {
@@ -181,20 +95,16 @@ export const fetchInterestPoem = async (
   interestKey: string,
   preferredPoetSlugs: string[] = [],
 ): Promise<Poem> => {
-  const interest = getInterestByKey(interestKey);
-  if (!interest) {
+  if (!getInterestByKey(interestKey)) {
     throw new Error(`Unknown interest: ${interestKey}`);
   }
 
+  const entries = await loadEntries(interestKey);
   const pool = getPool(interestKey);
 
+  // Once every poem was served, start a fresh shuffled round.
   if (pool.pending.length === 0) {
-    await refillPool(interest, pool);
-  }
-
-  if (pool.pending.length === 0) {
-    pool.servedIds.clear();
-    await refillPool(interest, pool);
+    pool.pending = shuffle(entries);
   }
 
   const entry = takeEntry(pool, new Set(preferredPoetSlugs));
@@ -202,26 +112,12 @@ export const fetchInterestPoem = async (
     throw new Error(`No poems available for interest: ${interestKey}`);
   }
 
-  pool.servedIds.add(entry.poemId);
   pool.lastPoetSlug = entry.poetSlug || null;
-
-  if (pool.pending.length <= POOL_REFILL_THRESHOLD && !pool.inFlight) {
-    refillPool(interest, pool).catch(() => undefined);
-  }
-
   return ganjoorApi.getPoemById(entry.poemId);
 };
 
 export const primeInterestPool = (interestKey: string) => {
-  const interest = getInterestByKey(interestKey);
-  if (!interest) {
-    return;
+  if (getInterestByKey(interestKey)) {
+    loadEntries(interestKey).catch(() => undefined);
   }
-
-  const pool = getPool(interestKey);
-  if (pool.pending.length > 0 || pool.inFlight) {
-    return;
-  }
-
-  refillPool(interest, pool).catch(() => undefined);
 };

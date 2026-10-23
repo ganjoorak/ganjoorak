@@ -15,7 +15,6 @@ import { FaRandom, FaSearch, FaTimes } from 'react-icons/fa';
 import poetSourceIndex from '@/data/poet-source-index.json';
 import InterestChipsRail from '@/components/InterestChipsRail';
 import InterestPickerDialog from '@/components/InterestPickerDialog';
-import { getInterestByKey } from '@/data/interests';
 import { fetchInterestPoem, primeInterestPool } from '@/utils/interestFeed';
 
 const INITIAL_POEMS_COUNT = 12;
