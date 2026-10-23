@@ -52,7 +52,7 @@ export async function GET(
     return new NextResponse(imageResponse.data, {
       status: 200,
       headers: {
-        "Content-Type": imageResponse.headers["content-type"] || "image/jpeg",
+        "Content-Type": String(imageResponse.headers["content-type"] || "image/jpeg"),
         "Cache-Control": "public, max-age=86400, s-maxage=604800",
       },
     });
