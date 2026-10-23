@@ -105,10 +105,33 @@ export default function MobileAudioControl({
 
   const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
   const shownTime = dragTime ?? currentTime;
+  const currentRecitation = recitations[currentRecitationIndex] ?? recitations[0];
+  const reciterName =
+    currentRecitation?.audioArtist?.trim() ||
+    (currentRecitation ? `خوانش ${toPersianDigits(String(currentRecitationIndex + 1))}` : "");
   const playIcon = isLoading ? <FaSpinner className="animate-spin" /> : isPlaying ? <FaPause /> : <FaPlay />;
 
   return (
-    <div className="mobile-audio-control">
+    <div className={`mobile-audio-control${reciterName ? " has-reciter" : ""}`}>
+      {/* Pill behind the play button: the current reciter, tap to switch. */}
+      {reciterName && (
+        <button
+          type="button"
+          className="mobile-audio-reciter"
+          onClick={() => {
+            dismissHint();
+            setIsSheetOpen(true);
+          }}
+          aria-label={`خوانش ${reciterName}، انتخاب خوانش دیگر`}
+        >
+          <span className="mobile-audio-reciter-label" aria-hidden="true">
+            {isPlaying ? "در حال پخش" : "خوانش"}
+          </span>
+          <span className="mobile-audio-reciter-name" key={reciterName}>
+            {reciterName}
+          </span>
+        </button>
+      )}
       {showHint && (
         <div
           className={`mobile-audio-hint${isHintLeaving ? " is-leaving" : ""}`}

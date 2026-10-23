@@ -546,3 +546,29 @@ html:root body .poem-viewer .verse-line.prose-paragraph::after { content: none; 
   .mobile-audio-reciters .audio-reciters-header { padding-inline: 0.25rem; }
   .mobile-audio-reciters .recitation-row { padding-block: 0.6rem; }
 }
+
+/* Mobile: compact pill behind the play button with the current reciter's name. */
+.mobile-audio-reciter { display: none; }
+@media (max-width: 600px) {
+  .mobile-audio-reciter {
+    display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0.05rem;
+    position: absolute; top: 50%; right: 1.75rem; translate: 0 -50%;
+    height: 2.9rem; padding: 0 2.15rem 0 0.85rem; max-width: 8.6rem;
+    border: 1px solid rgb(var(--border)); border-radius: 999px; direction: rtl; text-align: right;
+    background: rgb(var(--card) / 0.92); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    color: rgb(var(--foreground)); box-shadow: 0 4px 14px rgb(0 0 0 / 0.14);
+    font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-audio-reciter:focus-visible { outline: 2px solid rgb(var(--ring) / 0.7); outline-offset: 2px; }
+  .mobile-audio-reciter:active { background: rgb(var(--secondary)); }
+  .mobile-audio-reciter-label { font-size: 0.62rem; line-height: 1.2; color: rgb(var(--muted-foreground)); }
+  .mobile-audio-reciter-name {
+    display: block; max-width: 5.5rem; font-size: 0.78rem; font-weight: 600; line-height: 1.35;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    animation: mobile-audio-reciter-in 0.25s ease-out;
+  }
+  .mobile-audio-control .mobile-audio-ring, .mobile-audio-control .mobile-audio-button { z-index: 1; }
+  .mobile-audio-control.has-reciter .mobile-audio-ring-track { stroke: rgb(var(--border) / 0.6); }
+}
+@keyframes mobile-audio-reciter-in { from { opacity: 0; transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .mobile-audio-reciter-name { animation: none; } }
