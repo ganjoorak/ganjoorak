@@ -2,7 +2,13 @@
 
 import type React from "react";
 import { useEffect, useRef } from "react";
-import { consumeWheelGesture, trackWheelGesture, WHEEL_GESTURE_EDGE_PX } from "@/utils/wheelGesture";
+import {
+  consumeWheelGesture,
+  MOUSE_IDLE_MS,
+  MOUSE_NOTCHES_TO_NAVIGATE,
+  trackWheelGesture,
+  WHEEL_GESTURE_EDGE_PX,
+} from "@/utils/wheelGesture";
 
 /** Finger travel (share of the viewport height) needed to commit to the next poem on release. */
 const COMMIT_RATIO = 0.33;
@@ -10,6 +16,16 @@ const COMMIT_RATIO = 0.33;
 const FLICK_RATIO = 0.16;
 const FLICK_SPEED = 0.55;
 const WHEEL_IDLE_MS = 220;
+/**
+ * Mouse notches move a target; the sheet follows it every frame with a frame-rate independent lerp (time
+ * constant LERP_TAU_MS), so each notch reads as one smooth push instead of a rigid block step.
+ */
+const LERP_TAU_MS = 80;
+/** A mouse commit finishes the slide on a sheet-like curve, starting at least as fast as the lerp was moving. */
+const MOUSE_COMMIT_EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
+const MOUSE_COMMIT_EASE_SLOPE = 0.72 / 0.32;
+const MOUSE_COMMIT_MIN_MS = 300;
+const MOUSE_COMMIT_MAX_MS = 420;
 /** Commit glide when the release has no usable speed; faster releases finish sooner (see commitDuration). */
 const COMMIT_MS = 250;
 const COMMIT_MIN_MS = 150;
@@ -96,6 +112,12 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
         scrim.style.transition = "none";
         scrim.style.opacity = "0";
       }
+      // The landed poem is a new .poem-text (keyed by id), but clear any push left on the live one regardless.
+      const content = scrollRef.current;
+      if (content) {
+        content.style.transition = "";
+        content.style.transform = "";
+      }
       document.documentElement.classList.remove(PULLING_CLASS);
     };
     const waitForLanding = () => {
@@ -119,8 +141,10 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
     const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const viewport = () => window.innerHeight || 800;
 
-    // Writes are batched to one per frame and touch only the sheet, the scrim and (on start/end) one class.
+    // Writes are batched to one per frame and touch only the sheet, the live poem, the scrim and (on start/end)
+    // one class. The live poem moves up with the sheet, so the two read as one continuous strip being pushed.
     let frame = 0;
+    let clearContentTimer: number | null = null;
     let pending: { px: number; timing: string | null } | null = null;
     let currentPx = 0;
     const flush = () => {
@@ -135,12 +159,30 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       sheet.style.setProperty("--gk-pull-t", timing ?? "0s");
       sheet.style.setProperty("--gk-pull-p", progress.toFixed(4));
       sheet.style.transform = `translate3d(0, ${-px}px, 0)`;
+      const content = scrollRef.current;
+      if (content) {
+        if (clearContentTimer !== null) window.clearTimeout(clearContentTimer);
+        clearContentTimer = null;
+        content.style.transition = timing ? `transform ${timing}` : "none";
+        content.style.transform = `translate3d(0, ${-px}px, 0)`;
+        if (px <= 0) {
+          // Do not leave a transform (and a containing block) on the scroller once it is back in place.
+          const clear = () => {
+            clearContentTimer = null;
+            if (currentPx > 0) return;
+            content.style.transition = "";
+            content.style.transform = "";
+          };
+          if (timing) clearContentTimer = window.setTimeout(clear, SPRING_MS + 80);
+          else clear();
+        }
+      }
       const state = px > 0 ? "pulling" : "";
       if ((sheet.dataset.state || "") !== state) sheet.dataset.state = state;
       const scrim = sheet.previousElementSibling as HTMLElement | null;
       if (scrim) {
         scrim.style.transition = timing ? `opacity ${timing}` : "none";
-        scrim.style.opacity = (progress * 0.45).toFixed(3);
+        scrim.style.opacity = (progress * 0.3).toFixed(3);
       }
       if (html.classList.contains(PULLING_CLASS) !== px > 0) html.classList.toggle(PULLING_CLASS, px > 0);
     };
@@ -160,7 +202,37 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       if (sheet) sheet.toggleAttribute("data-armed", armed);
     };
 
+    // ---- mouse lerp ----
+    let lerpTarget = 0;
+    let lerpRaf = 0;
+    let lerpLast = 0;
+    let lerpVel = 0;
+    const stopLerp = () => {
+      if (lerpRaf) cancelAnimationFrame(lerpRaf);
+      lerpRaf = 0;
+    };
+    const lerpStep = (now: number) => {
+      const dt = Math.min(48, Math.max(1, now - lerpLast));
+      lerpLast = now;
+      const prev = currentPx;
+      let px = prev + (lerpTarget - prev) * (1 - Math.exp(-dt / LERP_TAU_MS));
+      if (Math.abs(lerpTarget - px) < 0.5) px = lerpTarget;
+      lerpVel = (px - prev) / dt;
+      setPull(px, null, true);
+      lerpRaf = px === lerpTarget ? 0 : requestAnimationFrame(lerpStep);
+      if (!lerpRaf) lerpVel = 0;
+    };
+    const lerpTo = (target: number) => {
+      lerpTarget = target;
+      if (lerpRaf) return;
+      // After a landing the sheet was reset outside this closure: a new pull starts from rest.
+      if (!html.classList.contains(PULLING_CLASS)) currentPx = 0;
+      lerpLast = performance.now();
+      lerpRaf = requestAnimationFrame(lerpStep);
+    };
+
     const springBack = () => {
+      stopLerp();
       const sheet = sheetRef.current;
       setArmed(false);
       if (!sheet) return;
@@ -172,7 +244,8 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
     };
 
     /** Glide from wherever the sheet is to the top, continuing at the release speed (px/ms), then navigate. */
-    const commit = (speed = 0) => {
+    const commit = (speed = 0, mouse = false) => {
+      stopLerp();
       if (committingRef.current) return;
       if (!hasNextRef.current) {
         // The next poem is not loaded yet: never navigate somewhere the sheet did not show.
@@ -181,8 +254,16 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       }
       committingRef.current = true;
       const vh = viewport();
-      const duration = reducedMotion() ? 0 : commitDuration(Math.max(0, vh - currentPx), speed);
-      setPull(vh, duration ? `${duration}ms ${COMMIT_EASE}` : null, true);
+      const remaining = Math.max(0, vh - currentPx);
+      let duration = reducedMotion() ? 0 : commitDuration(remaining, speed);
+      let ease = COMMIT_EASE;
+      if (mouse && duration) {
+        // Finish the slide from where the lerp is, at no less than its current speed.
+        const v = Math.max(speed, 0.8);
+        duration = Math.round(Math.max(MOUSE_COMMIT_MIN_MS, Math.min(MOUSE_COMMIT_MAX_MS, (MOUSE_COMMIT_EASE_SLOPE * remaining) / v)));
+        ease = MOUSE_COMMIT_EASE;
+      }
+      setPull(vh, duration ? `${duration}ms ${ease}` : null, true);
       if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
       timeoutRef.current = window.setTimeout(() => {
         onCommitRef.current();
@@ -310,27 +391,47 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       if (wheelTotal <= 0) {
         if (delta <= 0 || gesture.consumed || !gesture.startedAtBottom || !isTrulyAtBottom(el)) return;
       }
-      if (wheelTotal <= 0) wheelSamples = [];
-      wheelTotal = Math.max(0, wheelTotal + delta);
-      wheelSamples.push({ total: wheelTotal, t: event.timeStamp });
-      if (wheelSamples.length > 6) wheelSamples.shift();
       const vh = viewport();
-      if (wheelTotal >= vh * COMMIT_RATIO && hasNextRef.current) {
+      const commitPx = vh * COMMIT_RATIO;
+      if (gesture.mouse) {
+        // While the sheet is out, a notch belongs to it: a notch back up must not scroll the poem underneath.
+        if (wheelTotal > 0 && event.cancelable) event.preventDefault();
+        // Mouse: count notches. Each one moves the sheet a third of the way to the commit point (animated),
+        // a notch back up undoes one, and the third commits.
+        wheelTotal = Math.max(0, wheelTotal + Math.sign(delta) * (commitPx / MOUSE_NOTCHES_TO_NAVIGATE));
+        wheelSamples = [];
+      } else {
+        if (wheelTotal <= 0) wheelSamples = [];
+        wheelTotal = Math.max(0, wheelTotal + delta);
+        wheelSamples.push({ total: wheelTotal, t: event.timeStamp });
+        if (wheelSamples.length > 6) wheelSamples.shift();
+      }
+      if (wheelTotal >= commitPx - 0.5 && hasNextRef.current) {
         wheelTotal = 0;
         if (wheelTimer !== null) window.clearTimeout(wheelTimer);
         wheelTimer = null;
         consumeWheelGesture(gesture.id);
         setArmed(true);
-        commit(Math.max(0, wheelSpeed()));
+        commit(gesture.mouse ? Math.max(0, lerpVel) : Math.max(0, wheelSpeed()), gesture.mouse);
         return;
       }
-      setPull(resist(wheelTotal, vh), null);
+      if (wheelTotal <= 0) {
+        if (wheelTimer !== null) window.clearTimeout(wheelTimer);
+        wheelTimer = null;
+        springBack();
+        return;
+      }
+      if (gesture.mouse && !reducedMotion()) lerpTo(resist(wheelTotal, vh));
+      else {
+        stopLerp();
+        setPull(resist(wheelTotal, vh), null);
+      }
       if (wheelTimer !== null) window.clearTimeout(wheelTimer);
       wheelTimer = window.setTimeout(() => {
         wheelTimer = null;
         wheelTotal = 0;
         if (!committingRef.current) springBack();
-      }, WHEEL_IDLE_MS);
+      }, gesture.mouse ? MOUSE_IDLE_MS : WHEEL_IDLE_MS);
     };
 
     root.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -345,7 +446,9 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       root.removeEventListener("touchcancel", onTouchEnd);
       root.removeEventListener("wheel", onWheel);
       if (wheelTimer !== null) window.clearTimeout(wheelTimer);
+      if (clearContentTimer !== null) window.clearTimeout(clearContentTimer);
       if (frame) cancelAnimationFrame(frame);
+      stopLerp();
     };
   }, [rootRef, scrollRef, sheetRef]);
 

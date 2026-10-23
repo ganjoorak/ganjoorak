@@ -32,7 +32,7 @@ import SharePoemDialog from "@/components/SharePoemDialog";
 import MobileAudioControl from "@/components/MobileAudioControl";
 import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { usePullToNext } from "@/hooks/usePullToNext";
-import { consumeWheelGesture, trackWheelGesture } from "@/utils/wheelGesture";
+import { consumeWheelGesture, MOUSE_NOTCHES_TO_NAVIGATE, trackWheelGesture } from "@/utils/wheelGesture";
 import PullNextSheet from "@/components/PullNextSheet";
 import { useSettings } from "@/context/SettingsContext";
 import { useUpdateNotification } from "@/hooks/useUpdateNotification";
@@ -394,6 +394,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       return reachedAt > 0 && Date.now() - reachedAt >= BOUNDARY_READ_DELAY_MS;
     };
 
+    let upNotches = 0;
+    let upNotchGestureId = -1;
     const wheelHandler = (event: WheelEvent) => {
       const gesture = trackWheelGesture(event, poemTextRef.current);
       if (isShareOpen) {
@@ -414,9 +416,18 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         !isFirst &&
         gesture.startedAtTop &&
         !gesture.consumed &&
-        canLeaveBoundary(reachedTopAtRef.current) &&
-        canNavigate()
+        canLeaveBoundary(reachedTopAtRef.current)
       ) {
+        // A mouse needs a few deliberate notches up at the top; one notch is just "scroll up".
+        if (gesture.mouse) {
+          if (upNotchGestureId !== gesture.id) {
+            upNotchGestureId = gesture.id;
+            upNotches = 0;
+          }
+          upNotches += 1;
+          if (upNotches < MOUSE_NOTCHES_TO_NAVIGATE) return;
+        }
+        if (!canNavigate()) return;
         consumeWheelGesture(gesture.id);
         handlePrevious();
       }

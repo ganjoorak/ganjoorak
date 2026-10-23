@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { FaLock, FaLockOpen } from "react-icons/fa";
 import PoemViewer from "@/components/PoemViewer";
 import type { Poem } from "@/types/poem";
-import { consumeWheelGesture, trackWheelGesture } from "@/utils/wheelGesture";
+import { consumeWheelGesture, MOUSE_NOTCHES_TO_NAVIGATE, trackWheelGesture } from "@/utils/wheelGesture";
 
 const ZEN_STORAGE_KEY = "ganjoorak:zen-scroll-lock";
 const STRONG_SWIPE_PX = 72;
@@ -269,7 +269,8 @@ export default function PoemFeedPager({
         upwardGestureId = gesture.id;
         upwardTotal = 0;
       }
-      upwardTotal += -deltaY;
+      // A mouse notch is ~100px, so one notch alone would pass the touchpad threshold: count notches instead.
+      upwardTotal += gesture.mouse ? WHEEL_THRESHOLD_PX / MOUSE_NOTCHES_TO_NAVIGATE + 0.01 : -deltaY;
       // Keep PoemViewer's own boundary handler out of this gesture.
       event.stopPropagation();
       event.stopImmediatePropagation();

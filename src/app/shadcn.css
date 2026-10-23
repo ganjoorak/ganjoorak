@@ -115,6 +115,22 @@ html[data-theme="paper"] { --radius: 0.625rem; }
     box-shadow: 0 12px 32px -10px rgb(0 0 0 / 0.28), 0 2px 8px rgb(0 0 0 / 0.08);
   }
   html:root body .audio-player .audio-controls { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  /* The base bar is min(28rem, 38vw) wide, wider than its 26rem column at >=1180px, so it ran over both gaps. Fill the column instead. */
+  html:root body .audio-player .audio-progress { width: 100%; min-width: 0; max-width: none; justify-self: stretch; }
+  /* Time label: same visual inset from the pill's end as the first icon has from the start (0.75rem + 0.875rem). */
+  html:root body .audio-player .audio-time {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    align-self: stretch;
+    min-width: 0;
+    padding-inline: 0.125rem 0.875rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
 }
 @media (min-width: 1024px) {
   /* Poet pages with the sidebar open: center in the remaining area. */
