@@ -1,59 +1,41 @@
 "use client";
 
-import React, { forwardRef, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import type { Poem } from "@/types/poem";
+import React, { forwardRef } from "react";
 
 interface PullNextSheetProps {
-  nextPoem?: Poem | null;
   isPreparing?: boolean;
+  /** The live view's .poem-content / .poem-text classes, so the sheet lays out exactly like the poem it becomes. */
+  contentClassName: string;
+  textClassName: string;
+  /** The next poem's body, rendered by PoemViewer with the same markup as the live poem (no entrance animations). */
+  children?: React.ReactNode;
 }
 
-const PEEK_LINES = 8;
-
-/** The next poem's title and first lines; usePullToNext slides it up from below the viewport. */
+/**
+ * The next poem, laid out exactly like the live view, waiting just below the viewport inside the viewer
+ * (under the floating controls). usePullToNext slides it up; when it reaches the top it is pixel-identical
+ * to the poem that lands, so swapping to the real view is invisible.
+ */
 const PullNextSheet = forwardRef<HTMLDivElement, PullNextSheetProps>(function PullNextSheet(
-  { nextPoem, isPreparing = false },
+  { isPreparing = false, contentClassName, textClassName, children },
   ref,
 ) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-
-  const lines = nextPoem
-    ? nextPoem.plainText.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, PEEK_LINES)
-    : [];
-  const subtitle = nextPoem
-    ? (nextPoem.fullTitle || "").split(" » ").filter((part) => part.trim()).slice(0, -1).join("، ") ||
-      nextPoem.poetNickname ||
-      nextPoem.poet
-    : "";
-
-  return createPortal(
+  return (
     <>
       <div className="gk-pull-scrim" aria-hidden="true" />
-      <div ref={ref} className="gk-pull-sheet" aria-hidden="true" dir="rtl">
-        <div className="gk-pull-handle" />
-        <div className="gk-pull-label">
-          <span className="gk-pull-label-idle">شعر بعدی</span>
-          <span className="gk-pull-label-armed">رها کنید</span>
+      <div ref={ref} className="gk-pull-sheet" aria-hidden="true" inert>
+        {/* Only a grab handle: the poem's own header sits right below it, exactly where it will land. */}
+        <div className="gk-pull-grip">
+          <div className="gk-pull-handle" />
+          {!children && isPreparing && <div className="gk-pull-label">در حال آماده‌سازی…</div>}
         </div>
-        {nextPoem ? (
-          <>
-            <h2 className="gk-pull-title">{nextPoem.title}</h2>
-            {subtitle && <div className="gk-pull-subtitle">{subtitle}</div>}
-            <div className="gk-pull-lines">
-              {lines.map((line, index) => (
-                <p key={index} className="gk-pull-line">{line}</p>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="gk-pull-subtitle">{isPreparing ? "در حال آماده‌سازی…" : ""}</div>
-        )}
+        <div className={contentClassName}>
+          <div className="poem-navigation-frame">
+            <div className={textClassName}>{children}</div>
+          </div>
+        </div>
       </div>
-    </>,
-    document.body,
+    </>
   );
 });
 

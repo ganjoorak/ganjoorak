@@ -344,73 +344,67 @@ html:root body .poem-viewer .verse-line.prose-paragraph::after { content: none; 
   }
 }
 
-/* Pull-to-next: the next poem sheet waits just below the viewport; usePullToNext moves it with transforms. */
+/* Pull-to-next: the next poem, laid out exactly like the live view, waits just below the viewport inside the
+   viewer (under the floating controls); usePullToNext moves it with transforms and sets --gk-pull-p (0..1). */
 .gk-pull-sheet {
-  position: fixed;
+  --gk-pull-p: 0;
+  position: absolute;
   left: 0;
   right: 0;
   top: 100%;
-  height: 100dvh;
-  z-index: 1150;
+  height: 100%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   pointer-events: none;
   visibility: hidden;
   transform: translate3d(0, 0, 0);
   will-change: transform;
+  contain: layout paint;
   background: rgb(var(--background));
-  color: rgb(var(--foreground));
-  border-radius: 1.5rem 1.5rem 0 0;
-  box-shadow: 0 -18px 48px rgb(0 0 0 / 0.16);
-  padding: 0.6rem calc(0.75rem + env(safe-area-inset-right)) 0 calc(0.75rem + env(safe-area-inset-left));
-  text-align: center;
-  font-family: var(--app-font, "Vazirmatn"), sans-serif;
+  /* The rounded top and shadow only exist while it is a sheet; both are gone when it covers the screen. */
+  border-radius: calc(1.5rem * (1 - var(--gk-pull-p))) calc(1.5rem * (1 - var(--gk-pull-p))) 0 0;
+  box-shadow: 0 -18px 48px rgb(0 0 0 / calc(0.16 * (1 - var(--gk-pull-p))));
 }
 .gk-pull-sheet[data-state="pulling"] { visibility: visible; }
+.gk-pull-grip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  padding-top: 0.4rem;
+  text-align: center;
+  color: rgb(var(--foreground));
+  font-family: var(--app-font, "Vazirmatn"), sans-serif;
+  opacity: clamp(0, calc(1 - var(--gk-pull-p) * 2.2), 1);
+  transition: opacity var(--gk-pull-t, 0s);
+}
 .gk-pull-handle {
   width: 2.5rem;
   height: 0.3rem;
-  margin: 0 auto 0.75rem;
+  margin: 0 auto;
   border-radius: 999px;
   background: rgb(var(--foreground) / 0.18);
+  transition: background-color 0.15s ease, width 0.15s ease;
 }
-.gk-pull-label { font-size: 0.75rem; opacity: 0.6; margin-bottom: 0.9rem; transition: opacity 0.15s ease; }
-.gk-pull-label-armed { display: none; }
-.gk-pull-sheet[data-armed] .gk-pull-label { opacity: 0.9; }
-.gk-pull-sheet[data-armed] .gk-pull-label-idle { display: none; }
-.gk-pull-sheet[data-armed] .gk-pull-label-armed { display: inline; }
-.gk-pull-title { margin: 0 0 0.35rem; font-size: 1.5rem; font-weight: 800; line-height: 1.4; }
-.gk-pull-subtitle { font-size: 0.85rem; opacity: 0.62; margin-bottom: 1.4rem; }
-.gk-pull-lines {
-  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
-  mask-image: linear-gradient(to bottom, #000 70%, transparent);
-}
-.gk-pull-line {
-  margin: 0;
-  font-size: calc(var(--poem-verse-font-size, 1.5rem) * 0.9333);
-  line-height: 1.34;
-  padding: 0.25rem 0;
-}
-.gk-pull-line:nth-child(2n) { margin-bottom: 0.9rem; }
-@media (max-width: 389px) {
-  .gk-pull-line { font-size: calc(var(--poem-verse-font-size, 1.5rem) * 0.9333 * 0.92); }
-}
+.gk-pull-sheet[data-armed] .gk-pull-handle { width: 3.25rem; background: rgb(var(--foreground) / 0.42); }
+.gk-pull-label { margin-top: 1.5rem; font-size: 0.8rem; opacity: 0.6; }
 .gk-pull-scrim {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 1149;
+  z-index: 4;
   pointer-events: none;
   background: rgb(0 0 0);
   opacity: 0;
 }
-/* While the next poem is being pulled in, the overlay controls step aside. */
-html.gk-pulling-next .action-buttons,
-html.gk-pulling-next .menu-button,
-html.gk-pulling-next .global-search-button,
-html.gk-pulling-next .poem-feed-lock-button,
-html.gk-pulling-next .mobile-audio-control {
+/* While the next poem is being pulled in, the feed's "next poem" pill steps aside (the sheet is the preview). */
+html.gk-pulling-next .poem-feed-next-preview {
   opacity: 0 !important;
   pointer-events: none !important;
-  transition: opacity 0.15s ease !important;
 }
 
 /* App feel on phones: no grey tap flashes, no page bounce or pull-to-refresh, no text-selection callouts on controls. */

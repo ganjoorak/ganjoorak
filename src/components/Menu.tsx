@@ -44,6 +44,8 @@ interface MenuProps {
   onOpenSettings: () => void;
   onOpenFeed?: () => void;
   onOpenFeedLabel?: string;
+  /** Opens the interests picker in place (home feed); otherwise the item links to /?interests=1. */
+  onOpenInterests?: () => void;
   onOpenSearch?: () => void;
   isZenLocked?: boolean;
   onToggleZenLock?: () => void;
@@ -113,6 +115,7 @@ const Menu: React.FC<MenuProps> = ({
   onOpenSettings,
   onOpenFeed,
   onOpenFeedLabel = "شاعران صفحه اصلی",
+  onOpenInterests,
   isZenLocked = false,
   onToggleZenLock,
   poemActions,
@@ -174,6 +177,25 @@ const Menu: React.FC<MenuProps> = ({
       });
     }
 
+    if (onOpenInterests) {
+      items.push({
+        kind: "button",
+        icon: <FaSlidersH />,
+        label: "علاقه‌مندی‌ها",
+        onClick: () => {
+          onOpenInterests();
+          onClose();
+        },
+      });
+    } else {
+      items.push({
+        kind: "link",
+        href: "/?interests=1",
+        icon: <FaSlidersH />,
+        label: "علاقه‌مندی‌ها",
+      });
+    }
+
     if (onToggleZenLock) {
       items.push({
         kind: "button",
@@ -191,6 +213,7 @@ const Menu: React.FC<MenuProps> = ({
     onClose,
     onOpenFeed,
     onOpenFeedLabel,
+    onOpenInterests,
     onToggleZenLock,
     onUpdatesViewed,
   ]);

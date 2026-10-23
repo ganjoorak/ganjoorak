@@ -853,16 +853,16 @@ export default function Home() {
         setCurrentPoemIndex((prevIndex) => Math.max(prevIndex - 1, 0));
     }, []);
 
-    const interestRail = (
+    // Interests are edited from the menu (علاقه‌مندی‌ها); the rail only shows when there are chips to toggle.
+    const interestRail = settings.interestKeys.length > 0 ? (
         <InterestChipsRail
             selectedKeys={settings.interestKeys}
             activeKeys={settings.activeInterestKeys}
             onToggle={handleToggleInterest}
             onClear={clearActiveInterests}
-            onOpenPicker={() => setIsInterestDialogOpen(true)}
             isLoading={loading}
         />
-    );
+    ) : null;
 
     const interestDialog = isInterestDialogOpen ? (
         <InterestPickerDialog
@@ -917,6 +917,7 @@ export default function Home() {
                     onNext={handleNext}
                     onPrevious={handlePrevious}
                     onOpenFeed={() => setIsFeedDialogOpen(true)}
+                    onOpenInterests={() => setIsInterestDialogOpen(true)}
                     titleEyebrow={interestRail}
                 />
             )}

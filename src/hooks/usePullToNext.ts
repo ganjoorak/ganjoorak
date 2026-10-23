@@ -10,8 +10,16 @@ const COMMIT_RATIO = 0.33;
 const FLICK_RATIO = 0.16;
 const FLICK_SPEED = 0.55;
 const WHEEL_IDLE_MS = 220;
-const COMMIT_MS = 280;
+/** Commit glide when the release has no usable speed; faster releases finish sooner (see commitDuration). */
+const COMMIT_MS = 250;
+const COMMIT_MIN_MS = 150;
+const COMMIT_MAX_MS = 320;
+/** Ease-out whose initial slope (0.61 / 0.22) is used to match the release speed. */
+const COMMIT_EASE = "cubic-bezier(0.22, 0.61, 0.36, 1)";
+const COMMIT_EASE_SLOPE = 0.61 / 0.22;
 const SPRING_MS = 320;
+/** Frames to wait for the landed poem to render before giving up and removing the sheet anyway. */
+const LAND_MAX_FRAMES = 90;
 const NAVIGATION_TIMEOUT_MS = 6000;
 const PULLING_CLASS = "gk-pulling-next";
 
@@ -26,18 +34,31 @@ interface Options {
   /** Whether the next poem is known. Without it the sheet can still be pulled, but always springs back. */
   hasNext: boolean;
   onCommit: () => void;
-  /** Changes when the next poem has arrived; the sheet then fades away. */
+  /**
+   * Changes when the next poem has arrived. Once the scroll container carries `data-poem-id` equal to it (the
+   * landed poem is rendered under the sheet), the sheet is removed instantly: it was an exact copy.
+   */
   resetKey: unknown;
 }
 
 const isTrulyAtBottom = (el: HTMLElement) =>
   el.scrollHeight - el.scrollTop - el.clientHeight <= WHEEL_GESTURE_EDGE_PX;
 
-/** Rubber band: follows the finger almost 1:1 at first, then gets heavier. */
+/** Light rubber band: 1:1 with the finger for most of the screen, slightly heavier only near the top. */
 const resist = (distance: number, viewport: number) => {
-  const limit = viewport * 0.92;
-  return limit * (1 - 1 / (distance / limit * 1.15 + 1));
+  const knee = viewport * 0.6;
+  if (distance <= knee) return distance;
+  return Math.min(viewport, knee + (distance - knee) * 0.55);
 };
+
+/** Glide time so the sheet leaves the finger at the speed it was moving (px/ms), then eases out. */
+const commitDuration = (remaining: number, speed: number) => {
+  if (!(speed > 0.05)) return COMMIT_MS;
+  return Math.round(Math.max(COMMIT_MIN_MS, Math.min(COMMIT_MAX_MS, (COMMIT_EASE_SLOPE * remaining) / speed)));
+};
+
+const transitionFor = (timing: string | null) =>
+  timing ? `transform ${timing}, border-radius ${timing}, box-shadow ${timing}` : "none";
 
 /**
  * Pull-to-next: at the bottom of a poem, dragging further up (touch) or wheeling further down slides the
@@ -54,27 +75,42 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
   enabledRef.current = enabled;
   onCommitRef.current = onCommit;
 
-  // The next poem arrived (or the viewer changed): fade the covering sheet away and reset.
+  // The next poem arrived: as soon as it is rendered under the sheet, drop the sheet in one frame. No fade:
+  // the sheet is pixel-identical to the landed poem, so removing it is invisible.
   useEffect(() => {
     const sheet = sheetRef.current;
     if (!committingRef.current || !sheet) return;
-    committingRef.current = false;
     if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    sheet.style.transition = reduced ? "none" : "opacity 200ms ease";
-    sheet.style.opacity = "0";
-    timeoutRef.current = window.setTimeout(() => {
+    timeoutRef.current = null;
+    let frames = 0;
+    let raf = 0;
+    const finish = () => {
+      committingRef.current = false;
       sheet.style.transition = "none";
       sheet.style.transform = "translate3d(0, 0, 0)";
-      sheet.style.opacity = "";
+      sheet.style.setProperty("--gk-pull-p", "0");
       sheet.removeAttribute("data-state");
       sheet.removeAttribute("data-armed");
       const scrim = sheet.previousElementSibling as HTMLElement | null;
-      if (scrim) scrim.style.opacity = "0";
+      if (scrim) {
+        scrim.style.transition = "none";
+        scrim.style.opacity = "0";
+      }
       document.documentElement.classList.remove(PULLING_CLASS);
-      timeoutRef.current = null;
-    }, reduced ? 0 : 220);
-  }, [resetKey, sheetRef]);
+    };
+    const waitForLanding = () => {
+      frames += 1;
+      const landed = scrollRef.current?.dataset.poemId === String(resetKey);
+      if (landed || frames >= LAND_MAX_FRAMES) {
+        // One more frame so the landed poem has been painted underneath before the cover goes.
+        raf = requestAnimationFrame(finish);
+        return;
+      }
+      raf = requestAnimationFrame(waitForLanding);
+    };
+    raf = requestAnimationFrame(waitForLanding);
+    return () => cancelAnimationFrame(raf);
+  }, [resetKey, scrollRef, sheetRef]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -85,28 +121,32 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
 
     // Writes are batched to one per frame and touch only the sheet, the scrim and (on start/end) one class.
     let frame = 0;
-    let pending: { px: number; transition: string } | null = null;
+    let pending: { px: number; timing: string | null } | null = null;
+    let currentPx = 0;
     const flush = () => {
       frame = 0;
       const sheet = sheetRef.current;
       const next = pending;
       pending = null;
       if (!sheet || !next) return;
-      const { px, transition } = next;
+      const { px, timing } = next;
       const progress = Math.max(0, Math.min(1, px / viewport()));
-      sheet.style.transition = transition;
+      sheet.style.transition = transitionFor(timing);
+      sheet.style.setProperty("--gk-pull-t", timing ?? "0s");
+      sheet.style.setProperty("--gk-pull-p", progress.toFixed(4));
       sheet.style.transform = `translate3d(0, ${-px}px, 0)`;
       const state = px > 0 ? "pulling" : "";
       if ((sheet.dataset.state || "") !== state) sheet.dataset.state = state;
       const scrim = sheet.previousElementSibling as HTMLElement | null;
       if (scrim) {
-        scrim.style.transition = transition.replace("transform", "opacity");
+        scrim.style.transition = timing ? `opacity ${timing}` : "none";
         scrim.style.opacity = (progress * 0.45).toFixed(3);
       }
       if (html.classList.contains(PULLING_CLASS) !== px > 0) html.classList.toggle(PULLING_CLASS, px > 0);
     };
-    const setPull = (px: number, transition: string, immediate = false) => {
-      pending = { px, transition };
+    const setPull = (px: number, timing: string | null, immediate = false) => {
+      currentPx = px;
+      pending = { px, timing };
       if (immediate) {
         if (frame) cancelAnimationFrame(frame);
         flush();
@@ -125,13 +165,14 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       setArmed(false);
       if (!sheet) return;
       if (reducedMotion()) {
-        setPull(0, "none", true);
+        setPull(0, null, true);
         return;
       }
-      setPull(0, `transform ${SPRING_MS}ms cubic-bezier(0.2, 0.9, 0.3, 1.15)`, true);
+      setPull(0, `${SPRING_MS}ms cubic-bezier(0.2, 0.9, 0.3, 1.15)`, true);
     };
 
-    const commit = () => {
+    /** Glide from wherever the sheet is to the top, continuing at the release speed (px/ms), then navigate. */
+    const commit = (speed = 0) => {
       if (committingRef.current) return;
       if (!hasNextRef.current) {
         // The next poem is not loaded yet: never navigate somewhere the sheet did not show.
@@ -140,8 +181,8 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       }
       committingRef.current = true;
       const vh = viewport();
-      const duration = reducedMotion() ? 0 : COMMIT_MS;
-      setPull(vh, duration ? `transform ${duration}ms cubic-bezier(0.2, 0.8, 0.2, 1)` : "none", true);
+      const duration = reducedMotion() ? 0 : commitDuration(Math.max(0, vh - currentPx), speed);
+      setPull(vh, duration ? `${duration}ms ${COMMIT_EASE}` : null, true);
       if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
       timeoutRef.current = window.setTimeout(() => {
         onCommitRef.current();
@@ -206,7 +247,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
           pulling = false;
           distance = 0;
           setArmed(false);
-          setPull(0, "none");
+          setPull(0, null);
         }
         // The finger scrolled the poem back up: this touch is a normal scroll now.
         if (!isTrulyAtBottom(el)) baseY = null;
@@ -216,7 +257,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       pulling = true;
       distance = d;
       setArmed(d >= viewport() * COMMIT_RATIO);
-      setPull(resist(d, viewport()), "none");
+      setPull(resist(d, viewport()), null);
     };
 
     const onTouchEnd = () => {
@@ -233,29 +274,46 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
         if (dt > 0) speed = (first.y - last.y) / dt;
       }
       if (distance >= vh * COMMIT_RATIO || (distance >= vh * FLICK_RATIO && speed >= FLICK_SPEED)) {
-        commit();
+        commit(Math.max(0, speed));
       } else {
         springBack();
       }
     };
 
     // ---- wheel / touchpad ----
-    // Passive listener: normal scrolling stays fully native. A pull only starts on a *fresh* wheel gesture
+    // Normal scrolling stays fully native (preventDefault only swallows a navigated gesture's tail). A pull only starts on a *fresh* wheel gesture
     // that began with the poem already at its very bottom; the inertia tail of the scroll that reached the
     // bottom, and the tail after a commit, are ignored (see wheelGesture.ts).
     let wheelTotal = 0;
     let wheelTimer: number | null = null;
+    let wheelSamples: Array<{ total: number; t: number }> = [];
+    const wheelSpeed = () => {
+      if (wheelSamples.length < 2) return 0;
+      const first = wheelSamples[0];
+      const last = wheelSamples[wheelSamples.length - 1];
+      const dt = last.t - first.t;
+      return dt > 0 ? (last.total - first.total) / dt : 0;
+    };
 
     const onWheel = (event: WheelEvent) => {
       const el = scrollRef.current;
       const gesture = trackWheelGesture(event, el);
+      // The inertia tail of a gesture that already navigated must not scroll the poem that just landed:
+      // that drift read as "the page comes up again". A new gesture (after a short pause) scrolls normally.
+      if (gesture.consumed) {
+        if (event.cancelable) event.preventDefault();
+        return;
+      }
       if (!enabledRef.current || committingRef.current || !el) return;
       if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
       const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaMode === 2 ? event.deltaY * viewport() : event.deltaY;
       if (wheelTotal <= 0) {
         if (delta <= 0 || gesture.consumed || !gesture.startedAtBottom || !isTrulyAtBottom(el)) return;
       }
+      if (wheelTotal <= 0) wheelSamples = [];
       wheelTotal = Math.max(0, wheelTotal + delta);
+      wheelSamples.push({ total: wheelTotal, t: event.timeStamp });
+      if (wheelSamples.length > 6) wheelSamples.shift();
       const vh = viewport();
       if (wheelTotal >= vh * COMMIT_RATIO && hasNextRef.current) {
         wheelTotal = 0;
@@ -263,10 +321,10 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
         wheelTimer = null;
         consumeWheelGesture(gesture.id);
         setArmed(true);
-        commit();
+        commit(Math.max(0, wheelSpeed()));
         return;
       }
-      setPull(resist(wheelTotal, vh), "none");
+      setPull(resist(wheelTotal, vh), null);
       if (wheelTimer !== null) window.clearTimeout(wheelTimer);
       wheelTimer = window.setTimeout(() => {
         wheelTimer = null;
@@ -279,7 +337,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
     root.addEventListener("touchmove", onTouchMove, { passive: false });
     root.addEventListener("touchend", onTouchEnd, { passive: true });
     root.addEventListener("touchcancel", onTouchEnd, { passive: true });
-    root.addEventListener("wheel", onWheel, { passive: true });
+    root.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       root.removeEventListener("touchstart", onTouchStart);
       root.removeEventListener("touchmove", onTouchMove);

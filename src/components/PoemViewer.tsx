@@ -57,6 +57,7 @@ interface PoemViewerProps {
   onTogglePoetInfo?: () => void;
   onOpenFeed?: () => void;
   onOpenFeedLabel?: string;
+  onOpenInterests?: () => void;
   /** Small chip rendered in-flow above the poem title (e.g. the daily-poem link). */
   titleEyebrow?: React.ReactNode;
   /** Feed "stay on this poem" lock; surfaced in the mobile menu. */
@@ -125,6 +126,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   onTogglePoetInfo,
   onOpenFeed,
   onOpenFeedLabel,
+  onOpenInterests,
   titleEyebrow,
   isZenLocked,
   onToggleZenLock,
@@ -145,6 +147,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [navigationDirection, setNavigationDirection] = useState(0);
+  // Set when a pull-to-next commits: the poem with this id (or "*" for an unknown target) lands without any
+  // entrance/exit animation, because the pull sheet already shows it exactly where it will be.
+  const [instantArrivalFor, setInstantArrivalFor] = useState<string | null>(null);
   const [verseSync, setVerseSync] = useState<VerseSync[]>([]);
   const [currentHighlightedVerse, setCurrentHighlightedVerse] =
     useState<number>(-1);
@@ -167,11 +172,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   const showTitleBreadcrumbs = poemViewerVisibility.titleBreadcrumbs;
   const { hasNewUpdates, markAsRead } = useUpdateNotification();
   const { isFavorite, toggleFavorite } = usePoemLibrary(poem);
-  const fullTitleParts = poem.fullTitle
-    ? poem.fullTitle.split(" » ").filter((part) => part.trim())
-    : [];
-  const fullTitleIntermediateParts =
-    fullTitleParts.length > 2 ? fullTitleParts.slice(1, -1) : [];
   const currentRecitation = poem.recitations?.[currentRecitationIndex];
   const currentAudioSrc =
     currentRecitation?.mp3Url ||
@@ -315,6 +315,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   // Wrapper to handle next action with loading indicator
   const handleNext = useCallback((target?: Poem) => {
     setNavigationDirection(1);
+    setInstantArrivalFor(null);
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -329,6 +330,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
   const handlePrevious = useCallback(() => {
     setNavigationDirection(-1);
+    setInstantArrivalFor(null);
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -339,10 +341,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     onPrevious();
   }, [isPlaying, onPrevious]);
 
-  const nonEmptyLines = poem.plainText.split("\n").filter((line) => line.trim());
-  const proseSegments = isModern
-    ? null
-    : buildPoemSegments(nonEmptyLines, poem.lineKinds);
 
   const chunk = (arr: string[], size: number) => {
     return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
@@ -823,6 +821,19 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     const timer = window.setTimeout(() => setCommittedPeek(null), committedPeek.id === poem.id ? 400 : 7000);
     return () => window.clearTimeout(timer);
   }, [committedPeek, poem.id]);
+  const isInstantArrival =
+    instantArrivalFor !== null &&
+    (instantArrivalFor === "*" || instantArrivalFor === String(poem.id));
+  useEffect(() => {
+    if (instantArrivalFor === null) return;
+    // Once landed (or if the navigation never happened), later navigations animate normally again.
+    const timer = window.setTimeout(
+      () => setInstantArrivalFor(null),
+      isInstantArrival && instantArrivalFor !== "*" ? 400 : 7000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [instantArrivalFor, isInstantArrival]);
+  const sheetPoem = committedPeek ?? nextPoemPeek ?? null;
   usePullToNext({
     scrollRef: poemTextRef,
     rootRef: containerRef,
@@ -834,6 +845,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     onCommit: () => {
       if (nextPoemPeek) setCommittedPeek(nextPoemPeek);
       handleNext(nextPoemPeek ?? undefined);
+      // After handleNext (which clears it): batched with the navigation, so the landing render already sees it.
+      setInstantArrivalFor(nextPoemPeek ? String(nextPoemPeek.id) : "*");
     },
     resetKey: poem.id,
   });
@@ -987,6 +1000,200 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     poemViewerVisibility.navigationControls &&
     (canNavigatePrevious || canNavigateNext);
   const poetPageHref = `/${poem.poetSlug}`;
+  const navigationFrameVariants = {
+    enter: {
+      opacity: 0,
+      y: navigationDirection >= 0 ? 28 : -28,
+      filter: "blur(3px)",
+    },
+    center: {
+      opacity: 1,
+      y: 0,
+      filter: "blur(0px)",
+      transition: { duration: 0.26, ease: [0.22, 1, 0.36, 1] as const },
+    },
+    exit: (instant: boolean) =>
+      instant
+        ? { opacity: 1, transition: { duration: 0 } }
+        : {
+            opacity: 0,
+            y: navigationDirection >= 0 ? -18 : 18,
+            filter: "blur(2px)",
+            transition: { duration: 0.26, ease: [0.22, 1, 0.36, 1] as const },
+          },
+  };
+
+  /**
+   * Title + verses of a poem. Shared by the live view and the pull-to-next sheet so the sheet is pixel-for-pixel
+   * the poem that will land. `animate: false` renders the final state directly (no entrance animations);
+   * `peek` drops live-only state such as audio highlighting.
+   */
+  const renderPoemBody = (
+    target: Poem,
+    { animate, peek = false }: { animate: boolean; peek?: boolean },
+  ) => {
+    const targetIsModern =
+      target.id === poem.id || target.source === poem.source
+        ? isModern
+        : target.source !== "ganjoor";
+    const titleParts = target.fullTitle
+      ? target.fullTitle.split(" » ").filter((part) => part.trim())
+      : [];
+    const intermediateParts =
+      titleParts.length > 2 ? titleParts.slice(1, -1) : [];
+    const allLines = target.plainText.split("\n");
+    const filledLines = allLines.filter((line) => line.trim());
+    const segments = targetIsModern
+      ? null
+      : buildPoemSegments(filledLines, target.lineKinds);
+    const verseClass = (index: number) =>
+      peek
+        ? `verse-line${settings.showLineNumbers && targetIsModern ? " verse-line-numbered" : ""}`
+        : getVerseClass(index);
+    const from = <T,>(value: T): T | false => (animate ? value : false);
+
+    return (
+      <>
+        {/* Title scrolls with the poem: visible only at the very top. */}
+        {showTitleSection && (
+          <motion.div className="title-section">
+            {hasTitleEyebrow && (
+              <motion.div
+                className="poem-eyebrow"
+                initial={from({ opacity: 0, y: -8 })}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {titleEyebrow}
+              </motion.div>
+            )}
+            <motion.h2
+              className="poem-title"
+              initial={from({ opacity: 0, y: -20 })}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              style={{
+                fontSize:
+                  "clamp(1.45rem, var(--poem-title-font-size, 2.25rem), 3.1rem)",
+                lineHeight: 1.18,
+                maxWidth: "100%",
+                marginInline: "auto",
+              }}
+            >
+              {target.title}
+            </motion.h2>
+            {!isPoetPage && (
+              <motion.div
+                className="poet-line"
+                initial={from({ opacity: 0, y: -10 })}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                style={{
+                  fontSize: "clamp(0.85rem, 2.4vw, 1rem)",
+                  lineHeight: 1.45,
+                  maxWidth: "100%",
+                }}
+              >
+                <span className="poet-name">
+                  {target.poet}
+                  {showTitleBreadcrumbs && intermediateParts.length > 0 && (
+                    <span>{"، " + intermediateParts.join("، ")}</span>
+                  )}
+                </span>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+        {targetIsModern ? (
+          <motion.div
+            className="modern-poem"
+            initial={from({ opacity: 0, y: 20 })}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            {allLines.map((line, index) => (
+              <div key={index} className={verseClass(index)}>
+                {settings.showLineNumbers && (
+                  <span className="verse-number">{index + 1}</span>
+                )}
+                <span className="verse-text">{line}</span>
+              </div>
+            ))}
+          </motion.div>
+        ) : segments ? (
+          segments.map((segment, segmentIndex) =>
+            segment.type === "prose" ? (
+              <motion.div
+                key={`p-${segment.index}`}
+                className="prose-block"
+                initial={from({ opacity: 0, y: 20 })}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.3,
+                  delay: Math.min(segmentIndex, 6) * 0.1,
+                }}
+              >
+                <p className={`${verseClass(segment.index)} prose-paragraph`}>
+                  <span className="verse-text">{segment.line}</span>
+                </p>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={`v-${segment.lines[0].index}`}
+                className={`verse-pair ${
+                  settings.showLineNumbers ? "verse-pair-numbered" : ""
+                }`}
+                data-couplet-number={
+                  settings.showLineNumbers
+                    ? formatPersianNumber(segment.pairIndex + 1)
+                    : undefined
+                }
+                initial={from({ opacity: 0, y: 20 })}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.3,
+                  delay: Math.min(segmentIndex, 6) * 0.1,
+                }}
+              >
+                {segment.lines.map(({ line, index }) => (
+                  <div key={index} className={verseClass(index)}>
+                    <span className="verse-text">{line}</span>
+                  </div>
+                ))}
+              </motion.div>
+            ),
+          )
+        ) : (
+          chunk(filledLines, 2).map((pair, index) => (
+            <motion.div
+              key={index}
+              className={`verse-pair ${
+                settings.showLineNumbers ? "verse-pair-numbered" : ""
+              }`}
+              data-couplet-number={
+                settings.showLineNumbers
+                  ? formatPersianNumber(index + 1)
+                  : undefined
+              }
+              initial={from({ opacity: 0, y: 20 })}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+            >
+              {pair.map((line, lineIndex) => (
+                <div
+                  key={lineIndex}
+                  className={verseClass(index * 2 + lineIndex)}
+                >
+                  <span className="verse-text">{line}</span>
+                </div>
+              ))}
+            </motion.div>
+          ))
+        )}
+      </>
+    );
+  };
+
   if (!poem) return null;
 
   return (
@@ -1014,6 +1221,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         onUpdatesViewed={markAsRead}
         onOpenFeed={onOpenFeed}
         onOpenFeedLabel={onOpenFeedLabel}
+        onOpenInterests={onOpenInterests}
         onOpenSettings={() => {
           setIsSettingsOpen(true);
           setIsMenuOpen(false);
@@ -1213,173 +1421,25 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
       {/* Poem content */}
       <div className={poemContentClassName}>
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait" initial={false} custom={isInstantArrival}>
           <motion.div
             key={poem.id}
             className="poem-navigation-frame"
-            initial={{
-              opacity: 0,
-              y: navigationDirection >= 0 ? 28 : -28,
-              filter: "blur(3px)",
-            }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{
-              opacity: 0,
-              y: navigationDirection >= 0 ? -18 : 18,
-              filter: "blur(2px)",
-            }}
-            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+            custom={isInstantArrival}
+            variants={navigationFrameVariants}
+            // A poem that arrives through the pull sheet is already on screen (the sheet was its exact copy):
+            // no entrance, no exit, no fade, so the swap is invisible.
+            initial={isInstantArrival ? false : "enter"}
+            animate="center"
+            exit="exit"
           >
-            <div key={poem.id} className={poemTextClassName} ref={poemTextRef}>
-              {/* Title scrolls with the poem: visible only at the very top. */}
-              {showTitleSection && (
-                <motion.div className="title-section">
-                  {hasTitleEyebrow && (
-                    <motion.div
-                      className="poem-eyebrow"
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      {titleEyebrow}
-                    </motion.div>
-                  )}
-                  <motion.h2
-                    className="poem-title"
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    style={{
-                      fontSize:
-                        "clamp(1.45rem, var(--poem-title-font-size, 2.25rem), 3.1rem)",
-                      lineHeight: 1.18,
-                      maxWidth: "100%",
-                      marginInline: "auto",
-                    }}
-                  >
-                    {poem.title}
-                  </motion.h2>
-                  {!isPoetPage && (
-                    <motion.div
-                      className="poet-line"
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.1 }}
-                      style={{
-                        fontSize: "clamp(0.85rem, 2.4vw, 1rem)",
-                        lineHeight: 1.45,
-                        maxWidth: "100%",
-                      }}
-                    >
-                      <span className="poet-name">
-                        {poem.poet}
-                        {showTitleBreadcrumbs &&
-                          fullTitleIntermediateParts.length > 0 && (
-                            <span>
-                              {"، " + fullTitleIntermediateParts.join("، ")}
-                            </span>
-                          )}
-                      </span>
-                    </motion.div>
-                  )}
-                </motion.div>
-              )}
-              {isModern ? (
-                <motion.div
-                  className="modern-poem"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {poem.plainText.split("\n").map((line, index) => {
-                    return (
-                      <div key={index} className={getVerseClass(index)}>
-                        {settings.showLineNumbers && (
-                          <span className="verse-number">{index + 1}</span>
-                        )}
-                        <span className="verse-text">{line}</span>
-                      </div>
-                    );
-                  })}
-                </motion.div>
-              ) : proseSegments ? (
-                proseSegments.map((segment, segmentIndex) =>
-                  segment.type === "prose" ? (
-                    <motion.div
-                      key={`p-${segment.index}`}
-                      className="prose-block"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.3,
-                        delay: Math.min(segmentIndex, 6) * 0.1,
-                      }}
-                    >
-                      <p
-                        className={`${getVerseClass(segment.index)} prose-paragraph`}
-                      >
-                        <span className="verse-text">{segment.line}</span>
-                      </p>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key={`v-${segment.lines[0].index}`}
-                      className={`verse-pair ${
-                        settings.showLineNumbers ? "verse-pair-numbered" : ""
-                      }`}
-                      data-couplet-number={
-                        settings.showLineNumbers
-                          ? formatPersianNumber(segment.pairIndex + 1)
-                          : undefined
-                      }
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.3,
-                        delay: Math.min(segmentIndex, 6) * 0.1,
-                      }}
-                    >
-                      {segment.lines.map(({ line, index }) => (
-                        <div key={index} className={getVerseClass(index)}>
-                          <span className="verse-text">{line}</span>
-                        </div>
-                      ))}
-                    </motion.div>
-                  ),
-                )
-              ) : (
-                chunk(
-                  poem.plainText.split("\n").filter((line) => line.trim()),
-                  2,
-                ).map((pair, index) => (
-                  <motion.div
-                    key={index}
-                    className={`verse-pair ${
-                      settings.showLineNumbers ? "verse-pair-numbered" : ""
-                    }`}
-                    data-couplet-number={
-                      settings.showLineNumbers
-                        ? formatPersianNumber(index + 1)
-                        : undefined
-                    }
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                  >
-                    {pair.map((line, lineIndex) => {
-                      const globalLineIndex = index * 2 + lineIndex;
-                      return (
-                        <div
-                          key={lineIndex}
-                          className={getVerseClass(globalLineIndex)}
-                        >
-                          <span className="verse-text">{line}</span>
-                        </div>
-                      );
-                    })}
-                  </motion.div>
-                ))
-              )}
+            <div
+              key={poem.id}
+              className={poemTextClassName}
+              ref={poemTextRef}
+              data-poem-id={String(poem.id)}
+            >
+              {renderPoemBody(poem, { animate: !isInstantArrival })}
             </div>
           </motion.div>
         </AnimatePresence>
@@ -1463,7 +1523,14 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         </div>
       )}
       {(pullToNext ?? !isLast) && (
-        <PullNextSheet ref={pullSheetRef} nextPoem={committedPeek ?? nextPoemPeek} isPreparing={isPreparingNext} />
+        <PullNextSheet
+          ref={pullSheetRef}
+          isPreparing={isPreparingNext}
+          contentClassName={poemContentClassName}
+          textClassName={poemTextClassName.replace(" highlight-on", "")}
+        >
+          {sheetPoem ? renderPoemBody(sheetPoem, { animate: false, peek: true }) : null}
+        </PullNextSheet>
       )}
     </motion.div>
   );

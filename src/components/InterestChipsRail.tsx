@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { FaSlidersH } from "react-icons/fa";
 import { orderInterestsForRail, type PoemInterest } from "@/data/interests";
 
 interface InterestChipsRailProps {
@@ -9,7 +8,6 @@ interface InterestChipsRailProps {
   activeKeys: string[];
   onToggle: (key: string) => void;
   onClear: () => void;
-  onOpenPicker: () => void;
   isLoading?: boolean;
 }
 
@@ -18,7 +16,6 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
   activeKeys,
   onToggle,
   onClear,
-  onOpenPicker,
   isLoading = false,
 }) => {
   const interests = useMemo<PoemInterest[]>(
@@ -28,6 +25,8 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
   const activeKeySet = useMemo(() => new Set(activeKeys), [activeKeys]);
   const hasActive = activeKeySet.size > 0;
 
+  if (interests.length === 0) return null;
+
   return (
     <div
       className={`interest-rail${isLoading ? " is-loading" : ""}`}
@@ -35,16 +34,6 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
       aria-label="دسته‌بندی شعرها"
       dir="rtl"
     >
-      <button
-        type="button"
-        className="interest-rail-settings"
-        onClick={onOpenPicker}
-        aria-label="ویرایش علاقه‌مندی‌ها"
-        title="ویرایش علاقه‌مندی‌ها"
-      >
-        <FaSlidersH aria-hidden="true" />
-      </button>
-      {interests.length > 0 && (
       <div className="interest-rail-track">
         <button
           type="button"
@@ -69,7 +58,6 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
           );
         })}
       </div>
-      )}
     </div>
   );
 };

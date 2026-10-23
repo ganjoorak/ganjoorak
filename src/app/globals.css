@@ -1399,34 +1399,6 @@ body:has(.menu-drawer) .global-search-button {
     outline-offset: 2px;
 }
 
-.interest-rail-settings {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    width: 2rem;
-    height: 2rem;
-    border: 1px solid rgb(var(--foreground) / 0.14);
-    border-radius: 9999px;
-    background: rgb(var(--card) / 0.7);
-    color: rgb(var(--foreground) / 0.7);
-    cursor: pointer;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.interest-rail-settings:hover {
-    background: rgb(var(--foreground) / 0.1);
-    border-color: rgb(var(--foreground) / 0.26);
-    color: rgb(var(--foreground));
-}
-
-.interest-rail-settings svg {
-    width: 0.82rem;
-    height: 0.82rem;
-}
-
 .interest-picker-hint {
     margin: 0 0 1rem;
     color: rgb(var(--foreground) / 0.7);
@@ -1493,11 +1465,6 @@ body:has(.menu-drawer) .global-search-button {
         font-size: 0.78rem;
         min-height: 1.9rem;
         padding: 0.24rem 0.7rem;
-    }
-
-    .interest-rail-settings {
-        width: 1.9rem;
-        height: 1.9rem;
     }
 }
 

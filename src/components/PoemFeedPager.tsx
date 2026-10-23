@@ -34,6 +34,7 @@ interface PoemFeedPagerProps {
   onTogglePoetInfo?: () => void;
   onOpenFeed?: () => void;
   onOpenFeedLabel?: string;
+  onOpenInterests?: () => void;
   titleEyebrow?: ReactNode;
 }
 
@@ -69,6 +70,7 @@ export default function PoemFeedPager({
   onTogglePoetInfo,
   onOpenFeed,
   onOpenFeedLabel,
+  onOpenInterests,
   titleEyebrow,
 }: PoemFeedPagerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -83,6 +85,9 @@ export default function PoemFeedPager({
   const nextPreviewTimeoutRef = useRef<number | null>(null);
   const [isZenLocked, setIsZenLocked] = useState(false);
   const [contentTransition, setContentTransition] = useState<ContentTransition>(null);
+  // Set when the pull sheet commits: that poem is already on screen (the sheet is its exact copy), so it lands
+  // without the slide-in below.
+  const seamlessArrivalAtRef = useRef(0);
   const [isNextPreviewVisible, setIsNextPreviewVisible] = useState(false);
 
   useEffect(() => {
@@ -90,6 +95,13 @@ export default function PoemFeedPager({
     previousIndexRef.current = currentIndex;
 
     if (previousIndex === currentIndex) return;
+
+    if (Date.now() - seamlessArrivalAtRef.current < 1500) {
+      seamlessArrivalAtRef.current = 0;
+      setContentTransition(null);
+      setIsNextPreviewVisible(false);
+      return;
+    }
 
     setContentTransition(currentIndex > previousIndex ? "next" : "previous");
     setIsNextPreviewVisible(false);
@@ -705,6 +717,7 @@ export default function PoemFeedPager({
           onNext={(target) => {
             // The pull sheet passes the poem it showed; only advance if that is still the feed's next poem.
             if (target && target.id !== nextPoem?.id) return;
+            if (target) seamlessArrivalAtRef.current = Date.now();
             requestBoundaryNavigation("next");
           }}
           onPrevious={() => requestBoundaryNavigation("previous")}
@@ -716,6 +729,7 @@ export default function PoemFeedPager({
           onTogglePoetInfo={onTogglePoetInfo}
           onOpenFeed={onOpenFeed}
           onOpenFeedLabel={onOpenFeedLabel}
+          onOpenInterests={onOpenInterests}
           titleEyebrow={titleEyebrow}
           isZenLocked={isZenLocked}
           onToggleZenLock={() => setIsZenLocked((value) => !value)}
