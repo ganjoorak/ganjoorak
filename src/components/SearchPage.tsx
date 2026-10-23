@@ -24,10 +24,7 @@ import {
   FaSearch,
   FaTimes,
 } from "react-icons/fa";
-import Menu, { MenuButton, SearchButton } from "@/components/Menu";
-import SettingsDialog from "@/components/SettingsDialog";
-import GlobalSearchDialog from "@/components/GlobalSearchDialog";
-import { useUpdateNotification } from "@/hooks/useUpdateNotification";
+import AppPage from "@/components/AppPage";
 import ganjoorApi from "@/api/GanjoorApi";
 import echolaliaApi from "@/api/EcholaliaApi";
 import type { PoetSlug } from "@/types/poet";
@@ -902,10 +899,6 @@ const SearchPage = () => {
   const [retryToken, setRetryToken] = useState(0);
   const [isCompact, setIsCompact] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const { hasNewUpdates, markAsRead } = useUpdateNotification();
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
@@ -1702,33 +1695,13 @@ const SearchPage = () => {
   }, [persistForBackNavigation, rememberQuery, urlQuery]);
 
   return (
-    <div className="search-page" dir="rtl">
-      <MenuButton onClick={() => setIsMenuOpen(true)} hasNotification={hasNewUpdates} />
-      <SearchButton onClick={() => setIsSearchOpen(true)} />
-      <Menu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        hasNewUpdates={hasNewUpdates}
-        onUpdatesViewed={markAsRead}
-        onOpenSettings={() => {
-          setIsSettingsOpen(true);
-          setIsMenuOpen(false);
-        }}
-      />
-      <SettingsDialog
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
-      <GlobalSearchDialog
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-      />
-
-      <main className={`search-page-shell${shouldSearch ? " has-query" : ""}`}>
-        <header className="search-page-header">
-          <h1>جست‌وجو</h1>
-        </header>
-
+    <AppPage
+      title="جست‌وجو"
+      subtitle="در شعرهای گنجور و اکولالیا، با واژه یا با معنا."
+      hideSearch
+      className="search-page"
+    >
+      <div className={`search-page-shell${shouldSearch ? " has-query" : ""}`}>
         <div ref={stickySentinelRef} className="search-sticky-sentinel" aria-hidden="true" />
         <div className={`search-bar${isCompact ? " is-compact" : ""}`}>
           <form
@@ -2197,8 +2170,8 @@ const SearchPage = () => {
           </div>
         )}
         <div ref={loadMoreSentinelRef} className="search-load-more-sentinel" aria-hidden="true" />
-      </main>
-    </div>
+      </div>
+    </AppPage>
   );
 };
 
