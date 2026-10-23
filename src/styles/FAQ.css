@@ -206,3 +206,9 @@
         transition: none;
     }
 }
+
+/* r15 contact card. */
+.faq-contact { display: grid; gap: 0.5rem; margin-top: 1.5rem; }
+.faq-contact h2 { font-size: 1.05rem; font-weight: 700; }
+.faq-contact p { font-size: 0.88rem; line-height: 1.9; color: rgb(var(--muted-foreground)); margin-bottom: 0.4rem; }
+.faq-contact-btn { border-radius: 999px !important; }

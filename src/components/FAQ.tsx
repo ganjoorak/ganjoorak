@@ -1,19 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { FaEnvelope, FaTelegramPlane } from 'react-icons/fa';
 import '../styles/FAQ.css';
-import Menu, { MenuButton, SearchButton } from '@/components/Menu';
-import SettingsDialog from '@/components/SettingsDialog';
-import GlobalSearchDialog from '@/components/GlobalSearchDialog';
-import { useUpdateNotification } from '@/hooks/useUpdateNotification';
+import AppPage from '@/components/AppPage';
 import AccordionItem from '@/components/AccordionItem';
+import { buttonVariants } from '@/components/ui/button';
 
 const FAQ = () => {
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isSearchOpen, setIsSearchOpen] = useState(false);
-    const { hasNewUpdates, markAsRead } = useUpdateNotification();
-
     const faqs = [
         {
             question: 'گنجورک چیست؟',
@@ -64,31 +57,47 @@ const FAQ = () => {
     ];
 
     return (
-        <div className="faq-container">
-            <MenuButton onClick={() => setIsMenuOpen(!isMenuOpen)} hasNotification={hasNewUpdates} />
-            <SearchButton onClick={() => setIsSearchOpen(true)} />
-            <Menu
-                isOpen={isMenuOpen}
-                onClose={() => setIsMenuOpen(false)}
-                hasNewUpdates={hasNewUpdates}
-                onUpdatesViewed={markAsRead}
-                onOpenSettings={() => {
-                    setIsSettingsOpen(true);
-                    setIsMenuOpen(false);
-                }}
-            />
-            <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-            <GlobalSearchDialog isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-
-            <h1 className="faq-title">پرسش‌های متداول</h1>
-            <div className="faq-list">
+        <AppPage
+            title="پرسش‌های متداول"
+            subtitle="دربارهٔ گنجورک، منبع شعرها و راه تماس."
+            width="narrow"
+        >
+            <ul className="app-list app-accordion-list">
                 {faqs.map((faq, index) => (
-                    <AccordionItem key={index} title={faq.question}>
-                        {faq.answer}
-                    </AccordionItem>
+                    <li key={index}>
+                        <AccordionItem
+                            title={faq.question}
+                            defaultOpen={index === 0}
+                            containerClassName="app-accordion"
+                            questionClassName="app-accordion-q"
+                            answerClassName="app-accordion-a"
+                        >
+                            {faq.answer}
+                        </AccordionItem>
+                    </li>
                 ))}
-            </div>
-        </div>
+            </ul>
+
+            <section className="app-card app-card-pad faq-contact">
+                <h2>جواب‌تان را پیدا نکردید؟</h2>
+                <p>مشکل، پیشنهاد یا ایده‌ای دارید، خوشحال می‌شوم بشنوم.</p>
+                <div className="app-actions">
+                    <a href="mailto:contact@ganjoorak.ir" className={buttonVariants({ className: 'faq-contact-btn' })}>
+                        <FaEnvelope aria-hidden="true" />
+                        ایمیل
+                    </a>
+                    <a
+                        href="https://t.me/hadi7546"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={buttonVariants({ variant: 'outline', className: 'faq-contact-btn' })}
+                    >
+                        <FaTelegramPlane aria-hidden="true" />
+                        تلگرام
+                    </a>
+                </div>
+            </section>
+        </AppPage>
     );
 };
 

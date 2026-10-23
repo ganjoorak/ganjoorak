@@ -191,3 +191,26 @@
     border-radius: 0.75rem;
     outline: none;
 }
+
+/* r15 app-style updates. */
+.update-latest { display: grid; gap: 1rem; padding: 1.1rem; margin-bottom: 1.75rem; }
+.update-latest-head { display: grid; gap: 0.3rem; justify-items: start; }
+.update-latest-head h2 { font-size: 1.3rem; font-weight: 800; }
+.update-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.update-badge svg { width: 0.65rem; height: 0.65rem; }
+.update-latest .update-changes { color: rgb(var(--foreground) / 0.85); font-size: 0.93rem; }
+.update-row-title { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; width: 100%; }
+.update-row-title .update-version { font-size: 0.95rem; font-weight: 700; }
+.update-row-title .update-date { font-size: 0.78rem; font-weight: 400; color: rgb(var(--muted-foreground)); }
+.app-accordion .update-changes { font-size: 0.9rem; }
+.update-media video, .update-media img { width: 100%; border-radius: calc(var(--radius) + 2px); border: 1px solid rgb(var(--border)); }

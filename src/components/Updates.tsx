@@ -1,104 +1,91 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { FaStar } from "react-icons/fa";
 import "../styles/Updates.css";
-import Menu, { MenuButton, SearchButton } from "@/components/Menu";
-import SettingsDialog from "@/components/SettingsDialog";
-import GlobalSearchDialog from "@/components/GlobalSearchDialog";
+import AppPage from "@/components/AppPage";
 import AccordionItem from "@/components/AccordionItem";
-import { motion } from "framer-motion";
-import { updates } from "@/data/updates";
+import { updates, type Update } from "@/data/updates";
 import { useUpdateNotification } from "@/hooks/useUpdateNotification";
 
+const UpdateBody = ({ update }: { update: Update }) => (
+  <div className="update-details">
+    <ul className="update-changes">
+      {update.changes.map((change, changeIndex) => (
+        <li key={changeIndex}>{change}</li>
+      ))}
+    </ul>
+    {update.video && (
+      <div className="update-media">
+        <video className="update-video" controls preload="metadata">
+          <source src={update.video} type="video/mp4" />
+          مرورگر شما از ویدیو پشتیبانی نمی‌کند.
+        </video>
+      </div>
+    )}
+    {update.image && (
+      <div className="update-media">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="update-image" src={update.image} alt={`عکس نسخه ${update.version}`} />
+      </div>
+    )}
+  </div>
+);
+
 const Updates = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const { hasNewUpdates, markAsRead } = useUpdateNotification();
+  const { markAsRead } = useUpdateNotification();
+  const [latest, ...older] = updates;
 
   useEffect(() => {
     markAsRead();
   }, [markAsRead]);
 
   return (
-    <div className="updates-container">
-      <MenuButton
-        onClick={() => setIsMenuOpen(!isMenuOpen)}
-        hasNotification={hasNewUpdates}
-      />
-      <SearchButton onClick={() => setIsSearchOpen(true)} />
-      <Menu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        hasNewUpdates={hasNewUpdates}
-        onUpdatesViewed={markAsRead}
-        onOpenSettings={() => {
-          setIsSettingsOpen(true);
-          setIsMenuOpen(false);
-        }}
-      />
-      <SettingsDialog
-        isOpen={isSettingsOpen}
-        onClose={() => {
-          setIsSettingsOpen(false);
-        }}
-      />
-      <GlobalSearchDialog
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-      />
+    <AppPage
+      title="بروزرسانی‌ها"
+      subtitle="تازه‌های گنجورک، نسخه به نسخه."
+      width="narrow"
+    >
+      {latest && (
+        <article className="app-card update-latest">
+          <header className="update-latest-head">
+            <span className="update-badge">
+              <FaStar aria-hidden="true" />
+              تازه‌ترین
+            </span>
+            <h2>نسخهٔ {latest.version}</h2>
+            <span className="update-date">{latest.date}</span>
+          </header>
+          <UpdateBody update={latest} />
+        </article>
+      )}
 
-      <h1 className="updates-title">بروزرسانی‌ها</h1>
-      <div className="updates-list">
-        {updates.map((update, index) => (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            key={update.version}
-          >
-            <AccordionItem
-              title={
-                <>
-                  <span className="update-version">نسخه {update.version}</span>
-                  <span className="update-date">{update.date}</span>
-                </>
-              }
-              titleTag="span"
-              defaultOpen={index === 0}
-              containerClassName="update-item"
-              questionClassName="update-question"
-              answerClassName="update-content"
-            >
-              <div className="update-details">
-                <ul className="update-changes">
-                  {update.changes.map((change, changeIndex) => (
-                    <li key={changeIndex}>{change}</li>
-                  ))}
-                </ul>
-                {update.video && (
-                  <div className="update-media">
-                    <video className="update-video" controls preload="metadata">
-                      <source src={update.video} type="video/mp4" />
-                      مرورگر شما از ویدیو پشتیبانی نمی‌کند.
-                    </video>
-                  </div>
-                )}
-                {update.image && (
-                  <div className="update-media">
-                    <img
-                      className="update-image"
-                      src={update.image}
-                      alt={`عکس نسخه ${update.version}`}
-                    />
-                  </div>
-                )}
-              </div>
-            </AccordionItem>
-          </motion.div>
-        ))}
-      </div>
-    </div>
+      {older.length > 0 && (
+        <section className="app-section">
+          <h2 className="app-section-title">نسخه‌های قبلی</h2>
+          <ul className="app-list app-accordion-list">
+            {older.map((update) => (
+              <li key={update.version}>
+                <AccordionItem
+                  title={
+                    <span className="update-row-title">
+                      <span className="update-version">نسخهٔ {update.version}</span>
+                      <span className="update-date">{update.date}</span>
+                    </span>
+                  }
+                  titleTag="span"
+                  containerClassName="app-accordion"
+                  questionClassName="app-accordion-q"
+                  answerClassName="app-accordion-a"
+                >
+                  <UpdateBody update={update} />
+                </AccordionItem>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </AppPage>
   );
 };
 
