@@ -36,6 +36,11 @@ export interface Poem {
   fullUrl: string;
   plainText: string;
   htmlText: string;
+  /**
+   * Per non-empty line of plainText: "prose" for Ganjoor paragraph blocks
+   * (class n), "verse" for mesras. Missing on older cached payloads.
+   */
+  lineKinds?: Array<"verse" | "prose">;
   recitations: PoemRecitation[];
   isCustom?: boolean;
   source?: "ganjoor" | "custom" | "echolalia";

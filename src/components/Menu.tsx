@@ -21,6 +21,7 @@ import {
   FaQuestionCircle,
   FaRegNewspaper,
   FaSearch,
+  FaShare,
   FaSlidersH,
   FaSun,
   FaTimes,
@@ -44,6 +45,22 @@ interface MenuProps {
   onOpenFeed?: () => void;
   onOpenFeedLabel?: string;
   onOpenSearch?: () => void;
+  isZenLocked?: boolean;
+  onToggleZenLock?: () => void;
+  /**
+   * Poem-specific actions shown as the first menu section on phones only
+   * (the mobile bottom bar keeps just like, play and menu).
+   */
+  poemActions?: MenuPoemActions;
+}
+
+export interface MenuPoemActions {
+  poetName?: string;
+  poetImageUrl?: string;
+  poetHref?: string;
+  onPoetClick?: () => void;
+  onShare: () => void;
+  onOpenSearch: () => void;
   isZenLocked?: boolean;
   onToggleZenLock?: () => void;
 }
@@ -98,6 +115,7 @@ const Menu: React.FC<MenuProps> = ({
   onOpenFeedLabel = "شاعران صفحه اصلی",
   isZenLocked = false,
   onToggleZenLock,
+  poemActions,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -373,6 +391,92 @@ const Menu: React.FC<MenuProps> = ({
             </header>
 
             <nav className="menu-drawer-body" aria-label="منوی اصلی">
+              {poemActions && (
+                <section
+                  className="menu-section menu-section--poem"
+                  aria-label="این شعر"
+                >
+                  <ul className="menu-list">
+                    {poemActions.poetName &&
+                      (poemActions.poetHref || poemActions.onPoetClick) && (
+                        <li>
+                          {poemActions.onPoetClick ? (
+                            <button
+                              type="button"
+                              className="menu-link menu-link--poet"
+                              onClick={() => {
+                                onClose();
+                                poemActions.onPoetClick?.();
+                              }}
+                            >
+                              <span className="menu-poet-avatar" aria-hidden="true">
+                                {poemActions.poetImageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={poemActions.poetImageUrl} alt="" />
+                                ) : (
+                                  <FaUserCircle />
+                                )}
+                              </span>
+                              <span className="menu-link-label">
+                                {poemActions.poetName}
+                              </span>
+                            </button>
+                          ) : (
+                            <Link
+                              href={poemActions.poetHref!}
+                              prefetch
+                              className="menu-link menu-link--poet"
+                              onClick={onClose}
+                            >
+                              <span className="menu-poet-avatar" aria-hidden="true">
+                                {poemActions.poetImageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={poemActions.poetImageUrl} alt="" />
+                                ) : (
+                                  <FaUserCircle />
+                                )}
+                              </span>
+                              <span className="menu-link-label">
+                                {poemActions.poetName}
+                              </span>
+                            </Link>
+                          )}
+                        </li>
+                      )}
+                    {renderItem({
+                      kind: "button",
+                      icon: <FaShare />,
+                      label: "اشتراک‌گذاری شعر",
+                      onClick: () => {
+                        onClose();
+                        poemActions.onShare();
+                      },
+                    })}
+                    {renderItem({
+                      kind: "button",
+                      icon: <FaSearch />,
+                      label: "جستجوی سریع",
+                      onClick: () => {
+                        onClose();
+                        poemActions.onOpenSearch();
+                      },
+                    })}
+                    {poemActions.onToggleZenLock &&
+                      renderItem({
+                        kind: "button",
+                        icon: poemActions.isZenLocked ? <FaLock /> : <FaLockOpen />,
+                        label: poemActions.isZenLocked
+                          ? "باز کردن قفل شعر"
+                          : "قفل روی همین شعر",
+                        onClick: () => {
+                          poemActions.onToggleZenLock?.();
+                          onClose();
+                        },
+                        ariaPressed: poemActions.isZenLocked,
+                      })}
+                  </ul>
+                </section>
+              )}
               <section className="menu-section">
                 <ul className="menu-list">
                   {primaryItems.map((item) => renderItem(item))}

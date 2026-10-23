@@ -700,6 +700,8 @@ export default function PoemFeedPager({
           onOpenFeed={onOpenFeed}
           onOpenFeedLabel={onOpenFeedLabel}
           titleEyebrow={titleEyebrow}
+          isZenLocked={isZenLocked}
+          onToggleZenLock={() => setIsZenLocked((value) => !value)}
         />
       </div>
       {(nextPoem || isPreparingNextPoem) && (

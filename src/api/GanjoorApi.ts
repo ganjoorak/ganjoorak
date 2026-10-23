@@ -1040,6 +1040,24 @@ const ganjoorApi = {
         .replace(/<\/p>/g, "\n")
         .trim() || "";
 
+    // Ganjoor marks prose paragraphs with <div class="n">; mesras live in
+    // b/b2/m1/m2 blocks. Record one kind per <p> so the viewer can render
+    // paragraphs as wrapping text instead of pairing them as couplets.
+    const lineKinds: Array<"verse" | "prose"> = [];
+    if (data.htmlText) {
+      let block = "";
+      const tokenRe = /<div[^>]*class="([^"]*)"[^>]*>|<p[^>]*>([\s\S]*?)<\/p>/g;
+      let m: RegExpExecArray | null;
+      while ((m = tokenRe.exec(data.htmlText)) !== null) {
+        if (m[1] !== undefined) {
+          const cls = m[1].split(/\s+/);
+          if (!cls.includes("m1") && !cls.includes("m2")) block = cls[0] || "";
+        } else if ((m[2] ?? "").trim()) {
+          lineKinds.push(block === "n" ? "prose" : "verse");
+        }
+      }
+    }
+
     const imgUrl = `${API_BASE_URL}/api/ganjoor/poet/image/${helpers.getPoetSlug(data.fullUrl)}.gif`;
 
     return {
@@ -1050,6 +1068,7 @@ const ganjoorApi = {
       fullUrl: data.fullUrl || "",
       plainText: cleanHtml || data.plainText,
       htmlText: cleanHtml || "",
+      ...(lineKinds.includes("prose") ? { lineKinds } : {}),
       recitations: recitations,
       poet: helpers.getPoetName(data.fullTitle),
       poetSlug: helpers.getPoetSlug(data.fullUrl),

@@ -2,7 +2,13 @@
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaShare,
@@ -56,7 +62,53 @@ interface PoemViewerProps {
   onOpenFeedLabel?: string;
   /** Small chip rendered in-flow above the poem title (e.g. the daily-poem link). */
   titleEyebrow?: React.ReactNode;
+  /** Feed "stay on this poem" lock; surfaced in the mobile menu. */
+  isZenLocked?: boolean;
+  onToggleZenLock?: () => void;
 }
+
+type PoemSegment =
+  | { type: "prose"; line: string; index: number }
+  | {
+      type: "pair";
+      lines: Array<{ line: string; index: number }>;
+      pairIndex: number;
+    };
+
+// Lines this long are never a single mesra; used when Ganjoor block kinds
+// are unavailable (older cached payloads).
+const PROSE_LINE_MIN_CHARS = 120;
+
+const buildPoemSegments = (
+  lines: string[],
+  kinds?: Array<"verse" | "prose">,
+): PoemSegment[] | null => {
+  const useKinds = Boolean(kinds && kinds.length === lines.length);
+  const isProse = (line: string, i: number) =>
+    useKinds ? kinds![i] === "prose" : line.length >= PROSE_LINE_MIN_CHARS;
+  if (!lines.some((line, i) => isProse(line, i))) return null;
+
+  const segments: PoemSegment[] = [];
+  let run: Array<{ line: string; index: number }> = [];
+  let pairIndex = 0;
+  const flush = () => {
+    for (let i = 0; i < run.length; i += 2) {
+      segments.push({ type: "pair", lines: run.slice(i, i + 2), pairIndex });
+      pairIndex += 1;
+    }
+    run = [];
+  };
+  lines.forEach((line, index) => {
+    if (isProse(line, index)) {
+      flush();
+      segments.push({ type: "prose", line, index });
+    } else {
+      run.push({ line, index });
+    }
+  });
+  flush();
+  return segments;
+};
 
 const PoemViewer: React.FC<PoemViewerProps> = ({
   poem,
@@ -72,6 +124,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   onOpenFeed,
   onOpenFeedLabel,
   titleEyebrow,
+  isZenLocked,
+  onToggleZenLock,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -95,6 +149,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const poemTextRef = useRef<HTMLDivElement>(null);
+  const titleSectionRef = useRef<HTMLDivElement>(null);
   const boundaryNavigationUntilRef = useRef(0);
   const lastBoundaryNavigationAtRef = useRef(0);
   const reachedTopAtRef = useRef(0);
@@ -279,6 +334,11 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     setCurrentRecitationIndex(0);
     onPrevious();
   }, [isPlaying, onPrevious]);
+
+  const nonEmptyLines = poem.plainText.split("\n").filter((line) => line.trim());
+  const proseSegments = isModern
+    ? null
+    : buildPoemSegments(nonEmptyLines, poem.lineKinds);
 
   const chunk = (arr: string[], size: number) => {
     return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
@@ -763,6 +823,29 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
   useHideOnScroll(poemTextRef, poem.id);
 
+  // The title block floats over the scroll container. Publish its real
+  // height so the first verse starts below it even when the title wraps.
+  useLayoutEffect(() => {
+    const title = titleSectionRef.current;
+    const text = poemTextRef.current;
+    if (!text) return;
+    if (!title) {
+      text.style.removeProperty("--gk-title-h");
+      return;
+    }
+    const update = () => {
+      const height = title.offsetTop + title.offsetHeight - text.offsetTop;
+      if (height > 0) {
+        text.style.setProperty("--gk-title-h", `${Math.ceil(height)}px`);
+      }
+    };
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(title);
+    return () => observer.disconnect();
+  }, [poem.id]);
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -941,6 +1024,18 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         onOpenSettings={() => {
           setIsSettingsOpen(true);
           setIsMenuOpen(false);
+        }}
+        poemActions={{
+          poetName: poem.poet && poem.poetSlug ? poem.poet : undefined,
+          poetImageUrl: poem.poetImageUrl,
+          poetHref:
+            isPoetPage && onTogglePoetInfo ? undefined : poetPageHref,
+          onPoetClick:
+            isPoetPage && onTogglePoetInfo ? onTogglePoetInfo : undefined,
+          onShare: () => setIsShareOpen(true),
+          onOpenSearch: () => setIsSearchOpen(true),
+          isZenLocked,
+          onToggleZenLock,
         }}
       />
       <SettingsDialog
@@ -1143,7 +1238,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
             transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
           >
             {showTitleSection && (
-              <motion.div className="title-section">
+              <motion.div className="title-section" ref={titleSectionRef}>
                 {hasTitleEyebrow && (
                   <motion.div
                     className="poem-eyebrow"
@@ -1213,6 +1308,51 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
                     );
                   })}
                 </motion.div>
+              ) : proseSegments ? (
+                proseSegments.map((segment, segmentIndex) =>
+                  segment.type === "prose" ? (
+                    <motion.div
+                      key={`p-${segment.index}`}
+                      className="prose-block"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.3,
+                        delay: Math.min(segmentIndex, 6) * 0.1,
+                      }}
+                    >
+                      <p
+                        className={`${getVerseClass(segment.index)} prose-paragraph`}
+                      >
+                        <span className="verse-text">{segment.line}</span>
+                      </p>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key={`v-${segment.lines[0].index}`}
+                      className={`verse-pair ${
+                        settings.showLineNumbers ? "verse-pair-numbered" : ""
+                      }`}
+                      data-couplet-number={
+                        settings.showLineNumbers
+                          ? formatPersianNumber(segment.pairIndex + 1)
+                          : undefined
+                      }
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.3,
+                        delay: Math.min(segmentIndex, 6) * 0.1,
+                      }}
+                    >
+                      {segment.lines.map(({ line, index }) => (
+                        <div key={index} className={getVerseClass(index)}>
+                          <span className="verse-text">{line}</span>
+                        </div>
+                      ))}
+                    </motion.div>
+                  ),
+                )
               ) : (
                 chunk(
                   poem.plainText.split("\n").filter((line) => line.trim()),

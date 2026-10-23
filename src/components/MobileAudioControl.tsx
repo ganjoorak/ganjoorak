@@ -54,6 +54,8 @@ export default function MobileAudioControl({
   const [showHint, setShowHint] = useState(false);
   const [dragTime, setDragTime] = useState<number | null>(null);
 
+  const [isHintLeaving, setIsHintLeaving] = useState(false);
+
   useEffect(() => {
     try {
       if (localStorage.getItem(HINT_KEY)) return;
@@ -61,9 +63,21 @@ export default function MobileAudioControl({
       return;
     }
     setShowHint(true);
-    const timer = window.setTimeout(() => dismissHint(), 6000);
-    return () => window.clearTimeout(timer);
+    // Shown once: fade out after 3s or on the first scroll, whichever is first.
+    const fadeOut = () => setIsHintLeaving(true);
+    const timer = window.setTimeout(fadeOut, 3000);
+    document.addEventListener("scroll", fadeOut, { capture: true, once: true });
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("scroll", fadeOut, { capture: true });
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isHintLeaving) return;
+    const timer = window.setTimeout(() => dismissHint(), 300);
+    return () => window.clearTimeout(timer);
+  }, [isHintLeaving]);
 
   function dismissHint() {
     setShowHint(false);
@@ -86,7 +100,11 @@ export default function MobileAudioControl({
   return (
     <div className="mobile-audio-control">
       {showHint && (
-        <div className="mobile-audio-hint" role="status" onClick={dismissHint}>
+        <div
+          className={`mobile-audio-hint${isHintLeaving ? " is-leaving" : ""}`}
+          role="status"
+          onClick={dismissHint}
+        >
           برای کنترل‌های بیشتر نگه دار
         </div>
       )}

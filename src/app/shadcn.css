@@ -200,15 +200,19 @@ html[data-theme="paper"] { --radius: 0.625rem; }
   :root.floating-controls-hidden :is(.menu-button, .global-search-button, .action-buttons, .mobile-audio-control, .poem-feed-lock-button) { translate: none; }
 }
 
-/* Mobile: solid header with a soft bottom fade, breathing room, hides with the floating controls */
+/* Mobile: solid header, hides with the floating controls. The verse column starts below the
+   header's measured height (--gk-title-h, set by PoemViewer) so a wrapped title never covers verse 1. */
 @media (max-width: 600px) {
   :root .poem-viewer .title-section {
-    padding-bottom: 1rem;
-    background: linear-gradient(to bottom, rgb(var(--background)) calc(100% - 0.625rem), rgb(var(--background) / 0)) !important;
+    padding-bottom: 0.75rem;
+    background: rgb(var(--background)) !important;
     transition: opacity 200ms ease, translate 200ms ease;
   }
   :root .poem-viewer .poem-content:not(.poem-content--has-eyebrow) .poem-text {
     padding-top: calc(8.5rem + env(safe-area-inset-top)) !important;
+  }
+  html:root body .poem-viewer .poem-content .poem-text[style*="--gk-title-h"] {
+    padding-top: calc(var(--gk-title-h) + 0.25rem) !important;
   }
   :root.floating-controls-hidden .poem-viewer .title-section {
     opacity: 0 !important;
@@ -240,79 +244,127 @@ html[data-theme="paper"] { --radius: 0.625rem; }
   :root .poem-viewer .verse-line { font-size: calc(var(--poem-verse-font-size, 1.5rem) * 0.9333 * 0.92); }
 }
 
-/* Mobile: side columns become one bottom row around the centered play button.
-   Left: avatar, like, share. Right: lock, search, menu. All 44px targets, vertically centered on the 56px play button. */
+/* Mobile bottom bar: solid strip (page background, no fade) holding three controls.
+   Left: like. Center: play/pause ring (long-press opens the player sheet). Right: menu.
+   Share, quick search, lock and the poet link live in the menu's first section. */
 @media (max-width: 600px) {
   :root {
-    --gk-row-edge: 0.5rem;
-    --gk-row-gap: 0.375rem;
-    --gk-row-btn: 2.75rem;
-    --gk-row-bottom: calc(1rem + 0.375rem + env(safe-area-inset-bottom));
+    --gk-bar-h: 3.75rem;
+    --gk-bar-btn: 2.75rem;
+    --gk-bar-edge: 1rem;
   }
+  .poem-viewer::after {
+    content: "";
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    height: calc(var(--gk-bar-h) + env(safe-area-inset-bottom));
+    background: rgb(var(--background));
+    border-top: 1px solid rgb(var(--border) / 0.6);
+    pointer-events: none;
+    transition: opacity 200ms ease, translate 200ms ease;
+  }
+  :root.floating-controls-hidden .poem-viewer::after { opacity: 0; translate: 0 1rem; }
+  body:has([data-slot="dialog-popup"]) .poem-viewer::after { display: none; }
+
+  html:root body .global-search-button,
+  html:root body .poem-feed-lock-button,
+  html:root body .action-buttons > :not(.poem-favorite-button) { display: none !important; }
+
   html:root body .action-buttons {
     position: fixed !important;
     top: auto !important;
     right: auto !important;
-    left: calc(var(--gk-row-edge) + env(safe-area-inset-left)) !important;
-    bottom: var(--gk-row-bottom) !important;
+    left: calc(var(--gk-bar-edge) + env(safe-area-inset-left)) !important;
+    bottom: calc((var(--gk-bar-h) - var(--gk-bar-btn)) / 2 + env(safe-area-inset-bottom)) !important;
     flex-direction: row !important;
     align-items: center !important;
-    gap: var(--gk-row-gap) !important;
+    gap: 0 !important;
+    z-index: 1000;
   }
-  html:root body .action-buttons .poet-profile {
-    width: var(--gk-row-btn) !important;
-    height: var(--gk-row-btn) !important;
-    min-width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border-radius: 999px !important;
-    overflow: hidden;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 14px rgb(0 0 0 / 0.12);
+  html:root body .action-buttons > .poem-favorite-button,
+  html:root body .poem-viewer .menu-button:not(.poem-feed-lock-button) {
+    box-shadow: none !important;
+    width: var(--gk-bar-btn) !important;
+    min-width: var(--gk-bar-btn) !important;
+    max-width: var(--gk-bar-btn) !important;
+    height: var(--gk-bar-btn) !important;
+    min-height: var(--gk-bar-btn) !important;
+    max-height: var(--gk-bar-btn) !important;
   }
-  html:root body .action-buttons .poet-profile .poet-profile-name { display: none !important; }
-  html:root body .action-buttons .poet-profile .poet-image-container {
-    width: 100% !important;
-    height: 100% !important;
-    margin: 0 !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-  }
-  html:root body .action-buttons .poet-profile img { width: 100% !important; height: 100% !important; object-fit: cover; }
-  html:root body .menu-button:not(.poem-feed-lock-button),
-  html:root body .global-search-button,
-  html:root body .poem-feed-lock-button[data-slot="button"] {
+  html:root body .poem-viewer .menu-button:not(.poem-feed-lock-button) {
     top: auto !important;
     left: auto !important;
-    bottom: var(--gk-row-bottom) !important;
-    width: var(--gk-row-btn) !important;
-    min-width: var(--gk-row-btn) !important;
-    max-width: var(--gk-row-btn) !important;
-    height: var(--gk-row-btn) !important;
-    min-height: var(--gk-row-btn) !important;
-    max-height: var(--gk-row-btn) !important;
+    right: calc(var(--gk-bar-edge) + env(safe-area-inset-right)) !important;
+    bottom: calc((var(--gk-bar-h) - var(--gk-bar-btn)) / 2 + env(safe-area-inset-bottom)) !important;
   }
-  html:root body .menu-button:not(.poem-feed-lock-button) {
-    right: calc(var(--gk-row-edge) + env(safe-area-inset-right)) !important;
+  html:root body .mobile-audio-control {
+    bottom: calc((var(--gk-bar-h) - 3.5rem) / 2 + env(safe-area-inset-bottom)) !important;
   }
-  html:root body .global-search-button {
-    right: calc(var(--gk-row-edge) + var(--gk-row-btn) + var(--gk-row-gap) + env(safe-area-inset-right)) !important;
+  .mobile-audio-control .mobile-audio-button[data-slot="button"] { box-shadow: none !important; }
+
+  /* Locked feed: keep like and menu reachable on phones (unlock lives in the menu) */
+  html:root.poem-zen-mode:not(.floating-controls-hidden) body .poem-viewer .menu-button:not(.poem-feed-lock-button),
+  html:root.poem-zen-mode:not(.floating-controls-hidden) body .action-buttons {
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
-  html:root body .poem-feed-lock-button[data-slot="button"] {
-    right: calc(var(--gk-row-edge) + 2 * (var(--gk-row-btn) + var(--gk-row-gap)) + env(safe-area-inset-right)) !important;
-  }
-  /* last verse clears the row (row top = 1rem + 3.5rem) */
-  :root .poem-text { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)) !important; }
-  /* "next poem" pill sits above the row */
-  html:root body .poem-feed-next-preview { bottom: calc(5rem + env(safe-area-inset-bottom)) !important; }
+
+  /* last verse clears the bar */
+  :root .poem-text { padding-bottom: calc(var(--gk-bar-h) + 1.25rem + env(safe-area-inset-bottom)) !important; }
+  /* "next poem" pill sits above the bar */
+  html:root body .poem-feed-next-preview { bottom: calc(var(--gk-bar-h) + 0.5rem + env(safe-area-inset-bottom)) !important; }
+
+  .mobile-audio-hint.is-leaving { opacity: 0; transition: opacity 0.3s ease; }
 }
-/* Very narrow phones: tighter row gaps and a 48px play button so 7 controls fit */
-@media (max-width: 380px) {
-  :root { --gk-row-gap: 0.25rem; }
-  :root .mobile-audio-control { width: 3rem !important; height: 3rem !important; }
-  :root .mobile-audio-control .mobile-audio-button[data-slot="button"] { inset: 0.125rem; }
-  :root .mobile-audio-control { bottom: calc(1rem + 0.25rem + env(safe-area-inset-bottom)) !important; }
-  :root { --gk-row-bottom: calc(1rem + 0.25rem + env(safe-area-inset-bottom)); }
+
+/* Poet-specific menu section is phone-only; desktop keeps its own buttons */
+.menu-poet-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.75rem; height: 1.75rem; border-radius: 999px; overflow: hidden; flex-shrink: 0;
+  background: rgb(var(--muted)); font-size: 1.1rem;
+}
+.menu-poet-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.menu-link--poet { font-weight: 600; }
+@media (min-width: 601px) {
+  .menu-section--poem { display: none; }
+  .menu-section--poem + .menu-section { margin-top: 0; padding-top: 0; border-top: 0; }
+}
+
+/* Prose (Ganjoor paragraph blocks, e.g. letters and Golestan): wrapping, justified RTL paragraphs */
+.poem-viewer .prose-block {
+  width: 100%;
+  max-width: min(100%, 44rem);
+  margin-inline: auto;
+  margin-block: 0.75rem;
+}
+html:root body .poem-viewer .verse-line.prose-paragraph {
+  display: block;
+  flex: none;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0;
+  padding-inline: 0 !important;
+  direction: rtl;
+  text-align: justify;
+  text-align-last: right;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
+  font-size: calc(var(--poem-verse-font-size, 1.5rem) * 0.8);
+  line-height: 1.95;
+  transform: none;
+}
+html:root body .poem-viewer .verse-line.prose-paragraph .verse-text {
+  display: inline;
+  white-space: normal !important;
+}
+html:root body .poem-viewer .verse-line.prose-paragraph::after { content: none; }
+@media (max-width: 600px) {
+  html:root body .poem-viewer .verse-line.prose-paragraph {
+    font-size: calc(var(--poem-verse-font-size, 1.5rem) * 0.72);
+    line-height: 1.9;
+  }
 }
