@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import React, { useMemo } from "react";
 import { FaSlidersH } from "react-icons/fa";
 import { orderInterestsForRail, type PoemInterest } from "@/data/interests";
@@ -36,41 +35,37 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
       aria-label="دسته‌بندی شعرها"
       dir="rtl"
     >
-      <Button
+      <button
         type="button"
-        variant="outline"
-        size="icon"
         className="interest-rail-settings"
         onClick={onOpenPicker}
         aria-label="ویرایش علاقه‌مندی‌ها"
         title="ویرایش علاقه‌مندی‌ها"
       >
         <FaSlidersH aria-hidden="true" />
-      </Button>
+      </button>
       {interests.length > 0 && (
       <div className="interest-rail-track">
-        <Button
+        <button
           type="button"
-          variant={hasActive ? "outline" : "default"}
           className={`interest-chip${hasActive ? "" : " is-active"}`}
           onClick={onClear}
           aria-pressed={!hasActive}
         >
           همه
-        </Button>
+        </button>
         {interests.map((interest) => {
           const isActive = activeKeySet.has(interest.key);
           return (
-            <Button
+            <button
               type="button"
-              variant={isActive ? "default" : "outline"}
               key={interest.key}
               className={`interest-chip${isActive ? " is-active" : ""}`}
               onClick={() => onToggle(interest.key)}
               aria-pressed={isActive}
             >
               {interest.label}
-            </Button>
+            </button>
           );
         })}
       </div>

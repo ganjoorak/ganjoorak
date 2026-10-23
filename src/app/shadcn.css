@@ -101,10 +101,6 @@ html[data-theme="paper"] { --radius: 0.625rem; }
 :root .audio-progress-bar { background: rgb(var(--primary)); border-radius: 999px; }
 :root .audio-time { color: rgb(var(--muted-foreground)); }
 
-/* Interest chips: Button outline / default */
-:root .interest-chip[data-slot="button"] { height: 2.75rem; border-radius: 999px; padding-inline: 0.9rem; font-size: 0.875rem; }
-:root .interest-rail-settings[data-slot="button"] { width: 2.75rem; height: 2.75rem; border-radius: var(--radius); }
-
 :root .settings-action-button { border-radius: var(--radius); min-height: 44px; font-weight: 500; }
 :root .settings-action-button.primary { background: rgb(var(--primary)); color: rgb(var(--primary-foreground)); border: 1px solid transparent; }
 :root .settings-action-button.secondary { background: rgb(var(--background)); color: rgb(var(--foreground)); border: 1px solid rgb(var(--border)); }
@@ -129,13 +125,7 @@ html[data-theme="paper"] { --radius: 0.625rem; }
   }
 }
 
-/* Mobile reading room: 8px more inline padding, bottom padding = player height + 24px */
-@media (max-width: 600px) {
-  :root .poem-content {
-    padding-left: calc(4rem + env(safe-area-inset-left)) !important;
-    padding-right: calc(4rem + env(safe-area-inset-right)) !important;
-  }
-}
+/* Mobile reading room: bottom padding = player height + 24px */
 @media (max-width: 768px) {
   :root .poem-text {
     padding-bottom: calc(var(--audio-player-height, 4.5rem) + 1.5rem + env(safe-area-inset-bottom)) !important;
