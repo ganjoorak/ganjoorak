@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - docker-image
+      - feature/shadcn
   workflow_dispatch:
 
 permissions:

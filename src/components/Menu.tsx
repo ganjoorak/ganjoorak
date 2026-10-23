@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -476,13 +477,13 @@ export function MenuButton({
   isOpen?: boolean;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon"
       onClick={onClick}
       className={[
-        "menu-button fixed top-4 right-4 w-10 h-10",
-        "flex items-center justify-center rounded-full",
-        "text-foreground transition-all",
+        "menu-button fixed top-4 right-4 rounded-full shadow-sm",
         isHidden ? "is-hidden" : "",
       ]
         .filter(Boolean)
@@ -496,7 +497,7 @@ export function MenuButton({
       {hasNotification && (
         <span className="menu-button-indicator" aria-hidden="true" />
       )}
-    </button>
+    </Button>
   );
 }
 
@@ -508,13 +509,13 @@ export function SearchButton({
   isHidden?: boolean;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon"
       onClick={onClick}
       className={[
-        "global-search-button fixed top-16 right-4 w-10 h-10",
-        "flex items-center justify-center rounded-full",
-        "text-foreground transition-all",
+        "global-search-button fixed top-16 right-4 rounded-full shadow-sm",
         isHidden ? "is-hidden" : "",
       ]
         .filter(Boolean)
@@ -522,7 +523,7 @@ export function SearchButton({
       aria-label="جست‌وجو"
     >
       <FaSearch size={15} aria-hidden="true" />
-    </button>
+    </Button>
   );
 }
 

@@ -6,6 +6,17 @@ import {
   DEFAULT_SUGGESTED_INTEREST_KEYS,
   POEM_INTERESTS,
 } from "@/data/interests";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Toggle } from "@/components/ui/toggle";
 
 interface InterestPickerDialogProps {
   selectedKeys: string[];
@@ -34,92 +45,79 @@ const InterestPickerDialog: React.FC<InterestPickerDialogProps> = ({
   };
 
   return (
-    <div className="settings-backdrop" dir="rtl">
-      <div className="settings-dialog">
-        <section
-          className="settings-panel max-w-3xl text-right"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="interest-picker-title"
-        >
-          <header className="settings-header">
-            <h2 id="interest-picker-title" className="settings-title">
-              علاقه‌مندی‌های شما
-            </h2>
-            <button
-              type="button"
-              className="settings-close"
+    <Dialog
+      open
+      disablePointerDismissal
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogPopup dir="rtl" showCloseButton={false} className="sm:max-w-3xl">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-4">
+            <DialogTitle>علاقه‌مندی‌های شما</DialogTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11"
               onClick={onClose}
               aria-label="بستن"
             >
               <FaTimes />
-            </button>
-          </header>
-          <div className="settings-body">
-            <div className="settings-form">
-              <section className="settings-section">
-                <p className="interest-picker-hint">
-                  {isFirstRun
-                    ? "چه نوع شعرهایی دوست دارید؟ چند مورد را انتخاب کنید تا دسته‌بندی‌ها بالای صفحه اصلی پیشنهاد شوند."
-                    : "دسته‌بندی‌های انتخاب‌شده بالای صفحه اصلی نمایش داده می‌شوند."}
-                </p>
-                <div className="interest-picker-summary">
-                  <span>
-                    <strong>{persianNumber.format(pendingKeys.length)}</strong> دسته
-                    انتخاب شده
-                  </span>
-                  <span>
-                    از <strong>{persianNumber.format(POEM_INTERESTS.length)}</strong>{" "}
-                    دسته
-                  </span>
-                </div>
-                <div className="interest-picker-grid">
-                  {POEM_INTERESTS.map((interest) => {
-                    const isSelected = pendingKeySet.has(interest.key);
-                    return (
-                      <button
-                        type="button"
-                        key={interest.key}
-                        className={`interest-picker-option${isSelected ? " is-active" : ""}`}
-                        onClick={() => toggleInterest(interest.key)}
-                        aria-pressed={isSelected}
-                      >
-                        <span className="interest-picker-option-label">
-                          {interest.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            </div>
+            </Button>
           </div>
-          <footer className="settings-actions">
-            <button
-              type="button"
-              className="settings-action-button secondary"
-              onClick={() => setPendingKeys(DEFAULT_SUGGESTED_INTEREST_KEYS)}
-            >
-              پیشنهاد گنجورک
-            </button>
-            <button
-              type="button"
-              className="settings-action-button secondary"
-              onClick={() => setPendingKeys([])}
-            >
-              پاک کردن
-            </button>
-            <button
-              type="button"
-              className="settings-action-button primary"
-              onClick={() => onSave(pendingKeys)}
-            >
-              ذخیره
-            </button>
-          </footer>
-        </section>
-      </div>
-    </div>
+          <DialogDescription className="leading-7">
+            {isFirstRun
+              ? "چه نوع شعرهایی دوست دارید؟ چند مورد را انتخاب کنید تا دسته‌بندی‌ها بالای صفحه اصلی پیشنهاد شوند."
+              : "دسته‌بندی‌های انتخاب‌شده بالای صفحه اصلی نمایش داده می‌شوند."}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogPanel>
+          <div className="interest-picker-summary">
+            <span>
+              <strong>{persianNumber.format(pendingKeys.length)}</strong> دسته
+              انتخاب شده
+            </span>
+            <span>
+              از <strong>{persianNumber.format(POEM_INTERESTS.length)}</strong>{" "}
+              دسته
+            </span>
+          </div>
+          <div className="interest-picker-grid">
+            {POEM_INTERESTS.map((interest) => (
+              <Toggle
+                key={interest.key}
+                variant="outline"
+                className="h-auto min-h-11 justify-start whitespace-normal px-3 py-2 text-start data-pressed:border-primary"
+                pressed={pendingKeySet.has(interest.key)}
+                onPressedChange={() => toggleInterest(interest.key)}
+              >
+                {interest.label}
+              </Toggle>
+            ))}
+          </div>
+        </DialogPanel>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            className="h-11"
+            onClick={() => setPendingKeys(DEFAULT_SUGGESTED_INTEREST_KEYS)}
+          >
+            پیشنهاد گنجورک
+          </Button>
+          <Button
+            variant="outline"
+            className="h-11"
+            onClick={() => setPendingKeys([])}
+          >
+            پاک کردن
+          </Button>
+          <Button className="h-11" onClick={() => onSave(pendingKeys)}>
+            ذخیره
+          </Button>
+        </DialogFooter>
+      </DialogPopup>
+    </Dialog>
   );
 };
 

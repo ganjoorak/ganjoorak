@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { FaLock, FaLockOpen, FaSpinner } from "react-icons/fa";
 import PoemViewer from "@/components/PoemViewer";
@@ -51,7 +52,7 @@ const getActivePoemText = (root: HTMLElement | null) =>
   root?.querySelector(".poem-text") as HTMLElement | null;
 
 const isShareDialogOpen = () =>
-  Boolean(document.querySelector(".lyrics-share-dialog"));
+  Boolean(document.querySelector(".lyrics-share-panel"));
 
 export default function PoemFeedPager({
   poem,
@@ -518,13 +519,6 @@ export default function PoemFeedPager({
           width: 2.5rem !important;
           height: 2.5rem !important;
           z-index: 1000;
-          border: none;
-          border-radius: 999px;
-          background-color: rgba(255, 255, 255, 0.1);
-          color: rgb(var(--foreground));
-          -webkit-backdrop-filter: blur(8px);
-          backdrop-filter: blur(8px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -534,14 +528,9 @@ export default function PoemFeedPager({
         }
 
         .poem-feed-lock-button:hover {
-          background-color: rgba(255, 255, 255, 0.2);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
         .poem-feed-lock-button.is-active {
-          background: rgb(var(--accent) / 0.86);
-          color: rgb(var(--accent-foreground));
-          box-shadow: 0 0 0 1px rgb(var(--accent) / 0.35), 0 4px 12px rgba(0, 0, 0, 0.24);
         }
 
         .poem-feed-lock-button svg {
@@ -723,16 +712,18 @@ export default function PoemFeedPager({
           </span>
         </div>
       )}
-      <button
+      <Button
         type="button"
-        className={`poem-feed-lock-button${isZenLocked ? " is-active" : ""}`}
+        variant={isZenLocked ? "default" : "outline"}
+        size="icon"
+        className={`poem-feed-lock-button rounded-full shadow-sm${isZenLocked ? " is-active" : ""}`}
         onClick={() => setIsZenLocked((value) => !value)}
         aria-pressed={isZenLocked}
         aria-label={isZenLocked ? "باز کردن اسکرول شعر بعدی" : "قفل کردن اسکرول روی همین شعر"}
         title={isZenLocked ? "قفل اسکرول روشن است" : "قفل اسکرول روی همین شعر"}
       >
         {isZenLocked ? <FaLock aria-hidden="true" /> : <FaLockOpen aria-hidden="true" />}
-      </button>
+      </Button>
     </div>
   );
 }

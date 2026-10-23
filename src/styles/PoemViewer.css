@@ -889,22 +889,15 @@ a.poem-eyebrow-chip:focus-visible {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
-    border-radius: 50%;
-    background-color: rgb(var(--foreground) / 0.1);
-    color: rgb(var(--foreground));
     cursor: pointer;
     transition:
         transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
         background-color 0.22s ease,
         box-shadow 0.28s ease;
-    backdrop-filter: blur(8px);
 }
 
 .action-button:hover:not(:disabled) {
-    background-color: rgb(var(--foreground) / 0.2);
     transform: translateY(-1px) scale(1.02);
-    box-shadow: 0 6px 16px rgb(var(--background) / 0.22);
 }
 
 .action-button:disabled {
@@ -1060,12 +1053,8 @@ a.poem-eyebrow-chip:focus-visible {
 }
 
 .audio-control-button {
-    background: none;
-    border: none;
-    color: rgb(var(--foreground) / 0.9);
     cursor: pointer;
     padding: 0.5rem;
-    border-radius: 50%;
     transition:
         transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
         background-color 0.22s ease,
@@ -1080,23 +1069,19 @@ a.poem-eyebrow-chip:focus-visible {
 }
 
 .audio-control-button.active {
-    background: rgb(var(--foreground) / 0.15);
 }
 
 .audio-control-button:hover {
     transform: translateY(-1px) scale(1.02);
-    background: rgb(var(--foreground) / 0.1);
 }
 
 .audio-control-button:disabled {
     opacity: 0.4;
     cursor: not-allowed;
-    color: rgb(var(--foreground) / 0.5);
 }
 
 .audio-control-button:active:not(:disabled) {
     transform: translateY(0) scale(0.98);
-    background: rgb(var(--foreground) / 0.08);
 }
 
 .audio-control-button:focus-visible {

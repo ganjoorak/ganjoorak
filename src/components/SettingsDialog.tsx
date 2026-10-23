@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { FaMoon, FaSun, FaRegNewspaper, FaTimes } from "react-icons/fa";
 import {
   useSettings,
@@ -18,6 +17,18 @@ import {
   applyPoemFontSize,
   clampPoemFontSize,
 } from "@/context/SettingsContext";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Toggle } from "@/components/ui/toggle";
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -164,15 +175,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
     );
     hasSavedRef.current = false;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        requestCloseWithoutSaving();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
+    // Escape and outside clicks are handled by the Dialog (onOpenChange).
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
       if (!hasSavedRef.current) {
         restoreAppearance();
       }
@@ -220,15 +224,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
     setAskRandomizePoemsOnPoetPages,
   ]);
 
-  const poemFontSizeRatio =
-    (pendingPoemFontSize - POEM_FONT_SIZE_MIN) /
-    (POEM_FONT_SIZE_MAX - POEM_FONT_SIZE_MIN);
   const poemFontSizeDefaultRatio =
     (DEFAULT_POEM_FONT_SIZE - POEM_FONT_SIZE_MIN) /
     (POEM_FONT_SIZE_MAX - POEM_FONT_SIZE_MIN);
-  const poemFontSizeSliderStyle = {
-    "--range-progress": `${poemFontSizeRatio * 100}%`,
-  } as React.CSSProperties;
   const poemFontSizeDefaultMarkerStyle = {
     insetInlineStart: `calc(${poemFontSizeDefaultRatio * 100}% + ${(
       0.5 - poemFontSizeDefaultRatio
@@ -262,49 +260,31 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
     });
   };
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            className="settings-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={requestCloseWithoutSaving}
-          />
-          <motion.div
-            className="settings-dialog"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="settings-panel"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="settings-dialog-title"
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: "spring", duration: 0.4, bounce: 0.25 }}
-            >
-              <header className="settings-header">
-                <h2 id="settings-dialog-title" className="settings-title">
-                  تنظیمات
-                </h2>
-                <button
-                  type="button"
-                  className="settings-close"
-                  onClick={requestCloseWithoutSaving}
-                  aria-label="بستن تنظیمات"
-                >
-                  <FaTimes />
-                </button>
-              </header>
+  const toggleRowClass =
+    "flex min-h-11 cursor-pointer items-center justify-between gap-4 rounded-lg border border-border px-3 py-2 text-sm";
 
-              <div className="settings-body">
-                <div className="settings-form" aria-live="polite">
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) requestCloseWithoutSaving();
+      }}
+    >
+      <DialogPopup dir="rtl" showCloseButton={false} className="sm:max-w-xl">
+        <DialogHeader className="flex-row items-center justify-between">
+          <DialogTitle>تنظیمات</DialogTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-11"
+            onClick={requestCloseWithoutSaving}
+            aria-label="بستن تنظیمات"
+          >
+            <FaTimes />
+          </Button>
+        </DialogHeader>
+        <DialogPanel>
+                <div aria-live="polite">
                   <section
                     className="settings-section"
                     aria-label="انتخاب حالت نمایش"
@@ -312,18 +292,16 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
                     <h3 className="settings-section-title">حالت نمایش</h3>
                     <div className="settings-theme-grid">
                       {THEME_OPTIONS.map((option) => (
-                        <button
+                        <Toggle
                           key={option.value}
-                          type="button"
-                          className={`settings-theme-button ${
-                            pendingTheme === option.value ? "active" : ""
-                          }`}
-                          onClick={() => setPendingTheme(option.value)}
-                          aria-pressed={pendingTheme === option.value}
+                          variant="outline"
+                          className="h-11 justify-start gap-3 px-4"
+                          pressed={pendingTheme === option.value}
+                          onPressedChange={() => setPendingTheme(option.value)}
                         >
                           {option.icon}
                           <span>{option.label}</span>
-                        </button>
+                        </Toggle>
                       ))}
                     </div>
                   </section>
@@ -333,23 +311,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
                     aria-label="شماره‌گذاری شعر"
                   >
                     <h3 className="settings-section-title">نمایش شماره بیت</h3>
-                    <div className="settings-toggle">
-                      <span className="settings-toggle-label">
-                        نمایش شماره بیت
-                      </span>
-                      <button
-                        type="button"
-                        className={`settings-toggle-button ${
-                          pendingShowLineNumbers ? "active" : ""
-                        }`}
-                        onClick={() =>
-                          setPendingShowLineNumbers((prev) => !prev)
-                        }
-                        aria-pressed={pendingShowLineNumbers}
-                      >
-                        {pendingShowLineNumbers ? "روشن" : "خاموش"}
-                      </button>
-                    </div>
+                    <label className={`${toggleRowClass}`}>
+                      <span>نمایش شماره بیت</span>
+                      <Switch checked={pendingShowLineNumbers} onCheckedChange={setPendingShowLineNumbers} />
+                    </label>
                   </section>
 
                   <section
@@ -359,44 +324,14 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
                     <h3 className="settings-section-title">
                       ترتیب نمایش شعرها
                     </h3>
-                    <div className="settings-toggle">
-                      <span className="settings-toggle-label">
-                        پخش تصادفی شعرها
-                      </span>
-                      <button
-                        type="button"
-                        className={`settings-toggle-button ${
-                          pendingRandomizePoems ? "active" : ""
-                        }`}
-                        onClick={() =>
-                          setPendingRandomizePoems((prev) => !prev)
-                        }
-                        aria-pressed={pendingRandomizePoems}
-                      >
-                        {pendingRandomizePoems ? "تصادفی" : "پیاپی"}
-                      </button>
-                    </div>
-                    <div className="settings-toggle mt-3">
-                      <span className="settings-toggle-label">
-                        پرسش هنگام ورود به صفحه شاعر
-                      </span>
-                      <button
-                        type="button"
-                        className={`settings-toggle-button ${
-                          pendingAskRandomizePoemsOnPoetPages ? "active" : ""
-                        }`}
-                        onClick={() =>
-                          setPendingAskRandomizePoemsOnPoetPages(
-                            (prev) => !prev,
-                          )
-                        }
-                        aria-pressed={pendingAskRandomizePoemsOnPoetPages}
-                      >
-                        {pendingAskRandomizePoemsOnPoetPages
-                          ? "بپرس"
-                          : "نپرس"}
-                      </button>
-                    </div>
+                    <label className={`${toggleRowClass}`}>
+                      <span>پخش تصادفی شعرها</span>
+                      <Switch checked={pendingRandomizePoems} onCheckedChange={setPendingRandomizePoems} />
+                    </label>
+                    <label className={`${toggleRowClass} mt-3`}>
+                      <span>پرسش هنگام ورود به صفحه شاعر</span>
+                      <Switch checked={pendingAskRandomizePoemsOnPoetPages} onCheckedChange={setPendingAskRandomizePoemsOnPoetPages} />
+                    </label>
                   </section>
 
                   <section
@@ -406,21 +341,19 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
                     <h3 className="settings-section-title">قلم شعر</h3>
                     <div className="settings-font-grid">
                       {FONT_CHOICES.map((font) => (
-                        <button
+                        <Toggle
                           key={font.value}
-                          type="button"
-                          className={`settings-font-button ${
-                            pendingFontFamily === font.value ? "active" : ""
-                          }`}
+                          variant="outline"
+                          className="h-11 justify-start px-4 text-base"
                           style={{ fontFamily: FONT_STACKS[font.value] }}
-                          onClick={() => setPendingFontFamily(font.value)}
-                          aria-pressed={pendingFontFamily === font.value}
+                          pressed={pendingFontFamily === font.value}
+                          onPressedChange={() => setPendingFontFamily(font.value)}
                         >
                           <span className="font-label">{font.label}</span>
                           {font.note && (
                             <span className="font-note">({font.note})</span>
                           )}
-                        </button>
+                        </Toggle>
                       ))}
                     </div>
                   </section>
@@ -430,14 +363,18 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
                     aria-label="اندازه امن قلم شعر"
                   >
                     <h3 className="settings-section-title">اندازه قلم شعر</h3>
-                    <div className="settings-size-control">
+                    <div
+                      className="settings-size-control"
+                      style={{ "--range-thumb-size": "1rem" } as React.CSSProperties}
+                    >
                       <div className="settings-size-readout">
                         <span className="settings-size-value">
                           {formatPersianNumber(pendingPoemFontSize)}٪
                         </span>
-                        <button
-                          type="button"
-                          className="settings-size-reset"
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9"
                           onClick={() =>
                             setPendingPoemFontSize(DEFAULT_POEM_FONT_SIZE)
                           }
@@ -446,25 +383,22 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
                           }
                         >
                           بازنشانی
-                        </button>
+                        </Button>
                       </div>
                       <div className="settings-size-track">
-                        <input
-                          className="settings-size-slider"
-                          type="range"
-                          dir="rtl"
+                        <Slider
                           min={POEM_FONT_SIZE_MIN}
                           max={POEM_FONT_SIZE_MAX}
                           step={POEM_FONT_SIZE_STEP}
-                          value={pendingPoemFontSize}
-                          style={poemFontSizeSliderStyle}
-                          onChange={(event) =>
+                          value={[pendingPoemFontSize]}
+                          onValueChange={(value) =>
                             setPendingPoemFontSize(
-                              clampPoemFontSize(event.currentTarget.value),
+                              clampPoemFontSize(
+                                Array.isArray(value) ? value[0] : value,
+                              ),
                             )
                           }
                           aria-label="اندازه قلم شعر"
-                          aria-valuetext={`${formatPersianNumber(pendingPoemFontSize)}٪`}
                         />
                       </div>
                       <div className="settings-size-scale" aria-hidden="true">
@@ -491,51 +425,25 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
                     <h3 className="settings-section-title">نمایش اجزای شعر</h3>
                     <div className="settings-toggle-list">
                       {POEM_VIEWER_COMPONENT_OPTIONS.map((component) => (
-                        <div key={component.key} className="settings-toggle">
-                          <span className="settings-toggle-label">
-                            {component.label}
-                          </span>
-                          <button
-                            type="button"
-                            className={`settings-toggle-button ${
-                              pendingVisibility[component.key] ? "active" : ""
-                            }`}
-                            onClick={() =>
-                              handleVisibilityToggle(component.key)
-                            }
-                            aria-pressed={pendingVisibility[component.key]}
-                          >
-                            {pendingVisibility[component.key]
-                              ? "نمایش"
-                              : "مخفی"}
-                          </button>
-                        </div>
+                        <label key={component.key} className={`${toggleRowClass}`}>
+                      <span>{component.label}</span>
+                      <Switch checked={pendingVisibility[component.key]} onCheckedChange={() => handleVisibilityToggle(component.key)} />
+                    </label>
                       ))}
                     </div>
                   </section>
                 </div>
-              </div>
-              <footer className="settings-actions">
-                <button
-                  type="button"
-                  className="settings-action-button secondary"
-                  onClick={handleCancel}
-                >
-                  لغو
-                </button>
-                <button
-                  type="button"
-                  className="settings-action-button primary"
-                  onClick={handleSave}
-                >
-                  ذخیره
-                </button>
-              </footer>
-            </motion.div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+        </DialogPanel>
+        <DialogFooter>
+          <Button variant="outline" className="h-11" onClick={handleCancel}>
+            لغو
+          </Button>
+          <Button className="h-11" onClick={handleSave}>
+            ذخیره
+          </Button>
+        </DialogFooter>
+      </DialogPopup>
+    </Dialog>
   );
 };
 

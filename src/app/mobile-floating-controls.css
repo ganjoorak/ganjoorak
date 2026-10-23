@@ -45,13 +45,6 @@
     min-height: var(--mobile-floating-size) !important;
     max-height: var(--mobile-floating-size) !important;
     z-index: 1000 !important;
-    border: none !important;
-    border-radius: 999px !important;
-    background-color: rgba(255, 255, 255, 0.1) !important;
-    color: rgb(var(--foreground)) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-    backdrop-filter: blur(8px) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -64,8 +57,6 @@
   .menu-button:not(.poem-feed-lock-button):hover,
   .global-search-button:hover,
   .poem-feed-lock-button:hover {
-    background-color: rgba(255, 255, 255, 0.2) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
   }
 
   .menu-button:not(.poem-feed-lock-button),
@@ -94,9 +85,6 @@
   }
 
   .poem-feed-lock-button.is-active {
-    background: rgb(var(--accent) / 0.86) !important;
-    color: rgb(var(--accent-foreground)) !important;
-    box-shadow: 0 0 0 1px rgb(var(--accent) / 0.35), 0 4px 12px rgba(0, 0, 0, 0.24) !important;
   }
 
   .menu-button:not(.poem-feed-lock-button) svg,

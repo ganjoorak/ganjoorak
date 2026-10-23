@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   FaCheck,
   FaColumns,
@@ -12,6 +11,9 @@ import {
 } from "react-icons/fa";
 import type { Poem } from "@/types/poem";
 import { logger } from "@/utils/logger";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogPopup, DialogTitle } from "@/components/ui/dialog";
+import { Toggle } from "@/components/ui/toggle";
 import {
   FONT_STACKS,
   useSettings,
@@ -603,12 +605,14 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
     setActionFeedback({ action: "downloadImage", state: "success" });
   };
 
-  const getActionButtonClassName = (action: ShareActionId) => {
+  const getActionButtonVariant = (action: ShareActionId) => {
     if (actionFeedback?.action !== action) {
-      return "";
+      return "outline" as const;
     }
 
-    return `is-${actionFeedback.state}`;
+    return actionFeedback.state === "success"
+      ? ("default" as const)
+      : ("destructive" as const);
   };
 
   const getActionIcon = (action: ShareActionId, fallback: React.ReactNode) => {
@@ -620,51 +624,41 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            className="settings-backdrop global-modal-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-
-          <motion.div
-            className="lyrics-share-dialog"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className={`lyrics-share-panel lyrics-share-panel--${mobileStep}`}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="lyrics-share-title"
-              initial={{ scale: 0.96, opacity: 0, y: 18 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.96, opacity: 0, y: 18 }}
-              transition={{ type: "spring", duration: 0.35, bounce: 0.18 }}
-            >
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogPopup
+        dir="rtl"
+        showCloseButton={false}
+        className={`lyrics-share-panel lyrics-share-panel--${mobileStep} max-w-none`}
+      >
               <header className="lyrics-share-header">
                 <div>
-                  <h2 id="lyrics-share-title">اشتراک شعر</h2>
+                  <DialogTitle>اشتراک شعر</DialogTitle>
                   <p>{poem.title}</p>
                 </div>
 
-                <button type="button" onClick={onClose} aria-label="بستن">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11"
+                  onClick={onClose}
+                  aria-label="بستن"
+                >
                   <FaTimes />
-                </button>
+                </Button>
               </header>
 
               <div className="lyrics-share-body">
                 <section className="lyrics-share-controls">
                   <div className="lyrics-share-selection-bar">
                     <span>{formatSelectedLineCount(selectedLines.length)}</span>
-                    <button type="button" onClick={toggleAllLines}>
+                    <Button variant="outline" size="sm" onClick={toggleAllLines}>
                       {areAllLinesSelected ? "لغو انتخاب همه" : "انتخاب همه"}
-                    </button>
+                    </Button>
                   </div>
 
                   <div
@@ -675,27 +669,27 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
                       const isSelected = selectedLines.includes(index);
 
                       return (
-                        <button
+                        <Toggle
                           key={`${line}-${index}`}
-                          type="button"
-                          className={isSelected ? "selected" : ""}
-                          onClick={() => toggleLine(index)}
+                          variant="outline"
+                          className="h-auto whitespace-normal data-pressed:border-primary"
+                          pressed={isSelected}
+                          onPressedChange={() => toggleLine(index)}
                         >
                           <span>{line}</span>
                           {isSelected && <FaCheck aria-hidden="true" />}
-                        </button>
+                        </Toggle>
                       );
                     })}
                   </div>
 
-                  <button
-                    type="button"
-                    className="lyrics-share-mobile-next"
+                  <Button
+                    className="lyrics-share-mobile-next h-11"
                     onClick={() => setMobileStep("preview")}
                     disabled={selectedTextLines.length === 0}
                   >
                     پیش‌نمایش
-                  </button>
+                  </Button>
                 </section>
 
                 <section
@@ -722,16 +716,16 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
 
                       <div>
                         {SHARE_THEMES.map((theme) => (
-                          <button
+                          <Toggle
                             key={theme.id}
-                            type="button"
-                            className={
-                              theme.id === selectedThemeId ? "active" : ""
-                            }
-                            onClick={() => setSelectedThemeId(theme.id)}
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                            pressed={theme.id === selectedThemeId}
+                            onPressedChange={() => setSelectedThemeId(theme.id)}
                           >
                             <span>{theme.label}</span>
-                          </button>
+                          </Toggle>
                         ))}
                       </div>
                     </div>
@@ -744,19 +738,19 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
 
                       <div>
                         {SHARE_FONT_CHOICES.map((font) => (
-                          <button
+                          <Toggle
                             key={font.value}
-                            type="button"
-                            className={
-                              font.value === selectedFontFamily ? "active" : ""
-                            }
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                            pressed={font.value === selectedFontFamily}
                             style={{ fontFamily: FONT_STACKS[font.value] }}
-                            onClick={() => setSelectedFontFamily(font.value)}
+                            onPressedChange={() => setSelectedFontFamily(font.value)}
                           >
                             <span className="lyrics-share-font-label">
                               {font.label}
                             </span>
-                          </button>
+                          </Toggle>
                         ))}
                       </div>
                     </div>
@@ -772,65 +766,62 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
 
                       <div>
                         {SHARE_IMAGE_LAYOUTS.map((layout) => (
-                          <button
+                          <Toggle
                             key={layout.value}
-                            type="button"
-                            className={
-                              layout.value === selectedImageLayout ? "active" : ""
-                            }
-                            onClick={() => setSelectedImageLayout(layout.value)}
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                            pressed={layout.value === selectedImageLayout}
+                            onPressedChange={() => setSelectedImageLayout(layout.value)}
                           >
                             <span>{layout.label}</span>
-                          </button>
+                          </Toggle>
                         ))}
                       </div>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    className="lyrics-share-mobile-back"
+                  <Button
+                    variant="outline"
+                    className="lyrics-share-mobile-back h-11"
                     onClick={() => setMobileStep("select")}
                   >
                     تغییر انتخاب
-                  </button>
+                  </Button>
                 </section>
               </div>
 
               <footer className="lyrics-share-actions">
-                <button
-                  type="button"
+                <Button
+                  variant={getActionButtonVariant("copyLink")}
+                  className="h-11"
                   onClick={copyLink}
-                  className={getActionButtonClassName("copyLink")}
                 >
                   {getActionIcon("copyLink", <FaCopy />)}
                   <span>کپی لینک</span>
-                </button>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant={getActionButtonVariant("copyText")}
+                  className="h-11"
                   onClick={copyText}
-                  className={getActionButtonClassName("copyText")}
                 >
                   {getActionIcon("copyText", <FaCopy />)}
                   <span>کپی متن</span>
-                </button>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant={getActionButtonVariant("downloadImage")}
+                  className="h-11"
                   onClick={downloadImage}
                   disabled={!imageUrl}
-                  className={getActionButtonClassName("downloadImage")}
                 >
                   {getActionIcon("downloadImage", <FaDownload />)}
                   <span>دانلود تصویر</span>
-                </button>
+                </Button>
               </footer>
-            </motion.div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+      </DialogPopup>
+    </Dialog>
   );
 };
 

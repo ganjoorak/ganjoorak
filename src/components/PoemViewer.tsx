@@ -1,5 +1,7 @@
 "use client";
 
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -27,6 +29,8 @@ import Menu, { MenuButton, SearchButton } from "@/components/Menu";
 import SettingsDialog from "@/components/SettingsDialog";
 import GlobalSearchDialog from "@/components/GlobalSearchDialog";
 import SharePoemDialog from "@/components/SharePoemDialog";
+import MobileAudioControl from "@/components/MobileAudioControl";
+import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { useSettings } from "@/context/SettingsContext";
 import { useUpdateNotification } from "@/hooks/useUpdateNotification";
 import { usePoemLibrary } from "@/hooks/usePoemLibrary";
@@ -581,6 +585,16 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     }
   };
 
+  const handleSeek = (time: number) => {
+    if (!audioRef.current || !duration) return;
+    try {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    } catch (error) {
+      logger.error("Error seeking audio:", error);
+    }
+  };
+
   const handleEnded = () => {
     setIsPlaying(false);
     if (
@@ -746,6 +760,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       }
     };
   }, [poem.id]);
+
+  useHideOnScroll(poemTextRef, poem.id);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -988,16 +1004,20 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       {isAudioPlayerVisible && (
         <div className="audio-player">
           <div className="audio-controls">
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               className="audio-control-button"
               onClick={handlePreviousRecitation}
               disabled={!hasPreviousRecitation}
               title="قطعه قبلی"
             >
               <FaBackward />
-            </button>
-            <button
-              className="audio-control-button"
+            </Button>
+            <Button
+              variant="default"
+              size="icon"
+              className="audio-control-button rounded-full"
               onClick={toggleAudio}
               disabled={!currentAudioSrc}
               title={isPlaying ? "توقف" : "پخش"}
@@ -1009,16 +1029,20 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
               ) : (
                 <FaPlay />
               )}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               className="audio-control-button"
               onClick={handleNextRecitation}
               disabled={!hasNextRecitation}
               title="قطعه بعدی"
             >
               <FaForward />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant={isHighlightEnabled ? "secondary" : "ghost"}
+              size="icon"
               className={`audio-control-button ${isHighlightEnabled ? "active" : ""}`}
               onClick={() => setIsHighlightEnabled((v) => !v)}
               title={
@@ -1028,7 +1052,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
               }
             >
               {isHighlightEnabled ? <FaEye /> : <FaEyeSlash />}
-            </button>
+            </Button>
           </div>
 
           <div className="audio-progress" onClick={handleProgressClick}>
@@ -1079,6 +1103,24 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
             onError={handleAudioError}
           />
         </div>
+      )}
+
+      {isAudioPlayerVisible && (
+        <MobileAudioControl
+          isPlaying={isPlaying}
+          isLoading={isAudioLoading}
+          canPlay={Boolean(currentAudioSrc)}
+          currentTime={currentTime}
+          duration={duration}
+          hasPrevious={hasPreviousRecitation}
+          hasNext={hasNextRecitation}
+          isHighlightEnabled={isHighlightEnabled}
+          onToggle={toggleAudio}
+          onPrevious={handlePreviousRecitation}
+          onNext={handleNextRecitation}
+          onToggleHighlight={() => setIsHighlightEnabled((v) => !v)}
+          onSeek={handleSeek}
+        />
       )}
 
       {/* Poem content */}
@@ -1214,28 +1256,32 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         <div
           className={`action-buttons${keepPoetProfileVisible ? " action-buttons--profile-persistent" : ""}${showActionButtons ? "" : " is-hidden"}`}
         >
-          <button
+          <Button
             type="button"
-            className={`action-button poem-favorite-button${isFavorite ? " is-active" : ""}`}
+            variant={isFavorite ? "default" : "outline"}
+            size="icon"
+            className={`action-button poem-favorite-button rounded-full shadow-sm${isFavorite ? " is-active" : ""}`}
             onClick={toggleFavorite}
             title={isFavorite ? "حذف از ذخیره‌ها" : "ذخیره شعر"}
             aria-pressed={isFavorite}
             aria-label={isFavorite ? "حذف از ذخیره‌ها" : "ذخیره شعر"}
           >
             {isFavorite ? <FaHeart /> : <FaRegHeart />}
-          </button>
-          <button
-            className="action-button"
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="action-button poem-share-button rounded-full shadow-sm"
             onClick={() => setIsShareOpen(true)}
             title="اشتراک‌گذاری"
           >
             <FaShare />
-          </button>
+          </Button>
           <a
             href={openSource()}
             target="_blank"
             rel="noopener noreferrer"
-            className="action-button"
+            className={cn(buttonVariants({ variant: "outline", size: "icon" }), "action-button poem-source-button rounded-full shadow-sm")}
             title="مشاهده منبع"
             aria-label="مشاهده منبع"
           >
