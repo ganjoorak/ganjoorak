@@ -7,7 +7,12 @@ import PoemFeedPager from "@/components/PoemFeedPager";
 import LoadingScreen from "@/components/LoadingScreen";
 import ErrorScreen from "@/components/ErrorScreen";
 import AppNotFound from "@/app/not-found";
-import PoetInfoDialog from "@/components/PoetInfoDialog";
+import PoetProfile, {
+  PoetProfileList,
+  PoetProfileSection,
+  type PoetProfileRow,
+} from "@/components/PoetProfile";
+import { buildPoetFollowKey } from "@/hooks/useFollowPoet";
 import PoetSearchPanel from "@/components/PoetSearchPanel";
 import PoetGeoMap from "@/components/PoetGeoMap";
 import ganjoorApi from "@/api/GanjoorApi";
@@ -79,121 +84,27 @@ const indexCategories = (
   return map;
 };
 
-interface CategoryListProps {
-  categories: GanjoorCategory[];
-  selectedId: number | null;
-  onSelectCategory: (categoryId: number) => void;
-  categoryCache: Record<number, GanjoorCategory>;
-  loadingCategoryId?: number | null;
-  level?: number;
-}
-
-function CategoryList({
-  categories,
-  selectedId,
-  onSelectCategory,
-  categoryCache,
-  loadingCategoryId = null,
-  level = 0,
-}: CategoryListProps) {
-  if (!categories || categories.length === 0) {
-    return null;
-  }
-
-  return (
-    <ul
-      className={
-        level === 0
-          ? "space-y-2"
-          : "space-y-1 border-r border-neutral-800/50 pr-4"
-      }
-    >
-      {categories.map((category) => {
-        const cached = categoryCache[category.id] ?? category;
-        const poemCount = cached.poems?.length ?? 0;
-        const childNodes =
-          cached.children && cached.children.length > 0
-            ? cached.children
-            : category.children;
-        const isSelected = selectedId === category.id;
-        const isLoading = loadingCategoryId === category.id;
-
-        return (
-          <li key={category.id}>
-            <button
-              type="button"
-              onClick={() => onSelectCategory(category.id)}
-              className={`w-full rounded-lg border px-3 py-2 text-right transition ${
-                isSelected
-                  ? "border-neutral-700 bg-neutral-800/70 text-neutral-50"
-                  : "border-transparent text-neutral-200 hover:bg-neutral-800/40"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium">{category.title}</span>
-                {isLoading ? (
-                  <FaSpinner
-                    className="h-3.5 w-3.5 shrink-0 animate-spin text-neutral-400"
-                    aria-label="در حال بارگذاری"
-                  />
-                ) : poemCount > 0 ? (
-                  <span className="text-xs text-neutral-400">
-                    {formatPersianNumber(poemCount)}
-                  </span>
-                ) : null}
-              </div>
-            </button>
-            {childNodes && childNodes.length > 0 && (
-              <div className="mt-2">
-                <CategoryList
-                  categories={childNodes}
-                  selectedId={selectedId}
-                  onSelectCategory={onSelectCategory}
-                  categoryCache={categoryCache}
-                  loadingCategoryId={loadingCategoryId}
-                  level={level + 1}
-                />
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function PoetDetails({ poet }: { poet: Poet }) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <PoetImage
-          imgUrl={poet.imageUrl}
-          alt={poet.name}
-          poetSlug={poet.urlSlug}
-          width={72}
-          height={72}
-        />
-        <div className="flex flex-col gap-1">
-          <h1 className="text-lg font-semibold text-neutral-50">
-            {poet.nickname || poet.name}
-          </h1>
-          {poet.nickname && (
-            <span className="text-sm text-neutral-400">{poet.name}</span>
-          )}
-          <div className="flex flex-wrap gap-x-3 text-xs text-neutral-500">
-            {poet.birthPlace && <span>زادگاه: {poet.birthPlace}</span>}
-            {poet.deathPlace && <span>آرامگاه: {poet.deathPlace}</span>}
-          </div>
-        </div>
-      </div>
-      {poet.description && (
-        <p className="modern-scrollbar max-h-64 overflow-y-auto whitespace-pre-line text-sm leading-7 text-neutral-300">
-          {poet.description}
-        </p>
-      )}
-    </div>
-  );
-}
+const buildCategoryRows = (
+  categories: GanjoorCategory[],
+  categoryCache: Record<number, GanjoorCategory>,
+  selectedId: number | null,
+  loadingId: number | null,
+): PoetProfileRow[] =>
+  categories.map((category) => {
+    const cached = categoryCache[category.id] ?? category;
+    const children =
+      cached.children && cached.children.length > 0
+        ? cached.children
+        : category.children ?? [];
+    return {
+      id: category.id,
+      title: category.title,
+      count: cached.poems?.length ?? 0,
+      isSelected: selectedId === category.id,
+      isLoading: loadingId === category.id,
+      children: buildCategoryRows(children, categoryCache, selectedId, loadingId),
+    };
+  });
 
 function RandomizePoemsPrompt({
   poetName,
@@ -305,6 +216,9 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
   const poemCacheRef = useRef<Record<number, Poem>>({});
   const poemOrderRef = useRef<number[]>([]);
   const shouldAutoCloseInfoRef = useRef(false);
+  const [isRandomMode, setIsRandomMode] = useState(false);
+  const [isRandomLoading, setIsRandomLoading] = useState(false);
+  const randomPrefetchRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -316,6 +230,7 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
       setNotFound(false);
       setCatalog(null);
       setIsInfoOpen(true);
+      setIsRandomMode(false);
       setCategoryCache({});
       setLoadedCategoryIds(new Set());
       setSelectedCategoryId(null);
@@ -540,6 +455,7 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
           !loadedCategoryIds.has(categoryId));
 
       setRandomizeChoice(null);
+      setIsRandomMode(false);
       setCategoryLoading(needsCategoryLoad);
       setCategoryError(null);
       setPoemError(null);
@@ -607,6 +523,64 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
     selectedCategoryHasChildren,
   ]);
 
+  const fetchRandomPoetPoem = useCallback(async () => {
+    if (!catalog) {
+      throw new Error("Poet catalog is not loaded");
+    }
+    const poem = await ganjoorApi.getRandomPoemByPoetId(catalog.poet.id);
+    poemCacheRef.current[poem.id] = poem;
+    return poem;
+  }, [catalog]);
+
+  const appendRandomPoem = useCallback(async () => {
+    const poem = await fetchRandomPoetPoem();
+    const order = poemOrderRef.current;
+    if (order[order.length - 1] === poem.id) {
+      return order;
+    }
+    const next = [...order, poem.id];
+    poemOrderRef.current = next;
+    setPoemOrder(next);
+    return next;
+  }, [fetchRandomPoetPoem]);
+
+  // Random mode: keep one random poem queued so the pull-to-next sheet has
+  // something to preview.
+  useEffect(() => {
+    if (!isRandomMode || !currentPoem) return;
+    if (poemOrderRef.current[currentPoemIndex + 1]) return;
+    if (randomPrefetchRef.current) return;
+    randomPrefetchRef.current = true;
+    appendRandomPoem()
+      .catch((error) => logger.error("Error preloading random poem:", error))
+      .finally(() => {
+        randomPrefetchRef.current = false;
+      });
+  }, [appendRandomPoem, currentPoem, currentPoemIndex, isRandomMode]);
+
+  const handleRandomPoem = useCallback(async () => {
+    setIsRandomLoading(true);
+    try {
+      const poem = await fetchRandomPoetPoem();
+      shouldAutoCloseInfoRef.current = false;
+      poemOrderRef.current = [poem.id];
+      setPoemOrder([poem.id]);
+      setRandomizeChoice(true);
+      setIsRandomMode(true);
+      setSelectedCategoryId(null);
+      setCategoryError(null);
+      setPoemError(null);
+      setCurrentPoem(poem);
+      setCurrentPoemIndex(0);
+      setIsInfoOpen(false);
+    } catch (error) {
+      logger.error("Error loading random poet poem:", error);
+      setCategoryError("دریافت شعر تصادفی ممکن نشد. لطفاً دوباره تلاش کنید.");
+    } finally {
+      setIsRandomLoading(false);
+    }
+  }, [fetchRandomPoetPoem]);
+
   const handleNext = useCallback(() => {
     const order = poemOrderRef.current;
     if (!order.length) return;
@@ -617,13 +591,30 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
       return;
     }
 
+    if (isRandomMode) {
+      setPoemLoading(true);
+      appendRandomPoem()
+        .then((next) => loadPoemAtIndex(nextIndex, next))
+        .catch((error) => {
+          logger.error("Error loading random poem:", error);
+          setPoemLoading(false);
+        });
+      return;
+    }
+
     if (randomizePoems && order.length > 0) {
       const reshuffled = createPoemOrder(order, true);
       poemOrderRef.current = reshuffled;
       setPoemOrder(reshuffled);
       loadPoemAtIndex(0, reshuffled);
     }
-  }, [currentPoemIndex, randomizePoems, loadPoemAtIndex]);
+  }, [
+    appendRandomPoem,
+    currentPoemIndex,
+    isRandomMode,
+    randomizePoems,
+    loadPoemAtIndex,
+  ]);
 
   const handlePrevious = useCallback(() => {
     const order = poemOrderRef.current;
@@ -638,14 +629,33 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
   const topLevelCategories = useMemo(() => {
     if (!catalog) return [];
     const root = categoryCache[catalog.category.id] ?? catalog.category;
-    if ((root.poems?.length ?? 0) > 0) {
-      return [root];
+    // Books are the root's children. A root that only holds poems (no
+    // children) is itself the single readable collection.
+    if ((root.children?.length ?? 0) > 0) {
+      return root.children;
     }
-    return root.children ?? [];
+    return (root.poems?.length ?? 0) > 0 ? [root] : [];
   }, [catalog, categoryCache]);
+
+  const handleReadInFeed = useCallback(() => {
+    if (currentPoem) {
+      setIsInfoOpen(false);
+      return;
+    }
+    let target = topLevelCategories[0];
+    if (!target) return;
+    for (;;) {
+      const node = categoryCache[target.id] ?? target;
+      const firstChild = node.children?.[0];
+      if (!firstChild) break;
+      target = firstChild;
+    }
+    handleSelectCategory(target.id);
+  }, [categoryCache, currentPoem, handleSelectCategory, topLevelCategories]);
 
   const isFirstPoem = currentPoemIndex <= 0;
   const isLastPoem =
+    !isRandomMode &&
     !randomizePoems &&
     (poemOrder.length === 0 || currentPoemIndex >= poemOrder.length - 1);
   const nextPoemId = poemOrder[currentPoemIndex + 1];
@@ -690,57 +700,61 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
           onChoose={handleRandomizeChoice}
         />
       )}
-      <PoetInfoDialog
+      <PoetProfile
+        poet={catalog.poet}
         isOpen={isInfoOpen}
-        onClose={() => setIsInfoOpen(false)}
-        title="اطلاعات شاعر"
+        followKey={buildPoetFollowKey("ganjoor", slug)}
+        stats={[
+          {
+            label: "مجموعه",
+            value: formatPersianNumber(topLevelCategories.length),
+          },
+        ]}
+        onResume={currentPoem ? () => setIsInfoOpen(false) : undefined}
+        onRandom={handleRandomPoem}
+        isRandomLoading={isRandomLoading}
+        onRead={handleReadInFeed}
+        isReadLoading={!currentPoem && loadingCategoryId !== null}
       >
-        <section className="poet-info-section">
-          <PoetDetails poet={catalog.poet} />
-        </section>
-        <section className="poet-info-section">
-          <PoetGeoMap
-            poet={catalog.poet}
-            rootCategoryId={catalog.category.id}
-          />
-        </section>
-        <section className="poet-info-section">
-          <PoetSearchPanel poet={catalog.poet} />
-        </section>
-        <section className="poet-info-section">
-          <h3 className="poet-info-section-title">مجموعه‌ها</h3>
-          {topLevelCategories.length > 0 && selectedCategoryId === null && (
-            <p className="mb-3 text-xs leading-6 text-neutral-500">
-              برای شروع خواندن، یک مجموعه را انتخاب کنید.
-            </p>
-          )}
+        <PoetProfileSection
+          title="مجموعه‌ها"
+          hint={
+            selectedCategoryId === null &&
+            !currentPoem &&
+            topLevelCategories.length > 0
+              ? "برای شروع خواندن، یک مجموعه را انتخاب کنید."
+              : undefined
+          }
+        >
           {topLevelCategories.length > 0 ? (
-            <CategoryList
-              categories={topLevelCategories}
-              selectedId={selectedCategoryId}
-              onSelectCategory={handleSelectCategory}
-              categoryCache={categoryCache}
-              loadingCategoryId={loadingCategoryId}
+            <PoetProfileList
+              rows={buildCategoryRows(
+                topLevelCategories,
+                categoryCache,
+                selectedCategoryId,
+                loadingCategoryId,
+              )}
+              onSelect={handleSelectCategory}
             />
           ) : (
-            <p className="text-sm text-neutral-400">
+            <p className="poet-profile-empty">
               مجموعه‌ای برای این شاعر ثبت نشده است.
             </p>
           )}
           {categoryError && (
-            <div className="mt-3 rounded-md bg-red-900/30 px-3 py-2 text-xs text-red-200">
+            <div className="poet-profile-error" role="alert">
               <p>{categoryError}</p>
-              <button
-                type="button"
-                className="mt-2 rounded bg-red-600/80 px-3 py-1 text-xs text-white hover:bg-red-600"
-                onClick={handleRetryCategory}
-              >
-                تلاش مجدد
-              </button>
+              {selectedCategoryId !== null && (
+                <button type="button" onClick={handleRetryCategory}>
+                  تلاش مجدد
+                </button>
+              )}
             </div>
           )}
-        </section>
-      </PoetInfoDialog>
+        </PoetProfileSection>
+        <PoetSearchPanel poet={catalog.poet} />
+        <PoetGeoMap poet={catalog.poet} rootCategoryId={catalog.category.id} />
+      </PoetProfile>
       <main
         className="relative flex flex-1 flex-col overflow-hidden"
       >
@@ -804,7 +818,7 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
                   }}
                   className="rounded-lg px-4 py-3 text-sm leading-7 text-neutral-300 transition hover:bg-neutral-900 hover:text-neutral-100"
                 >
-                  برای شروع، یک مجموعه از اطلاعات شاعر انتخاب کنید.
+                  برای شروع، یک مجموعه را از صفحهٔ شاعر انتخاب کنید.
                 </button>
               </div>
             )
@@ -993,6 +1007,21 @@ function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
     [setAskRandomizePoemsOnPoetPages, setRandomizePoems],
   );
 
+  const handleRandomPoem = useCallback(() => {
+    const order = createPoemOrder(
+      summaries.map((summary) => summary.id),
+      true,
+    );
+    if (!order.length) return;
+    skipNextPoemOrderEffectRef.current = randomizeChoice !== true;
+    setRandomizeChoice(true);
+    poemOrderRef.current = order;
+    setPoemOrder(order);
+    setPoemError(null);
+    setIsInfoOpen(false);
+    loadPoemAtIndex(0, order);
+  }, [loadPoemAtIndex, randomizeChoice, summaries]);
+
   const handleSelectSummary = useCallback(
     (poemId: number) => {
       const order = summaries.map((summary) => summary.id);
@@ -1041,49 +1070,40 @@ function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
           onChoose={handleRandomizeChoice}
         />
       )}
-      <PoetInfoDialog
+      <PoetProfile
+        poet={poet}
         isOpen={isInfoOpen}
-        onClose={() => setIsInfoOpen(false)}
-        title="اطلاعات شاعر"
-        showBackdrop={false}
+        followKey={buildPoetFollowKey("echolalia", poetSlug)}
+        stats={[{ label: "شعر", value: formatPersianNumber(summaries.length) }]}
+        onResume={currentPoem ? () => setIsInfoOpen(false) : undefined}
+        onRandom={handleRandomPoem}
+        onRead={() => setIsInfoOpen(false)}
       >
-        <section className="poet-info-section">
-          <PoetDetails poet={poet} />
-        </section>
-        <section className="poet-info-section">
-          <PoetSearchPanel poet={poet} />
-        </section>
-        <section className="poet-info-section">
-          <h3 className="poet-info-section-title">شعرها</h3>
+        <PoetProfileSection
+          title="شعرها"
+          aside={
+            summaries.length > 0 ? (
+              <span>{formatPersianNumber(summaries.length)} شعر</span>
+            ) : undefined
+          }
+        >
           {summaries.length > 0 ? (
-            <div className="space-y-2">
-              <div className="rounded-lg border border-neutral-800/60 bg-neutral-900/50 px-4 py-3 text-sm text-neutral-300">
-                <div className="flex items-center justify-between">
-                  <span>تعداد شعرها</span>
-                  <span>{formatPersianNumber(summaries.length)}</span>
-                </div>
-              </div>
-              <ul className="space-y-2">
-                {summaries.map((summary) => (
-                  <li key={summary.id}>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectSummary(summary.id)}
-                      className="w-full rounded-lg border border-transparent px-3 py-2 text-right text-sm text-neutral-200 transition hover:bg-neutral-800/40"
-                    >
-                      {summary.title}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <PoetProfileList
+              rows={summaries.map((summary) => ({
+                id: summary.id,
+                title: summary.title,
+                isSelected: currentPoem?.id === summary.id,
+              }))}
+              onSelect={handleSelectSummary}
+            />
           ) : (
-            <p className="text-sm text-neutral-400">
+            <p className="poet-profile-empty">
               شعری برای این شاعر ثبت نشده است.
             </p>
           )}
-        </section>
-      </PoetInfoDialog>
+        </PoetProfileSection>
+        <PoetSearchPanel poet={poet} />
+      </PoetProfile>
       <main className="relative flex flex-1 flex-col overflow-hidden">
         <div className="relative flex flex-1 flex-col overflow-hidden">
           {poemLoading && !currentPoem && <LoadingScreen />}
@@ -1435,6 +1455,28 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
 
   const handleRetryPoet = () => setReloadKey((prev) => prev + 1);
 
+  const handleRandomPoem = useCallback(() => {
+    const order = createPoemOrder(poemIds, true);
+    if (!order.length) return;
+    skipNextPoemOrderEffectRef.current = randomizeChoice !== true;
+    setRandomizeChoice(true);
+    poemOrderRef.current = order;
+    setPoemOrder(order);
+    setPoemError(null);
+    setIsInfoOpen(false);
+    loadPoemAtIndex(0, order);
+  }, [loadPoemAtIndex, poemIds, randomizeChoice]);
+
+  const collectionCount = useMemo(
+    () =>
+      new Set(
+        poemSummaries
+          .map((summary) => summary.collection)
+          .filter((value): value is string => Boolean(value)),
+      ).size,
+    [poemSummaries],
+  );
+
   const handleSelectLocalSummary = useCallback(
     (poemId: number) => {
       const order = poemSummaries.map((summary) => summary.id);
@@ -1499,55 +1541,47 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
           onChoose={handleRandomizeChoice}
         />
       )}
-      <PoetInfoDialog
+      <PoetProfile
+        poet={poetInfo}
         isOpen={isInfoOpen}
-        onClose={() => setIsInfoOpen(false)}
-        title="اطلاعات شاعر"
-        showBackdrop={false}
+        followKey={buildPoetFollowKey("custom", poetSlug)}
+        stats={[
+          ...(collectionCount > 0
+            ? [{ label: "مجموعه", value: formatPersianNumber(collectionCount) }]
+            : []),
+          { label: "شعر", value: formatPersianNumber(poemIds.length) },
+        ]}
+        onResume={currentPoem ? () => setIsInfoOpen(false) : undefined}
+        onRandom={handleRandomPoem}
+        onRead={() => setIsInfoOpen(false)}
       >
-        <section className="poet-info-section">
-          <PoetDetails poet={poetInfo} />
-        </section>
-        <section className="poet-info-section">
-          <PoetSearchPanel poet={poetInfo} />
-        </section>
-        <section className="poet-info-section">
-          <div className="rounded-lg border border-neutral-800/60 bg-neutral-900/50 px-4 py-3 text-sm text-neutral-300">
-            <div className="flex items-center justify-between">
-              <span>تعداد شعرها</span>
-              <span>{formatPersianNumber(poemIds.length)}</span>
-            </div>
-          </div>
-          {poemSummaries.length > 0 && (
-            <>
-              <h3 className="poet-info-section-title mt-4">شعرها</h3>
-              <ul className="space-y-2">
-                {poemSummaries.map((summary) => (
-                  <li key={summary.id}>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectLocalSummary(summary.id)}
-                      className="w-full rounded-lg border border-transparent px-3 py-2 text-right text-sm text-neutral-200 transition hover:bg-neutral-800/40"
-                    >
-                      <span className="flex items-center gap-2 font-medium">
-                        <span className="rounded border border-neutral-700/70 px-2 py-0.5 text-xs text-neutral-400">
-                          {formatPersianNumber(summary.id)}
-                        </span>
-                        <span>{summary.title}</span>
-                      </span>
-                      {summary.collection && (
-                        <span className="mt-1 block text-xs text-neutral-500">
-                          {summary.collection}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
+        <PoetProfileSection
+          title="شعرها"
+          aside={
+            poemSummaries.length > 0 ? (
+              <span>{formatPersianNumber(poemSummaries.length)} شعر</span>
+            ) : undefined
+          }
+        >
+          {poemSummaries.length > 0 ? (
+            <PoetProfileList
+              rows={poemSummaries.map((summary) => ({
+                id: summary.id,
+                title: summary.title,
+                subtitle: summary.collection,
+                badge: formatPersianNumber(summary.id),
+                isSelected: currentPoem?.id === summary.id,
+              }))}
+              onSelect={handleSelectLocalSummary}
+            />
+          ) : (
+            <p className="poet-profile-empty">
+              شعری برای این شاعر ثبت نشده است.
+            </p>
           )}
-        </section>
-      </PoetInfoDialog>
+        </PoetProfileSection>
+        <PoetSearchPanel poet={poetInfo} />
+      </PoetProfile>
       <main className="relative flex flex-1 flex-col overflow-hidden">
         <div className="relative flex flex-1 flex-col overflow-hidden">
           {showPoemLoadingOverlay && <LoadingScreen />}

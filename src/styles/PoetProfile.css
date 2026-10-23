@@ -1,0 +1,286 @@
+/* Poet profile: a full-screen, scrollable app page (shadcn neutral tokens). */
+.poet-profile-page {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
+  font-family: inherit;
+  -webkit-overflow-scrolling: touch;
+}
+
+.poet-profile-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  height: calc(3.5rem + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 0.5rem 0;
+  background: rgb(var(--background) / 0.86);
+  backdrop-filter: saturate(1.4) blur(14px);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+.poet-profile-bar.is-scrolled { border-bottom-color: rgb(var(--border)); }
+
+.poet-profile-bar-title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  font-size: 0.95rem;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.poet-profile-bar.is-scrolled .poet-profile-bar-title { opacity: 1; transform: none; }
+
+.poet-profile-bar-actions { display: flex; align-items: center; gap: 0.25rem; }
+.poet-profile-bar-icon { border-radius: 999px !important; }
+.poet-profile-bar-icon svg { width: 1rem; height: 1rem; }
+.poet-profile-resume { border-radius: 999px !important; padding-inline: 0.85rem !important; }
+
+.poet-profile-layout {
+  width: 100%;
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 0.5rem 1rem calc(2.5rem + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 1.5rem;
+}
+
+.poet-profile-card { display: grid; gap: 1.1rem; }
+
+.poet-profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.poet-profile-avatar {
+  flex-shrink: 0;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgb(var(--muted));
+  box-shadow: 0 0 0 1px rgb(var(--border)), 0 0 0 4px rgb(var(--background)), 0 0 0 5px rgb(var(--border));
+}
+.poet-profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.poet-profile-names { min-width: 0; display: grid; gap: 0.2rem; }
+.poet-profile-names h1 {
+  font-size: 1.5rem;
+  line-height: 1.35;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.poet-profile-fullname { font-size: 0.85rem; color: rgb(var(--muted-foreground)); }
+.poet-profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  color: rgb(var(--muted-foreground));
+}
+.poet-profile-dot { margin-inline: 0.35rem; }
+
+.poet-profile-stats {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border: 1px solid rgb(var(--border));
+  border-radius: calc(var(--radius) + 4px);
+  background: rgb(var(--card));
+  overflow: hidden;
+}
+.poet-profile-stats > div {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.7rem 0.5rem;
+  text-align: center;
+}
+.poet-profile-stats > div + div { border-inline-start: 1px solid rgb(var(--border)); }
+.poet-profile-stats dd { font-size: 1.05rem; font-weight: 700; line-height: 1.4; }
+.poet-profile-stats dt { font-size: 0.72rem; color: rgb(var(--muted-foreground)); }
+
+.poet-profile-actions { display: grid; gap: 0.5rem; }
+.poet-profile-follow {
+  height: 2.75rem !important;
+  width: 100%;
+  border-radius: calc(var(--radius) + 2px) !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  gap: 0.5rem !important;
+}
+.poet-profile-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.poet-profile-quick-button {
+  height: 2.6rem !important;
+  border-radius: calc(var(--radius) + 2px) !important;
+  gap: 0.45rem !important;
+}
+.poet-profile-quick-button svg { color: rgb(var(--muted-foreground)); }
+
+.poet-profile-bio p {
+  white-space: pre-line;
+  font-size: 0.9rem;
+  line-height: 1.95;
+  color: rgb(var(--foreground) / 0.82);
+}
+.poet-profile-bio p.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.poet-profile-bio-toggle {
+  margin-top: 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgb(var(--foreground));
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgb(var(--border));
+}
+
+.poet-profile-main { display: grid; gap: 1.75rem; min-width: 0; }
+
+.poet-profile-section { min-width: 0; }
+.poet-profile-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+.poet-profile-section-head h2 { font-size: 1.05rem; font-weight: 700; }
+.poet-profile-section-head span { font-size: 0.8rem; color: rgb(var(--muted-foreground)); }
+.poet-profile-section-hint {
+  margin: -0.35rem 0 0.65rem;
+  font-size: 0.8rem;
+  color: rgb(var(--muted-foreground));
+}
+
+.poet-profile-list {
+  border: 1px solid rgb(var(--border));
+  border-radius: calc(var(--radius) + 4px);
+  background: rgb(var(--card));
+  overflow: hidden;
+}
+.poet-profile-list > li + li { border-top: 1px solid rgb(var(--border)); }
+.poet-profile-sublist {
+  margin: 0 1rem 0.5rem 0;
+  border-inline-start: 2px solid rgb(var(--border));
+}
+
+.poet-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.6rem 1rem;
+  text-align: right;
+  transition: background-color 0.15s ease;
+}
+.poet-profile-sublist .poet-profile-row { min-height: 2.75rem; padding-block: 0.45rem; }
+.poet-profile-row:hover { background: rgb(var(--muted) / 0.7); }
+.poet-profile-row:active { background: rgb(var(--muted)); }
+.poet-profile-row.is-selected { background: rgb(var(--accent)); }
+.poet-profile-row.is-selected .poet-profile-row-title { font-weight: 700; }
+
+.poet-profile-row-badge {
+  flex-shrink: 0;
+  min-width: 2rem;
+  height: 1.6rem;
+  padding: 0 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.45rem;
+  background: rgb(var(--muted));
+  color: rgb(var(--muted-foreground));
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.poet-profile-row-text { flex: 1; min-width: 0; display: grid; gap: 0.1rem; }
+.poet-profile-row-title {
+  font-size: 0.92rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.poet-profile-row-subtitle { font-size: 0.75rem; color: rgb(var(--muted-foreground)); }
+.poet-profile-row-trail {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgb(var(--muted-foreground));
+  font-size: 0.75rem;
+}
+.poet-profile-row-trail svg { width: 0.7rem; height: 0.7rem; opacity: 0.7; }
+.poet-profile-row-count { white-space: nowrap; }
+
+.poet-profile-error {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: rgb(220 38 38 / 0.1);
+  color: rgb(185 28 28);
+  font-size: 0.82rem;
+}
+html[data-theme="dark"] .poet-profile-error { color: rgb(252 165 165); }
+.poet-profile-error button { margin-top: 0.4rem; font-weight: 600; text-decoration: underline; }
+
+.poet-profile-empty { font-size: 0.88rem; color: rgb(var(--muted-foreground)); padding: 1rem 0; }
+
+/* Panels reused from the old dialog: drop their standalone page margins. */
+.poet-profile-main .poet-search-panel,
+.poet-profile-main .poet-geo-section { max-width: none; margin: 0; padding: 0; }
+.poet-profile-main .poet-info-section-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.65rem; }
+.poet-profile-main .poet-search-form input { background: rgb(var(--card)); border-color: rgb(var(--border)); }
+.poet-profile-main .poet-geo-list {
+  gap: 0;
+  border: 1px solid rgb(var(--border));
+  border-radius: calc(var(--radius) + 4px);
+  background: rgb(var(--card));
+  overflow: hidden;
+}
+.poet-profile-main .poet-geo-list li { padding: 0.7rem 1rem; }
+.poet-profile-main .poet-geo-list li + li { border-top: 1px solid rgb(var(--border)); }
+.poet-profile-main .poet-geo-list li span { color: rgb(var(--muted-foreground)); }
+
+@media (min-width: 960px) {
+  .poet-profile-bar { padding-inline: 1.5rem; }
+  .poet-profile-layout {
+    max-width: 72rem;
+    grid-template-columns: 22rem minmax(0, 1fr);
+    align-items: start;
+    gap: 3rem;
+    padding: 1.5rem 2rem 4rem;
+  }
+  .poet-profile-card {
+    position: sticky;
+    top: 5rem;
+    padding: 1.5rem;
+    border: 1px solid rgb(var(--border));
+    border-radius: calc(var(--radius) + 8px);
+    background: rgb(var(--card));
+  }
+  .poet-profile-identity { flex-direction: column; text-align: center; gap: 0.85rem; }
+  .poet-profile-avatar { width: 7rem; height: 7rem; }
+  .poet-profile-names { justify-items: center; }
+  .poet-profile-meta { justify-content: center; }
+  .poet-profile-stats { background: rgb(var(--background)); }
+}
