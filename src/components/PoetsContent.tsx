@@ -290,15 +290,26 @@ export default function PoetsContent({
   };
 
   const viewToggle = (
-    <Button
-      variant="ghost"
-      size="icon-lg"
-      className="app-page-bar-icon"
-      onClick={() => setView((value) => (value === "grid" ? "list" : "grid"))}
-      aria-label={view === "grid" ? "نمایش فهرستی" : "نمایش شبکه‌ای"}
-    >
-      {view === "grid" ? <FaListUl /> : <FaThLarge />}
-    </Button>
+    <div className="app-segmented poets-view-toggle" role="group" aria-label="شیوه نمایش">
+      <button
+        type="button"
+        aria-pressed={view === "grid"}
+        aria-label="نمایش شبکه‌ای"
+        title="شبکه‌ای"
+        onClick={() => setView("grid")}
+      >
+        <FaThLarge aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-pressed={view === "list"}
+        aria-label="نمایش فهرستی"
+        title="فهرستی"
+        onClick={() => setView("list")}
+      >
+        <FaListUl aria-hidden="true" />
+      </button>
+    </div>
   );
 
   return (
@@ -306,7 +317,6 @@ export default function PoetsContent({
       title="شاعران"
       subtitle={`${persianNumber.format(allEntries.length)} شاعر از گنجور و اکولالیا. دنبالشان کنید تا در فید «دنبال‌شده‌ها» بیایند.`}
       width="wide"
-      actions={viewToggle}
       className="poets-page"
       headerExtra={
         <div className="poets-controls">
@@ -331,8 +341,14 @@ export default function PoetsContent({
               </button>
             )}
           </label>
+          <div className="poets-tabs-row">
           {!normalizedQuery && (
-            <div className="app-segmented poets-tabs" role="tablist" aria-label="دسته‌های شاعران">
+            <div
+              className="app-segmented poets-tabs"
+              role="tablist"
+              aria-label="دسته‌های شاعران"
+              onWheel={handleChipWheel}
+            >
               {tabs.map((item) => (
                 <button
                   key={item.id}
@@ -352,6 +368,8 @@ export default function PoetsContent({
               ))}
             </div>
           )}
+            {viewToggle}
+          </div>
         </div>
       }
     >

@@ -174,7 +174,8 @@ a.app-row:hover, button.app-row:hover { background: rgb(var(--muted) / 0.6); }
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
-.app-segmented > button[aria-selected="true"] {
+.app-segmented > button[aria-selected="true"],
+.app-segmented > button[aria-pressed="true"] {
   background: rgb(var(--background));
   color: rgb(var(--foreground));
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 0 0 1px rgb(var(--border));
