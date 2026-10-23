@@ -1,0 +1,231 @@
+/* r15: Settings as an app-like sheet. Bottom sheet on phones, centered card on
+   larger screens. Grouped sections use the same inset-list language as AppPage. */
+
+.settings-sheet[data-slot="dialog-popup"] {
+  max-width: 34rem;
+  border-radius: calc(var(--radius) + 12px);
+  background: rgb(var(--background));
+  overflow: hidden;
+}
+
+.settings-sheet-grabber {
+  display: none;
+}
+
+.settings-sheet-header[data-slot="dialog-header"] {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.5rem;
+}
+
+.settings-sheet-body[data-slot="dialog-panel"] {
+  padding: 0.25rem 1rem 1.25rem;
+}
+
+.settings-sheet-groups {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.settings-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.settings-group-title {
+  padding-inline: 0.35rem;
+  color: rgb(var(--muted-foreground));
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.settings-group-card {
+  border: 1px solid rgb(var(--border));
+  border-radius: calc(var(--radius) + 6px);
+  background: rgb(var(--card));
+  color: rgb(var(--card-foreground));
+  overflow: hidden;
+}
+
+.settings-group-card > * + * {
+  border-top: 1px solid rgb(var(--border));
+}
+
+.settings-group-block {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem 0.9rem;
+}
+
+.settings-group-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.settings-theme-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.settings-sheet .settings-theme-tile {
+  height: auto;
+  min-height: 4.6rem;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.4rem;
+  border-radius: calc(var(--radius) + 2px);
+  font-size: 0.85rem;
+}
+
+.settings-theme-swatch {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  font-size: 0.85rem;
+}
+
+[data-theme-option="light"] .settings-theme-swatch { background: #fff; color: #111; }
+[data-theme-option="dark"] .settings-theme-swatch { background: #111; color: #f5f5f5; border-color: rgb(255 255 255 / 0.18); }
+[data-theme-option="paper"] .settings-theme-swatch { background: #f4ecd8; color: #5b4630; }
+
+.settings-font-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.settings-sheet .settings-font-tile {
+  height: auto;
+  min-height: 3.9rem;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem 0.25rem;
+  border-radius: calc(var(--radius) + 2px);
+  font-size: 0.85rem;
+}
+
+.settings-font-sample {
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+
+.settings-sheet .settings-size-readout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-size-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.25rem;
+  padding: 0.65rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.92rem;
+  transition: background-color 0.15s ease;
+}
+
+.settings-row:active {
+  background: rgb(var(--muted) / 0.6);
+}
+
+.settings-row-text {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.settings-row-text small {
+  color: rgb(var(--muted-foreground));
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.settings-sheet-footer[data-slot="dialog-footer"] {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: rgb(var(--background) / 0.92);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Phones: dock to the bottom edge and slide up. */
+@media (max-width: 639px) {
+  [data-slot="dialog-viewport"]:has(> .settings-sheet) {
+    padding: 0;
+    grid-template-rows: 1fr auto;
+    align-items: end;
+  }
+
+  .settings-sheet[data-slot="dialog-popup"] {
+    grid-row-start: 2;
+    max-width: none;
+    max-height: calc(100dvh - 2.5rem - env(safe-area-inset-top));
+    border-width: 1px 0 0;
+    border-radius: 1.5rem 1.5rem 0 0;
+    --tw-enter-scale: 1;
+    --tw-exit-scale: 1;
+    --tw-enter-translate-y: 100%;
+    --tw-exit-translate-y: 100%;
+    animation-duration: 0.28s;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .settings-sheet-grabber {
+    display: block;
+    width: 2.5rem;
+    height: 0.3rem;
+    margin: 0.5rem auto 0;
+    border-radius: 999px;
+    background: rgb(var(--muted-foreground) / 0.35);
+  }
+
+  .settings-sheet-header[data-slot="dialog-header"] {
+    padding-top: 0.35rem;
+  }
+
+  .settings-font-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* iOS-like switches: clear on/off contrast in every theme. */
+.settings-sheet [data-slot="switch"] {
+  width: 2.75rem;
+  height: 1.6rem;
+  --travel: 1.15rem;
+}
+
+.settings-sheet [data-slot="switch"][data-unchecked] {
+  background: rgb(var(--muted-foreground) / 0.3);
+}
+
+.settings-sheet [data-slot="switch"][data-checked] {
+  background: rgb(var(--primary));
+}
+
+.settings-sheet [data-slot="switch-thumb"] {
+  width: 1.35rem;
+  height: 1.35rem;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+}
+
+.settings-sheet [data-slot="switch"][data-checked] [data-slot="switch-thumb"] {
+  background: rgb(var(--primary-foreground));
+}

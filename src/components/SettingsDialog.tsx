@@ -29,6 +29,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Toggle } from "@/components/ui/toggle";
+import "@/styles/SettingsSheet.css";
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -260,9 +261,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
     });
   };
 
-  const toggleRowClass =
-    "flex min-h-11 cursor-pointer items-center justify-between gap-4 rounded-lg border border-border px-3 py-2 text-sm";
-
   return (
     <Dialog
       open={isOpen}
@@ -270,175 +268,186 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
         if (!open) requestCloseWithoutSaving();
       }}
     >
-      <DialogPopup dir="rtl" showCloseButton={false} className="sm:max-w-xl">
-        <DialogHeader className="flex-row items-center justify-between">
+      <DialogPopup dir="rtl" showCloseButton={false} className="settings-sheet">
+        <span className="settings-sheet-grabber" aria-hidden="true" />
+        <DialogHeader className="settings-sheet-header">
           <DialogTitle>تنظیمات</DialogTitle>
           <Button
             variant="ghost"
-            size="icon"
-            className="size-11"
+            size="icon-lg"
             onClick={requestCloseWithoutSaving}
             aria-label="بستن تنظیمات"
           >
             <FaTimes />
           </Button>
         </DialogHeader>
-        <DialogPanel>
-                <div aria-live="polite">
-                  <section
-                    className="settings-section"
-                    aria-label="انتخاب حالت نمایش"
-                  >
-                    <h3 className="settings-section-title">حالت نمایش</h3>
-                    <div className="settings-theme-grid">
-                      {THEME_OPTIONS.map((option) => (
-                        <Toggle
-                          key={option.value}
-                          variant="outline"
-                          className="h-11 justify-start gap-3 px-4"
-                          pressed={pendingTheme === option.value}
-                          onPressedChange={() => setPendingTheme(option.value)}
-                        >
+        <DialogPanel className="settings-sheet-body">
+          <div aria-live="polite" className="settings-sheet-groups">
+            <section className="settings-group" aria-labelledby="settings-group-look">
+              <h3 id="settings-group-look" className="settings-group-title">
+                ظاهر
+              </h3>
+              <div className="settings-group-card">
+                <div className="settings-group-block">
+                  <span className="settings-group-label">حالت نمایش</span>
+                  <div className="settings-theme-tiles" role="group" aria-label="حالت نمایش">
+                    {THEME_OPTIONS.map((option) => (
+                      <Toggle
+                        key={option.value}
+                        variant="outline"
+                        className="settings-theme-tile"
+                        data-theme-option={option.value}
+                        pressed={pendingTheme === option.value}
+                        onPressedChange={() => setPendingTheme(option.value)}
+                      >
+                        <span className="settings-theme-swatch" aria-hidden="true">
                           {option.icon}
-                          <span>{option.label}</span>
-                        </Toggle>
-                      ))}
-                    </div>
-                  </section>
-
-                  <section
-                    className="settings-section"
-                    aria-label="شماره‌گذاری شعر"
-                  >
-                    <h3 className="settings-section-title">نمایش شماره بیت</h3>
-                    <label className={`${toggleRowClass}`}>
-                      <span>نمایش شماره بیت</span>
-                      <Switch checked={pendingShowLineNumbers} onCheckedChange={setPendingShowLineNumbers} />
-                    </label>
-                  </section>
-
-                  <section
-                    className="settings-section"
-                    aria-label="ترتیب نمایش شعرها"
-                  >
-                    <h3 className="settings-section-title">
-                      ترتیب نمایش شعرها
-                    </h3>
-                    <label className={`${toggleRowClass}`}>
-                      <span>پخش تصادفی شعرها</span>
-                      <Switch checked={pendingRandomizePoems} onCheckedChange={setPendingRandomizePoems} />
-                    </label>
-                    <label className={`${toggleRowClass} mt-3`}>
-                      <span>پرسش هنگام ورود به صفحه شاعر</span>
-                      <Switch checked={pendingAskRandomizePoemsOnPoetPages} onCheckedChange={setPendingAskRandomizePoemsOnPoetPages} />
-                    </label>
-                  </section>
-
-                  <section
-                    className="settings-section"
-                    aria-label="انتخاب قلم شعر"
-                  >
-                    <h3 className="settings-section-title">قلم شعر</h3>
-                    <div className="settings-font-grid">
-                      {FONT_CHOICES.map((font) => (
-                        <Toggle
-                          key={font.value}
-                          variant="outline"
-                          className="h-11 justify-start px-4 text-base"
-                          style={{ fontFamily: FONT_STACKS[font.value] }}
-                          pressed={pendingFontFamily === font.value}
-                          onPressedChange={() => setPendingFontFamily(font.value)}
-                        >
-                          <span className="font-label">{font.label}</span>
-                          {font.note && (
-                            <span className="font-note">({font.note})</span>
-                          )}
-                        </Toggle>
-                      ))}
-                    </div>
-                  </section>
-
-                  <section
-                    className="settings-section"
-                    aria-label="اندازه امن قلم شعر"
-                  >
-                    <h3 className="settings-section-title">اندازه قلم شعر</h3>
-                    <div
-                      className="settings-size-control"
-                      style={{ "--range-thumb-size": "1rem" } as React.CSSProperties}
-                    >
-                      <div className="settings-size-readout">
-                        <span className="settings-size-value">
-                          {formatPersianNumber(pendingPoemFontSize)}٪
                         </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-9"
-                          onClick={() =>
-                            setPendingPoemFontSize(DEFAULT_POEM_FONT_SIZE)
-                          }
-                          disabled={
-                            pendingPoemFontSize === DEFAULT_POEM_FONT_SIZE
-                          }
-                        >
-                          بازنشانی
-                        </Button>
-                      </div>
-                      <div className="settings-size-track">
-                        <Slider
-                          min={POEM_FONT_SIZE_MIN}
-                          max={POEM_FONT_SIZE_MAX}
-                          step={POEM_FONT_SIZE_STEP}
-                          value={[pendingPoemFontSize]}
-                          onValueChange={(value) =>
-                            setPendingPoemFontSize(
-                              clampPoemFontSize(
-                                Array.isArray(value) ? value[0] : value,
-                              ),
-                            )
-                          }
-                          aria-label="اندازه قلم شعر"
-                        />
-                      </div>
-                      <div className="settings-size-scale" aria-hidden="true">
-                        <span>{formatPersianNumber(POEM_FONT_SIZE_MIN)}٪</span>
-                        <span
-                          className={`settings-size-scale-default ${
-                            pendingPoemFontSize === DEFAULT_POEM_FONT_SIZE
-                              ? "active"
-                              : ""
-                          }`}
-                          style={poemFontSizeDefaultMarkerStyle}
-                        >
-                          {formatPersianNumber(DEFAULT_POEM_FONT_SIZE)}٪
-                        </span>
-                        <span>{formatPersianNumber(POEM_FONT_SIZE_MAX)}٪</span>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section
-                    className="settings-section"
-                    aria-label="اجزای نمایش شعر"
-                  >
-                    <h3 className="settings-section-title">نمایش اجزای شعر</h3>
-                    <div className="settings-toggle-list">
-                      {POEM_VIEWER_COMPONENT_OPTIONS.map((component) => (
-                        <label key={component.key} className={`${toggleRowClass}`}>
-                      <span>{component.label}</span>
-                      <Switch checked={pendingVisibility[component.key]} onCheckedChange={() => handleVisibilityToggle(component.key)} />
-                    </label>
-                      ))}
-                    </div>
-                  </section>
+                        <span>{option.label}</span>
+                      </Toggle>
+                    ))}
+                  </div>
                 </div>
+              </div>
+            </section>
+
+            <section className="settings-group" aria-labelledby="settings-group-font">
+              <h3 id="settings-group-font" className="settings-group-title">
+                قلم شعر
+              </h3>
+              <div className="settings-group-card">
+                <div className="settings-group-block">
+                  <div className="settings-font-tiles" role="group" aria-label="قلم شعر">
+                    {FONT_CHOICES.map((font) => (
+                      <Toggle
+                        key={font.value}
+                        variant="outline"
+                        className="settings-font-tile"
+                        style={{ fontFamily: FONT_STACKS[font.value] }}
+                        pressed={pendingFontFamily === font.value}
+                        onPressedChange={() => setPendingFontFamily(font.value)}
+                      >
+                        <span className="settings-font-sample" aria-hidden="true">
+                          آ ب
+                        </span>
+                        <span className="font-label">{font.label}</span>
+                      </Toggle>
+                    ))}
+                  </div>
+                </div>
+                <div
+                  className="settings-group-block settings-size-control"
+                  style={{ "--range-thumb-size": "1rem" } as React.CSSProperties}
+                >
+                  <div className="settings-size-readout">
+                    <span className="settings-group-label">اندازه قلم</span>
+                    <span className="settings-size-actions">
+                      <span className="settings-size-value">
+                        {formatPersianNumber(pendingPoemFontSize)}٪
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPendingPoemFontSize(DEFAULT_POEM_FONT_SIZE)}
+                        disabled={pendingPoemFontSize === DEFAULT_POEM_FONT_SIZE}
+                      >
+                        بازنشانی
+                      </Button>
+                    </span>
+                  </div>
+                  <div className="settings-size-track">
+                    <Slider
+                      min={POEM_FONT_SIZE_MIN}
+                      max={POEM_FONT_SIZE_MAX}
+                      step={POEM_FONT_SIZE_STEP}
+                      value={[pendingPoemFontSize]}
+                      onValueChange={(value) =>
+                        setPendingPoemFontSize(
+                          clampPoemFontSize(Array.isArray(value) ? value[0] : value),
+                        )
+                      }
+                      aria-label="اندازه قلم شعر"
+                    />
+                  </div>
+                  <div className="settings-size-scale" aria-hidden="true">
+                    <span>{formatPersianNumber(POEM_FONT_SIZE_MIN)}٪</span>
+                    <span
+                      className={`settings-size-scale-default ${
+                        pendingPoemFontSize === DEFAULT_POEM_FONT_SIZE ? "active" : ""
+                      }`}
+                      style={poemFontSizeDefaultMarkerStyle}
+                    >
+                      {formatPersianNumber(DEFAULT_POEM_FONT_SIZE)}٪
+                    </span>
+                    <span>{formatPersianNumber(POEM_FONT_SIZE_MAX)}٪</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="settings-group" aria-labelledby="settings-group-reading">
+              <h3 id="settings-group-reading" className="settings-group-title">
+                خواندن
+              </h3>
+              <div className="settings-group-card">
+                <label className="settings-row">
+                  <span className="settings-row-text">
+                    <span>شماره بیت</span>
+                    <small>شماره کنار هر بیت نمایش داده شود.</small>
+                  </span>
+                  <Switch
+                    checked={pendingShowLineNumbers}
+                    onCheckedChange={setPendingShowLineNumbers}
+                  />
+                </label>
+                <label className="settings-row">
+                  <span className="settings-row-text">
+                    <span>پخش تصادفی شعرها</span>
+                    <small>شعرهای یک دفتر به ترتیب تصادفی بیایند.</small>
+                  </span>
+                  <Switch
+                    checked={pendingRandomizePoems}
+                    onCheckedChange={setPendingRandomizePoems}
+                  />
+                </label>
+                <label className="settings-row">
+                  <span className="settings-row-text">
+                    <span>پرسش در صفحه شاعر</span>
+                    <small>هنگام ورود به صفحه شاعر درباره ترتیب بپرسد.</small>
+                  </span>
+                  <Switch
+                    checked={pendingAskRandomizePoemsOnPoetPages}
+                    onCheckedChange={setPendingAskRandomizePoemsOnPoetPages}
+                  />
+                </label>
+              </div>
+            </section>
+
+            <section className="settings-group" aria-labelledby="settings-group-poem">
+              <h3 id="settings-group-poem" className="settings-group-title">
+                صفحه شعر
+              </h3>
+              <div className="settings-group-card">
+                {POEM_VIEWER_COMPONENT_OPTIONS.map((component) => (
+                  <label key={component.key} className="settings-row">
+                    <span className="settings-row-text">
+                      <span>{component.label}</span>
+                    </span>
+                    <Switch
+                      checked={pendingVisibility[component.key]}
+                      onCheckedChange={() => handleVisibilityToggle(component.key)}
+                    />
+                  </label>
+                ))}
+              </div>
+            </section>
+          </div>
         </DialogPanel>
-        <DialogFooter>
-          <Button variant="outline" className="h-11" onClick={handleCancel}>
+        <DialogFooter className="settings-sheet-footer">
+          <Button variant="outline" size="lg" onClick={handleCancel}>
             لغو
           </Button>
-          <Button className="h-11" onClick={handleSave}>
+          <Button size="lg" onClick={handleSave}>
             ذخیره
           </Button>
         </DialogFooter>
