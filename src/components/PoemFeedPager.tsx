@@ -291,11 +291,13 @@ export default function PoemFeedPager({
       }
 
       if (shouldGoNext) {
+        // PoemViewer's pull-to-next follows the wheel and commits past its threshold.
         showNextPreview();
+        return;
       }
 
       stop(event);
-      requestBoundaryNavigation(shouldGoNext ? "next" : "previous");
+      requestBoundaryNavigation("previous");
     };
 
     const handleTouchStart = (event: TouchEvent) => {
@@ -338,11 +340,12 @@ export default function PoemFeedPager({
       }
 
       if (shouldGoNext) {
-        showNextPreview();
+        // PoemViewer's pull-to-next owns this gesture (the next poem follows the finger).
+        return;
       }
 
       stop(event);
-      requestBoundaryNavigation(shouldGoNext ? "next" : "previous");
+      requestBoundaryNavigation("previous");
     };
 
     root.addEventListener("scroll", handlePoemScroll, { capture: true, passive: true });
@@ -559,6 +562,10 @@ export default function PoemFeedPager({
           transition: opacity 0.22s ease, transform 0.22s ease;
         }
 
+        html.gk-pulling-next .poem-feed-next-preview {
+          opacity: 0 !important;
+        }
+
         .poem-feed-next-preview.is-visible {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
@@ -702,6 +709,8 @@ export default function PoemFeedPager({
           titleEyebrow={titleEyebrow}
           isZenLocked={isZenLocked}
           onToggleZenLock={() => setIsZenLocked((value) => !value)}
+          nextPoemPeek={nextPoem}
+          isPreparingNext={isPreparingNextPoem}
         />
       </div>
       {(nextPoem || isPreparingNextPoem) && (

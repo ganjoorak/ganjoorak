@@ -31,6 +31,8 @@ import GlobalSearchDialog from "@/components/GlobalSearchDialog";
 import SharePoemDialog from "@/components/SharePoemDialog";
 import MobileAudioControl from "@/components/MobileAudioControl";
 import { useHideOnScroll } from "@/hooks/useHideOnScroll";
+import { usePullToNext } from "@/hooks/usePullToNext";
+import PullNextSheet from "@/components/PullNextSheet";
 import { useSettings } from "@/context/SettingsContext";
 import { useUpdateNotification } from "@/hooks/useUpdateNotification";
 import { usePoemLibrary } from "@/hooks/usePoemLibrary";
@@ -59,6 +61,11 @@ interface PoemViewerProps {
   /** Feed "stay on this poem" lock; surfaced in the mobile menu. */
   isZenLocked?: boolean;
   onToggleZenLock?: () => void;
+  /** Poem shown in the pull-to-next sheet while it slides up. */
+  nextPoemPeek?: Poem | null;
+  isPreparingNext?: boolean;
+  /** Pull-to-next at the bottom of the poem. Defaults to on whenever there is a next poem (!isLast). */
+  pullToNext?: boolean;
 }
 
 type PoemSegment =
@@ -120,6 +127,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   titleEyebrow,
   isZenLocked,
   onToggleZenLock,
+  nextPoemPeek,
+  isPreparingNext = false,
+  pullToNext,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -364,7 +374,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
     let touchStartY = 0;
     let touchStartedAtTop = false;
-    let touchStartedAtBottom = false;
     const NAVIGATION_COOLDOWN_MS = 950;
     const BOUNDARY_READ_DELAY_MS = 450;
     const SWIPE_TRIGGER_DISTANCE = 80;
@@ -391,7 +400,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         return;
       }
 
-      const atBottom = isScrollNearBottom();
       const atTop = isScrollNearTop();
       const deltaY = event.deltaY;
 
@@ -399,15 +407,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         return;
       }
 
+      // "Next" at the bottom is handled progressively by usePullToNext.
       if (
-        deltaY > 0 &&
-        atBottom &&
-        !isLast &&
-        canLeaveBoundary(reachedBottomAtRef.current) &&
-        canNavigate()
-      ) {
-        handleNext();
-      } else if (
         deltaY < 0 &&
         atTop &&
         !isFirst &&
@@ -425,7 +426,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
       touchStartY = event.touches[0].clientY;
       touchStartedAtTop = isScrollNearTop();
-      touchStartedAtBottom = isScrollNearBottom();
     };
 
     const handleTouchEnd = (event: TouchEvent) => {
@@ -441,15 +441,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       const diff = touchStartY - touch.clientY;
 
       if (Math.abs(diff) >= SWIPE_TRIGGER_DISTANCE && canNavigate()) {
+        // "Next" at the bottom is handled progressively by usePullToNext.
         if (
-          diff > 0 &&
-          touchStartedAtBottom &&
-          isScrollNearBottom() &&
-          !isLast &&
-          canLeaveBoundary(reachedBottomAtRef.current)
-        ) {
-          handleNext();
-        } else if (
           diff < 0 &&
           touchStartedAtTop &&
           isScrollNearTop() &&
@@ -816,44 +809,15 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
   useHideOnScroll(poemTextRef, poem.id);
 
-  // Phones: the verse column sits between the side control columns. Scale verses down only as much as the
-  // poem's longest mesra needs to stay on one line (never above the Ganjoor size set in CSS).
-  useEffect(() => {
-    const el = poemTextRef.current;
-    if (!el || typeof window === "undefined") return;
-    let frame = 0;
-    const fit = () => {
-      if (window.innerWidth > 600) {
-        el.style.removeProperty("--gk-verse-fit");
-        return;
-      }
-      el.style.setProperty("--gk-verse-fit", "1");
-      el.classList.add("gk-verse-measuring");
-      const texts = el.querySelectorAll<HTMLElement>(".verse-line:not(.prose-paragraph) .verse-text");
-      let longest = 0;
-      texts.forEach((t) => { longest = Math.max(longest, t.getBoundingClientRect().width); });
-      const sampleBase = el.querySelector<HTMLElement>(".verse-line:not(.prose-paragraph)");
-      const baseSize = sampleBase ? parseFloat(getComputedStyle(sampleBase).fontSize) || 22 : 22;
-      el.classList.remove("gk-verse-measuring");
-      const cs = getComputedStyle(el);
-      const available = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
-      // Floor at 15px: below that, let the longest mesras wrap rather than shrink further.
-      const minScale = Math.min(1, 15 / baseSize);
-      const scale = longest > available && longest > 0 ? Math.max(minScale, available / longest) : 1;
-      el.style.setProperty("--gk-verse-fit", scale.toFixed(4));
-    };
-    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
-    schedule();
-    document.fonts?.ready.then(schedule).catch(() => {});
-    const ro = new ResizeObserver(schedule);
-    ro.observe(el);
-    const mo = new MutationObserver(schedule);
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["style", "data-font", "data-poem-font-size"] });
-    // Verses can arrive after mount (feed preloading, lazy recitation data): re-fit when they change.
-    const contentMo = new MutationObserver(schedule);
-    contentMo.observe(el, { childList: true, subtree: true, characterData: true });
-    return () => { cancelAnimationFrame(frame); ro.disconnect(); mo.disconnect(); contentMo.disconnect(); };
-  }, [poem.id]);
+  const pullSheetRef = useRef<HTMLDivElement>(null);
+  usePullToNext({
+    scrollRef: poemTextRef,
+    rootRef: containerRef,
+    sheetRef: pullSheetRef,
+    enabled: (pullToNext ?? !isLast) && !isZenLocked && !isShareOpen,
+    onCommit: handleNext,
+    resetKey: poem.id,
+  });
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -1478,6 +1442,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
               </Link>
             ))}
         </div>
+      )}
+      {(pullToNext ?? !isLast) && (
+        <PullNextSheet ref={pullSheetRef} nextPoem={nextPoemPeek} isPreparing={isPreparingNext} />
       )}
     </motion.div>
   );
