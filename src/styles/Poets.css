@@ -1,367 +1,138 @@
-.poets-container {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 2rem 1rem;
-    direction: rtl;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+/* /poets (r15): search, tabs, filter chips, avatar grid/list with follow. */
+.poets-controls { display: grid; gap: 0.75rem; }
+.poets-search { position: relative; }
+.poets-search-clear {
+  position: absolute;
+  inset-inline-end: 0.5rem;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(var(--muted));
+  color: rgb(var(--muted-foreground));
+  cursor: pointer;
+}
+.poets-search-clear svg { position: static; width: 0.7rem; height: 0.7rem; }
+.poets-search input::-webkit-search-cancel-button { display: none; }
+
+.poets-tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding-inline: 0.3rem;
+  border-radius: 999px;
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
+  font-size: 0.68rem;
 }
 
-.poets-title {
-    text-align: center;
-    color: rgb(var(--foreground) / 0.95);
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-    font-weight: 500;
+.poets-chips {
+  display: flex;
+  gap: 0.4rem;
+  margin: -0.25rem -1rem 1rem;
+  padding: 0.1rem 1rem 0.4rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+.poets-chip {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid rgb(var(--border));
+  border-radius: 999px;
+  background: rgb(var(--card));
+  color: rgb(var(--foreground) / 0.85);
+  font: inherit;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.poets-chip:hover { background: rgb(var(--muted)); }
+.poets-chip[aria-pressed="true"] {
+  background: rgb(var(--foreground));
+  border-color: rgb(var(--foreground));
+  color: rgb(var(--background));
 }
 
-.poets-container .faq-item {
-    background: rgb(var(--card));
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 1rem;
-    padding: 1.25rem 1.5rem;
-    transition: all 0.3s ease;
-}
-
-.poets-container .faq-item:hover {
-    background: rgb(var(--card) / 0.9);
-}
-
-.poets-container .category-section {
-    scroll-margin-top: 0.75rem;
-}
-
-.poets-question {
-    color: rgb(var(--foreground) / 0.95);
-    font-weight: 500;
-}
-
-.poets-question h2,
-.poets-question h3 {
-    margin: 0;
-    font-weight: 600;
-}
-
-.category-section .poets-question h2 {
-    font-size: 1.75rem;
-}
-
-.century-section .poets-question h3 {
-    font-size: 1.5rem;
-}
-
-.category-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.category-content .century-section {
-    background: rgb(var(--card) / 0.85);
-    border: 1px solid rgb(var(--foreground) / 0.05);
-    border-radius: 0.85rem;
-    padding: 1rem 1.25rem;
-    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.category-content .century-section:nth-child(even) {
-    background: rgb(var(--card));
-}
-
-.category-content .century-section:hover {
-    background: rgb(var(--card));
-    border-color: rgb(var(--foreground) / 0.08);
-    box-shadow: 0 10px 24px rgb(var(--foreground) / 0.06);
-}
-
-.category-content .century-section .poets-question h3 {
-    font-size: 1.35rem;
-}
-
-.modern-poet-group .poets-question h3 {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.poets-answer,
-.poets-category-answer {
-    padding-top: 0.5rem;
-    padding-bottom: 0.75rem;
-}
-
-.poets-filter-bar {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    direction: rtl;
-    scrollbar-gutter: stable;
-    scroll-snap-type: x proximity;
-    -webkit-overflow-scrolling: touch;
-}
-
-.poets-filter-bar::before,
-.poets-filter-bar::after {
-    content: "";
-    flex: 0 0 0.25rem;
-}
-
-.poets-source-note {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    align-self: flex-start;
-    color: rgb(var(--foreground) / 0.62);
-    font-size: 0.9rem;
-    line-height: 1.6;
-}
-
-.poets-source-note strong {
-    color: rgb(var(--foreground) / 0.86);
-    font-weight: 600;
-}
-
-.poets-filter-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    border: 1px solid rgb(var(--foreground) / 0.12);
-    border-radius: 999px;
-    background: rgb(var(--foreground) / 0.06);
-    color: rgb(var(--foreground) / 0.78);
-    cursor: pointer;
-    font: inherit;
-    font-size: 0.9rem;
-    line-height: 1;
-    padding: 0.55rem 0.85rem;
-    flex: 0 0 auto;
-    white-space: nowrap;
-    scroll-snap-align: start;
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.poets-filter-button:hover,
-.poets-filter-button.active {
-    background: rgb(var(--foreground) / 0.14);
-    border-color: rgb(var(--foreground) / 0.22);
-    color: rgb(var(--foreground) / 0.95);
-}
-
-.poets-filter-button small {
-    color: rgb(var(--foreground) / 0.55);
-    font-size: 0.75rem;
-}
-
-.poets-container .faq-answer-wrapper.open {
-    overflow: visible;
-}
+.poets-result-meta { margin-bottom: 0.6rem; }
 
 .poets-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 1rem;
-    margin-top: 0.5rem;
-    padding-bottom: 1.25rem;
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: all 0.3s ease;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
 }
+@media (min-width: 560px) { .poets-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 900px) { .poets-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.85rem; } }
+@media (min-width: 1100px) { .poets-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 
-.faq-item.open .poets-grid {
-    opacity: 1;
-    transform: translateY(0);
+.poets-tile {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  padding: 1rem 0.65rem 0.75rem;
+  text-align: center;
+  transition: border-color 0.15s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
-
-.poet-card {
-    background: rgb(var(--foreground) / 0.08);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 0.75rem;
-    padding: 0.75rem;
-    transition: all 0.3s ease;
-    text-decoration: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+.poets-tile:hover {
+  border-color: rgb(var(--foreground) / 0.18);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.07);
 }
-
-.poet-card:hover {
-    background: rgb(var(--foreground) / 0.12);
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgb(var(--foreground) / 0.08);
+.poets-tile-link {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  color: inherit;
+  text-decoration: none;
 }
-
-.poet-image-container {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 0.5rem;
-    position: relative;
-    border-radius: 50%;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.poets-tile-avatar {
+  display: block;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: 0.3rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--muted));
+  box-shadow: 0 0 0 1px rgb(var(--border)), 0 0 0 4px rgb(var(--background));
 }
-
-.poet-image {
-    width: 60px !important;
-    height: 60px !important;
-    object-fit: cover !important;
-    border-radius: 50%;
-    background: transparent !important;
+.poets-tile-avatar img,
+.poets-avatar img { width: 100% !important; height: 100% !important; object-fit: cover; }
+.poets-tile-name {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 700;
+  font-size: 0.95rem;
 }
-
-.poet-name {
-    color: rgb(var(--foreground) / 0.95);
-    font-size: 1rem;
-    font-weight: 500;
-    margin: 0;
-    text-align: center;
+.poets-tile-meta {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.72rem;
+  color: rgb(var(--muted-foreground));
 }
+.poets-tile .poets-follow { width: 100%; border-radius: 999px; }
+.poets-follow svg { width: 0.65rem; height: 0.65rem; }
 
-.poet-nickname {
-    color: rgb(var(--foreground) / 0.7);
-    font-size: 0.85rem;
-    margin-top: 0.25rem;
-    text-align: center;
+.poets-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-inline-end: 0.85rem;
 }
+.poets-list-link { flex: 1 1 auto; min-width: 0; text-decoration: none; }
+.poets-list-item .poets-follow { flex-shrink: 0; border-radius: 999px; }
 
-.poets-empty {
-    color: rgb(var(--foreground) / 0.7);
-    font-size: 1rem;
-    text-align: center;
-    margin: 0.5rem 0;
-}
-
-.loading-container {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 60vh;
-    gap: 1rem;
-}
-
-.loading-spinner {
-    width: 60px;
-    height: 60px;
-    border: 4px solid rgb(var(--foreground) / 0.1);
-    border-radius: 50%;
-    border-top-color: rgb(var(--foreground) / 0.8);
-    animation: spin 1s ease-in-out infinite;
-}
-
-.loading-text {
-    color: rgb(var(--foreground) / 0.8);
-    font-size: 1.25rem;
-    font-weight: 500;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-@media (max-width: 768px) {
-    .poets-container {
-        padding: 1.5rem 1rem;
-        margin: 1rem auto;
-        gap: 1rem;
-    }
-
-    .poets-title {
-        font-size: 2rem;
-    }
-
-    .category-section .poets-question h2 {
-        font-size: 1.5rem;
-    }
-
-    .category-content .century-section .poets-question h3,
-    .century-section .poets-question h3 {
-        font-size: 1.25rem;
-    }
-
-    .poets-container .faq-item {
-        padding: 1rem;
-        overflow: hidden;
-    }
-
-    .category-content {
-        min-width: 0;
-        overflow: hidden;
-    }
-
-    .poets-source-note {
-        max-width: 100%;
-        align-self: stretch;
-        justify-content: flex-start;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .poets-filter-bar {
-        width: 100%;
-        max-width: 100%;
-        margin-inline: 0;
-        padding: 0.15rem 0 0.6rem;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-    }
-
-    .poets-filter-bar::-webkit-scrollbar {
-        display: none;
-    }
-
-    .poets-filter-button {
-        min-height: 2.25rem;
-        padding: 0.48rem 0.78rem;
-        font-size: 0.84rem;
-    }
-
-    .poets-grid {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 0.75rem;
-    }
-
-}
-
-@media (max-width: 480px) {
-    .poets-container {
-        padding: 1rem 0.75rem;
-        margin: 0.5rem auto;
-    }
-
-    .poets-container .faq-item {
-        padding: 0.85rem;
-        border-radius: 0.85rem;
-    }
-
-    .poets-title {
-        font-size: 1.75rem;
-    }
-
-    .poets-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.5rem;
-    }
-
-    .poet-image-container {
-        width: 50px;
-        height: 50px;
-    }
-
-    .poet-image {
-        width: 50px !important;
-        height: 50px !important;
-    }
+.poets-tabs > button { white-space: nowrap; padding-inline: 0.5rem; }
+@media (min-width: 900px) {
+  .poets-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 30rem); align-items: center; }
 }

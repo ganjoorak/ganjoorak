@@ -1,141 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useState,
-  useEffect,
-  useMemo,
-  type ReactNode,
-  type WheelEvent,
-} from "react";
+import { useMemo, useState, type ReactNode, type WheelEvent } from "react";
+import { FaCheck, FaListUl, FaPlus, FaSearch, FaThLarge, FaTimes } from "react-icons/fa";
 import { Century, Poet } from "@/types/poet";
 import PoetImage from "@/components/PoetImage";
-import Menu, { MenuButton, SearchButton } from "@/components/Menu";
-import SettingsDialog from "@/components/SettingsDialog";
-import GlobalSearchDialog from "@/components/GlobalSearchDialog";
-import { useUpdateNotification } from "@/hooks/useUpdateNotification";
-import AccordionItem from "@/components/AccordionItem";
+import AppPage from "@/components/AppPage";
+import { Button } from "@/components/ui/button";
+import { buildPoetFollowKey, useFollowPoet } from "@/hooks/useFollowPoet";
+import { useSettings } from "@/context/SettingsContext";
 import "@/styles/Poets.css";
 
-function PoetsList({ poets }: { poets: Poet[] }) {
-  const publishedPoets = poets.filter((poet) => poet.published);
-
-  if (publishedPoets.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="poets-grid">
-      {publishedPoets.map((poet) => {
-        const isExternalPoet = /^https?:\/\//.test(poet.fullUrl);
-        const poetPath = isExternalPoet
-          ? poet.fullUrl
-          : poet.fullUrl.startsWith("/")
-            ? poet.fullUrl
-            : `/${poet.fullUrl}`;
-        const poetKey = `${poet.urlSlug || poet.fullUrl || poet.name}-${poet.id}`;
-        const href = poetPath;
-        const cardContent = (
-          <>
-            <div className="poet-image-container">
-              <PoetImage
-                imgUrl={poet.imageUrl}
-                alt={poet.name}
-                poetSlug={poet.urlSlug}
-                width={60}
-                height={60}
-              />
-            </div>
-            <h2 className="poet-name">{poet.nickname || poet.name}</h2>
-            {poet.nickname && <p className="poet-nickname">{poet.name}</p>}
-          </>
-        );
-
-        if (isExternalPoet) {
-          return (
-            <a
-              href={poetPath}
-              key={poetKey}
-              className="poet-card"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {cardContent}
-            </a>
-          );
-        }
-
-        return (
-          <Link href={href} key={poetKey} className="poet-card">
-            {cardContent}
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
-function CenturySection({
-  century,
-  title,
-  defaultOpen = false,
-}: {
-  century: Century;
-  title?: string;
-  defaultOpen?: boolean;
-}) {
-  if (!century.poets.some((poet) => poet.published)) {
-    return null;
-  }
-
-  return (
-    <AccordionItem
-      title={title || century.name}
-      defaultOpen={defaultOpen}
-      containerClassName="century-section"
-      questionClassName="poets-question"
-      answerClassName="poets-answer"
-      titleTag="h3"
-    >
-      <PoetsList poets={century.poets} />
-    </AccordionItem>
-  );
-}
-
-function CategorySection({
-  title,
-  sourceLabel,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  sourceLabel?: string;
-  defaultOpen?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <AccordionItem
-      title={title}
-      defaultOpen={defaultOpen}
-      containerClassName="category-section"
-      questionClassName="poets-question"
-      answerClassName="poets-category-answer"
-      titleTag="h2"
-      scrollOnOpen
-    >
-      <div className="category-content">
-        {sourceLabel && (
-          <div className="poets-source-note">
-            <span>منبع:</span>
-            <strong>{sourceLabel}</strong>
-          </div>
-        )}
-        {children}
-      </div>
-    </AccordionItem>
-  );
-}
-
+const persianNumber = new Intl.NumberFormat("fa-IR");
 const OTHER_MODERN_GROUP = "دیگر شاعران";
 const ALL_FILTER_ID = "all";
 const FALLBACK_FEATURED_GANJOOR_SLUGS = [
@@ -149,150 +25,152 @@ const FALLBACK_FEATURED_GANJOOR_SLUGS = [
   "sanaee",
 ];
 
+type PoetsTab = "featured" | "classic" | "modern" | "following";
+type PoetsView = "grid" | "list";
+
+interface PoetEntry {
+  key: string;
+  poet: Poet;
+  name: string;
+  fullName: string | null;
+  group: string;
+  href: string;
+  isExternal: boolean;
+  followKey: string | null;
+  searchText: string;
+}
+
 interface PoetFilterOption {
   id: string;
   label: string;
-  matches: (poet: Poet) => boolean;
 }
 
-const getPublishedPoets = (poets: Poet[]) =>
-  poets
-    .filter((poet) => poet.published)
-    .sort((a, b) => (a.nickname || a.name).localeCompare(b.nickname || b.name, "fa"));
+const normalize = (value: string) =>
+  value
+    .replace(/[يى]/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/[\u064B-\u065F\u0670\u200c]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 
-const getModernFilterOptions = (poets: Poet[]): PoetFilterOption[] => {
-  const groups = new Map<string, Poet[]>();
-
-  poets
-    .filter((poet) => poet.published)
-    .forEach((poet) => {
-      const groupName =
-        poet.source === "custom"
-          ? "شاعران معاصر"
-          : poet.sourceGroupName || OTHER_MODERN_GROUP;
-      groups.set(groupName, [...(groups.get(groupName) ?? []), poet]);
-    });
-
-  return Array.from(groups.entries())
-    .map(([label, groupedPoets]) => ({
-      id: label,
-      label,
-      matches: (poet: Poet) => groupedPoets.includes(poet),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label, "fa"));
+const toEntry = (poet: Poet, group: string): PoetEntry => {
+  const isExternal = /^https?:\/\//.test(poet.fullUrl);
+  const href = isExternal
+    ? poet.fullUrl
+    : poet.fullUrl.startsWith("/")
+      ? poet.fullUrl
+      : `/${poet.fullUrl}`;
+  const slug = (poet.urlSlug || poet.fullUrl || "").replace(/^\/+|\/+$/g, "");
+  const name = poet.nickname || poet.name;
+  return {
+    key: `${poet.source ?? "ganjoor"}-${slug || poet.name}-${poet.id}`,
+    poet,
+    name,
+    fullName: poet.nickname && poet.nickname !== poet.name ? poet.name : null,
+    group,
+    href,
+    isExternal,
+    followKey: !isExternal && slug ? buildPoetFollowKey(poet.source ?? "ganjoor", slug) : null,
+    searchText: normalize(`${poet.nickname ?? ""} ${poet.name} ${slug}`),
+  };
 };
 
-function FilterablePoetsList({
-  poets,
-  filters,
+const byName = (a: PoetEntry, b: PoetEntry) => a.name.localeCompare(b.name, "fa");
+
+function FollowToggle({ followKey, name }: { followKey: string; name: string }) {
+  const { isFollowing, toggleFollow } = useFollowPoet(followKey);
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={isFollowing ? "secondary" : "outline"}
+      className="poets-follow"
+      aria-pressed={isFollowing}
+      aria-label={isFollowing ? `لغو دنبال کردن ${name}` : `دنبال کردن ${name}`}
+      onClick={toggleFollow}
+    >
+      {isFollowing ? <FaCheck aria-hidden="true" /> : <FaPlus aria-hidden="true" />}
+      {isFollowing ? "دنبال‌شده" : "دنبال کردن"}
+    </Button>
+  );
+}
+
+function PoetLink({
+  entry,
+  className,
+  children,
 }: {
-  poets: Poet[];
-  filters: PoetFilterOption[];
+  entry: PoetEntry;
+  className: string;
+  children: ReactNode;
 }) {
-  const [activeFilter, setActiveFilter] = useState(ALL_FILTER_ID);
-  const publishedPoets = useMemo(() => getPublishedPoets(poets), [poets]);
-  const visiblePoets = useMemo(() => {
-    if (activeFilter === ALL_FILTER_ID) {
-      return publishedPoets;
-    }
+  if (entry.isExternal) {
+    return (
+      <a href={entry.href} className={className} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={entry.href} className={className}>
+      {children}
+    </Link>
+  );
+}
 
-    const selectedFilter = filters.find((filter) => filter.id === activeFilter);
-    return selectedFilter
-      ? publishedPoets.filter((poet) => selectedFilter.matches(poet))
-      : publishedPoets;
-  }, [activeFilter, filters, publishedPoets]);
-
-  useEffect(() => {
-    if (
-      activeFilter !== ALL_FILTER_ID &&
-      !filters.some((filter) => filter.id === activeFilter)
-    ) {
-      setActiveFilter(ALL_FILTER_ID);
-    }
-  }, [activeFilter, filters]);
-
-  if (publishedPoets.length === 0) {
-    return null;
+function PoetCollection({ entries, view }: { entries: PoetEntry[]; view: PoetsView }) {
+  if (view === "list") {
+    return (
+      <ul className="app-list poets-list">
+        {entries.map((entry) => (
+          <li key={entry.key} className="poets-list-item">
+            <PoetLink entry={entry} className="app-row poets-list-link">
+              <span className="app-avatar poets-avatar" aria-hidden="true">
+                <PoetImage
+                  imgUrl={entry.poet.imageUrl}
+                  alt=""
+                  poetSlug={entry.poet.urlSlug}
+                  width={48}
+                  height={48}
+                />
+              </span>
+              <span className="app-row-body">
+                <span className="app-row-title">{entry.name}</span>
+                <span className="app-row-meta">
+                  {[entry.fullName, entry.group].filter(Boolean).join(" · ")}
+                </span>
+              </span>
+            </PoetLink>
+            {entry.followKey && <FollowToggle followKey={entry.followKey} name={entry.name} />}
+          </li>
+        ))}
+      </ul>
+    );
   }
 
-  const filterButtons = [
-    {
-      id: ALL_FILTER_ID,
-      label: "همه",
-      count: publishedPoets.length,
-    },
-    ...filters.map((filter) => ({
-      id: filter.id,
-      label: filter.label,
-      count: publishedPoets.filter((poet) => filter.matches(poet)).length,
-    })),
-  ].filter((filter) => filter.count > 0);
-
-  const handleFilterWheel = (event: WheelEvent<HTMLDivElement>) => {
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.currentTarget.scrollLeft -= event.deltaY;
-  };
-
   return (
-    <>
-      {filterButtons.length > 2 && (
-        <div
-          className="poets-filter-bar modern-scrollbar"
-          role="group"
-          aria-label="فیلتر شاعران"
-          onWheel={handleFilterWheel}
-        >
-          {filterButtons.map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              className={`poets-filter-button ${activeFilter === filter.id ? "active" : ""
-                }`}
-              onClick={() => setActiveFilter(filter.id)}
-            >
-              <span>{filter.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      <PoetsList poets={visiblePoets} />
-    </>
+    <ul className="poets-grid">
+      {entries.map((entry) => (
+        <li key={entry.key} className="app-card poets-tile">
+          <PoetLink entry={entry} className="poets-tile-link">
+            <span className="poets-tile-avatar" aria-hidden="true">
+              <PoetImage
+                imgUrl={entry.poet.imageUrl}
+                alt=""
+                poetSlug={entry.poet.urlSlug}
+                width={88}
+                height={88}
+              />
+            </span>
+            <span className="poets-tile-name">{entry.name}</span>
+            <span className="poets-tile-meta">{entry.fullName ?? entry.group}</span>
+          </PoetLink>
+          {entry.followKey && <FollowToggle followKey={entry.followKey} name={entry.name} />}
+        </li>
+      ))}
+    </ul>
   );
-}
-
-function ClassicPoetsList({ centuries }: { centuries: Century[] }) {
-  const filters = useMemo(
-    () =>
-      centuries
-        .filter((century) => century.poets.some((poet) => poet.published))
-        .map((century) => ({
-          id: `century-${century.id}`,
-          label: century.name,
-          matches: (poet: Poet) =>
-            century.poets.some(
-              (centuryPoet) =>
-                centuryPoet.id === poet.id &&
-                centuryPoet.urlSlug === poet.urlSlug,
-            ),
-        })),
-    [centuries],
-  );
-  const poets = useMemo(
-    () => centuries.flatMap((century) => century.poets),
-    [centuries],
-  );
-
-  return <FilterablePoetsList poets={poets} filters={filters} />;
-}
-
-function ModernPoetsList({ poets }: { poets: Poet[] }) {
-  const filters = useMemo(() => getModernFilterOptions(poets), [poets]);
-
-  return <FilterablePoetsList poets={poets} filters={filters} />;
 }
 
 export default function PoetsContent({
@@ -304,96 +182,232 @@ export default function PoetsContent({
   customPoets?: Poet[];
   modernPoets?: Poet[];
 }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
-  const { hasNewUpdates, markAsRead } = useUpdateNotification();
+  const { settings } = useSettings();
+  const [tab, setTab] = useState<PoetsTab>("featured");
+  const [view, setView] = useState<PoetsView>("grid");
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState(ALL_FILTER_ID);
 
-  const apiFeaturedCentury = centuries.find((c) => c.id === 0);
-  const otherCenturies = centuries.filter((c) => c.id !== 0);
-  const pinnedPoets = otherCenturies
-    .flatMap((century) => century.poets)
-    .filter((poet) => poet.published && poet.pinOrder > 0)
-    .sort((a, b) => a.pinOrder - b.pinOrder);
-  const fallbackFeaturedPoets = pinnedPoets.length > 0
-    ? pinnedPoets
-    : FALLBACK_FEATURED_GANJOOR_SLUGS
-      .map((slug) =>
-        otherCenturies
-          .flatMap((century) => century.poets)
-          .find((poet) => poet.published && poet.urlSlug === slug),
+  const { featured, classic, modern, classicFilters, modernFilters } = useMemo(() => {
+    const apiFeatured = centuries.find((c) => c.id === 0);
+    const otherCenturies = centuries.filter((c) => c.id !== 0);
+    const seen = new Set<string>();
+    const classicEntries: PoetEntry[] = [];
+    otherCenturies.forEach((century) => {
+      century.poets
+        .filter((poet) => poet.published)
+        .forEach((poet) => {
+          const entry = toEntry(poet, century.name);
+          if (seen.has(entry.key)) return;
+          seen.add(entry.key);
+          classicEntries.push(entry);
+        });
+    });
+
+    const pinned = otherCenturies
+      .flatMap((century) => century.poets)
+      .filter((poet) => poet.published && poet.pinOrder > 0)
+      .sort((a, b) => a.pinOrder - b.pinOrder);
+    const featuredPoets = apiFeatured?.poets.filter((poet) => poet.published).length
+      ? apiFeatured.poets.filter((poet) => poet.published)
+      : pinned.length > 0
+        ? pinned
+        : FALLBACK_FEATURED_GANJOOR_SLUGS.map((slug) =>
+          otherCenturies
+            .flatMap((century) => century.poets)
+            .find((poet) => poet.published && poet.urlSlug === slug),
+        ).filter((poet): poet is Poet => Boolean(poet));
+    const featuredEntries = featuredPoets.map((poet) => {
+      const match = classicEntries.find(
+        (entry) => entry.poet.id === poet.id && entry.poet.urlSlug === poet.urlSlug,
+      );
+      return match ?? toEntry(poet, "گنجور");
+    });
+
+    const modernEntries = [...customPoets, ...modernPoets]
+      .filter((poet) => poet.published)
+      .map((poet) =>
+        toEntry(
+          poet,
+          poet.source === "custom" ? "شاعران معاصر" : poet.sourceGroupName || OTHER_MODERN_GROUP,
+        ),
       )
-      .filter((poet): poet is Poet => Boolean(poet));
-  const featuredCentury =
-    apiFeaturedCentury ||
-    (fallbackFeaturedPoets.length > 0
-      ? {
-        id: 0,
-        name: "شاعران محبوب",
-        halfCenturyOrder: 0,
-        startYear: 0,
-        endYear: 0,
-        showInTimeLine: false,
-        poets: fallbackFeaturedPoets,
-      }
-      : null);
-  const newPoets = [...customPoets, ...modernPoets];
-  const hasNewPoets = newPoets.some((poet) => poet.published);
-  const hasClassicPoets = otherCenturies.some((century) =>
-    century.poets.some((poet) => poet.published),
-  );
-  return (
-    <>
-      <MenuButton
-        onClick={() => setIsMenuOpen(!isMenuOpen)}
-        hasNotification={hasNewUpdates}
-      />
-      <SearchButton onClick={() => setIsGlobalSearchOpen(true)} />
-      <Menu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        hasNewUpdates={hasNewUpdates}
-        onUpdatesViewed={markAsRead}
-        onOpenSettings={() => {
-          setIsSettingsOpen(true);
-          setIsMenuOpen(false);
-        }}
-      />
-      <SettingsDialog
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
-      <GlobalSearchDialog
-        isOpen={isGlobalSearchOpen}
-        onClose={() => setIsGlobalSearchOpen(false)}
-        initialFilter="poets"
-      />
+      .sort(byName);
 
-      {featuredCentury && (
-        <CenturySection
-          century={featuredCentury}
-          title="شاعران محبوب"
-          defaultOpen
-        />
+    const groupsOf = (entries: PoetEntry[]) =>
+      Array.from(new Set(entries.map((entry) => entry.group))).map((label) => ({
+        id: label,
+        label,
+      }));
+
+    return {
+      featured: featuredEntries,
+      classic: classicEntries,
+      modern: modernEntries,
+      classicFilters: groupsOf(classicEntries),
+      modernFilters: groupsOf(modernEntries).sort((a, b) => a.label.localeCompare(b.label, "fa")),
+    };
+  }, [centuries, customPoets, modernPoets]);
+
+  const allEntries = useMemo(() => [...classic, ...modern], [classic, modern]);
+  const followed = useMemo(
+    () =>
+      allEntries.filter(
+        (entry) => entry.followKey && settings.followedPoetKeys.includes(entry.followKey),
+      ),
+    [allEntries, settings.followedPoetKeys],
+  );
+
+  const filters: PoetFilterOption[] =
+    tab === "classic" ? classicFilters : tab === "modern" ? modernFilters : [];
+  const activeFilter = filters.some((option) => option.id === filter) ? filter : ALL_FILTER_ID;
+
+  const normalizedQuery = normalize(query);
+  const tabEntries =
+    tab === "featured"
+      ? featured
+      : tab === "classic"
+        ? classic
+        : tab === "modern"
+          ? modern
+          : followed;
+  const visible = normalizedQuery
+    ? allEntries.filter((entry) => entry.searchText.includes(normalizedQuery))
+    : activeFilter === ALL_FILTER_ID
+      ? tabEntries
+      : tabEntries.filter((entry) => entry.group === activeFilter);
+
+  const tabs: { id: PoetsTab; label: string; count: number }[] = [
+    { id: "featured", label: "محبوب", count: featured.length },
+    { id: "classic", label: "کهن", count: classic.length },
+    { id: "modern", label: "نو و جهان", count: modern.length },
+    { id: "following", label: "دنبال‌شده", count: followed.length },
+  ];
+
+  const handleChipWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.currentTarget.scrollLeft -= event.deltaY;
+  };
+
+  const viewToggle = (
+    <Button
+      variant="ghost"
+      size="icon-lg"
+      className="app-page-bar-icon"
+      onClick={() => setView((value) => (value === "grid" ? "list" : "grid"))}
+      aria-label={view === "grid" ? "نمایش فهرستی" : "نمایش شبکه‌ای"}
+    >
+      {view === "grid" ? <FaListUl /> : <FaThLarge />}
+    </Button>
+  );
+
+  return (
+    <AppPage
+      title="شاعران"
+      subtitle={`${persianNumber.format(allEntries.length)} شاعر از گنجور و اکولالیا. دنبالشان کنید تا در فید «دنبال‌شده‌ها» بیایند.`}
+      width="wide"
+      actions={viewToggle}
+      className="poets-page"
+      headerExtra={
+        <div className="poets-controls">
+          <label className="app-search-field poets-search">
+            <FaSearch aria-hidden="true" />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="جست‌وجوی نام شاعر"
+              aria-label="جست‌وجوی نام شاعر"
+              enterKeyHint="search"
+            />
+            {query && (
+              <button
+                type="button"
+                className="poets-search-clear"
+                onClick={() => setQuery("")}
+                aria-label="پاک کردن"
+              >
+                <FaTimes aria-hidden="true" />
+              </button>
+            )}
+          </label>
+          {!normalizedQuery && (
+            <div className="app-segmented poets-tabs" role="tablist" aria-label="دسته‌های شاعران">
+              {tabs.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === item.id}
+                  onClick={() => {
+                    setTab(item.id);
+                    setFilter(ALL_FILTER_ID);
+                  }}
+                >
+                  {item.label}
+                  {item.id === "following" && item.count > 0 && (
+                    <span className="poets-tab-count">{persianNumber.format(item.count)}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      }
+    >
+      {!normalizedQuery && filters.length > 1 && (
+        <div
+          className="poets-chips modern-scrollbar"
+          role="group"
+          aria-label="فیلتر شاعران"
+          onWheel={handleChipWheel}
+        >
+          {[{ id: ALL_FILTER_ID, label: "همه" }, ...filters].map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className="poets-chip"
+              aria-pressed={activeFilter === option.id}
+              onClick={() => setFilter(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       )}
 
-      <CategorySection title="شاعران نو/جهان" sourceLabel="اکولالیا">
-        {hasNewPoets ? (
-          <ModernPoetsList poets={newPoets} />
-        ) : (
-          <p className="poets-empty">به زودی...</p>
-        )}
-      </CategorySection>
+      <div className="app-section-title poets-result-meta">
+        <span>
+          {normalizedQuery
+            ? `نتیجه برای «${query.trim()}»`
+            : activeFilter !== ALL_FILTER_ID
+              ? activeFilter
+              : tabs.find((item) => item.id === tab)?.label}
+        </span>
+        <span>{persianNumber.format(visible.length)} شاعر</span>
+      </div>
 
-      <CategorySection title="شاعران کهن" sourceLabel="گنجور">
-        {hasClassicPoets ? (
-          <ClassicPoetsList centuries={otherCenturies} />
-        ) : (
-          <p className="poets-empty">
-            فهرست شاعران کهن از API دریافت نشد. سرور گنجور را بررسی کنید.
+      {visible.length > 0 ? (
+        <PoetCollection entries={visible} view={view} />
+      ) : (
+        <div className="app-empty">
+          <span className="app-empty-icon" aria-hidden="true">
+            {normalizedQuery ? <FaSearch /> : <FaPlus />}
+          </span>
+          <p>
+            {normalizedQuery
+              ? "شاعری با این نام پیدا نشد."
+              : tab === "following"
+                ? "هنوز شاعری را دنبال نمی‌کنید. روی «دنبال کردن» هر شاعر بزنید."
+                : "فهرست این بخش دریافت نشد. کمی بعد دوباره سر بزنید."}
           </p>
-        )}
-      </CategorySection>
-    </>
+          {tab === "following" && !normalizedQuery && (
+            <Button variant="secondary" onClick={() => setTab("featured")}>
+              دیدن شاعران محبوب
+            </Button>
+          )}
+        </div>
+      )}
+    </AppPage>
   );
 }

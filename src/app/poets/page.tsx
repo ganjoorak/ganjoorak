@@ -3,7 +3,6 @@ import ganjoorApi from '@/api/GanjoorApi';
 import customApi from '@/api/CustomApi';
 import echolaliaApi from '@/api/EcholaliaApi';
 import PoetsContent from '@/components/PoetsContent';
-import '@/styles/Poets.css';
 import { logger } from '@/utils/logger';
 import { getStaticGanjoorCenturies, getStaticPoetsBySource } from '@/data/static-poets';
 
@@ -53,9 +52,6 @@ export default async function PoetsPage() {
     logger.log(`Rendering poets page with ${centuries.length} centuries, ${customPoets.length} custom poets and ${modernPoets.length} modern poets`);
 
     return (
-        <div className="poets-container">
-            <h1 className="poets-title">شاعران</h1>
-            <PoetsContent centuries={centuries} customPoets={customPoets} modernPoets={modernPoets} />
-        </div>
+        <PoetsContent centuries={centuries} customPoets={customPoets} modernPoets={modernPoets} />
     );
 } 
