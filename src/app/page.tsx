@@ -309,9 +309,9 @@ function FeedPoetDialog({
                                             onChange={(event) =>
                                                 setSearchInput(event.target.value)
                                             }
-                                            placeholder="جستجوی شاعر"
+                                            placeholder="جست‌وجوی شاعر"
                                         />
-                                        <button type="submit" aria-label="جستجو">
+                                        <button type="submit" aria-label="جست‌وجو">
                                             <FaSearch />
                                         </button>
                                     </label>
@@ -383,7 +383,7 @@ function FeedPoetDialog({
                                     })}
                                 </div>
                                 {visiblePoets.length === 0 && (
-                                    <p className="feed-poet-empty">شاعری با این جستجو پیدا نشد.</p>
+                                    <p className="feed-poet-empty">شاعری با این جست‌وجو پیدا نشد.</p>
                                 )}
                             </section>
                         </div>

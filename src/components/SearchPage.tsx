@@ -160,19 +160,23 @@ const SOURCE_LABELS: Record<PoemLibrarySource, string> = {
   custom: "محلی",
   echolalia: "اکولالیا",
 };
+/* Literal words and hemistiches — what keyword search is good at. */
 const EXAMPLE_QUERIES = [
   "رخ یار",
-  "عشق",
-  "شعر حافظ درمورد عشق",
+  "زلف پریشان",
+  "بوی جوی مولیان",
   "باران",
   "تنهایی",
-  "مولانا درمورد جدایی",
+  "حافظ عشق",
 ];
+/* Descriptions of a theme or feeling — what semantic search is good at. */
 const EXAMPLE_SEMANTIC_QUERIES = [
   "شعری در مورد بی‌وفایی دنیا",
   "غم دوری یار",
   "شعر حافظ در مورد عشق",
   "شکوه از روزگار",
+  "امید پس از ناامیدی",
+  "دلتنگی برای وطن",
 ];
 const MAX_RESTORED_HITS = 60;
 const SCROLL_STORAGE_KEY = "ganjoorak:search-scroll:v1";
@@ -742,7 +746,7 @@ const PoetCombobox = memo(function PoetCombobox({
               onChange={(event) => setFilter(event.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="نام شاعر…"
-              aria-label="جستجوی شاعر"
+              aria-label="جست‌وجوی شاعر"
               aria-controls={listboxId}
               aria-activedescendant={
                 options[activeIndex] ? `${listboxId}-${options[activeIndex].key}` : undefined
@@ -852,7 +856,7 @@ const SearchModeControl = memo(function SearchModeControl({
   onChange: (value: SearchMode) => void;
 }) {
   return (
-    <div className="search-segmented" role="group" aria-label="شیوه جستجو">
+    <div className="search-segmented" role="group" aria-label="شیوه جست‌وجو">
       {SEARCH_MODES.map((option) => (
         <button
           key={option.value}
@@ -1722,12 +1726,7 @@ const SearchPage = () => {
 
       <main className={`search-page-shell${shouldSearch ? " has-query" : ""}`}>
         <header className="search-page-header">
-          <h1>{searchMode === "semantic" ? "جستجوی معنایی" : "جستجو در شعر"}</h1>
-          <p>
-            {searchMode === "semantic"
-              ? "موضوع یا حس شعر را بنویسید؛ مثلاً «شعری در مورد بی‌وفایی دنیا»."
-              : "واژه، مصرع یا نام شاعر را بنویسید؛ مثلاً «شعر حافظ درمورد عشق»."}
-          </p>
+          <h1>جست‌وجو</h1>
         </header>
 
         <div ref={stickySentinelRef} className="search-sticky-sentinel" aria-hidden="true" />
@@ -1755,7 +1754,7 @@ const SearchPage = () => {
                     ? "موضوع یا توصیف شعر…"
                     : "واژه، مصرع یا نام شاعر…"
                 }
-                aria-label="جستجوی شعر"
+                aria-label="جست‌وجوی شعر"
                 autoComplete="off"
                 enterKeyHint="search"
                 inputMode="search"
@@ -1773,7 +1772,7 @@ const SearchPage = () => {
                     commitDraft("");
                     inputRef.current?.focus();
                   }}
-                  aria-label="پاک کردن جستجو"
+                  aria-label="پاک کردن جست‌وجو"
                 >
                   <FaTimes aria-hidden="true" />
                 </button>
@@ -1784,7 +1783,7 @@ const SearchPage = () => {
               className="search-bar-submit"
               disabled={normalizeSearchText(draft).length < MIN_SEARCH_QUERY_LENGTH}
             >
-              جستجو
+              جست‌وجو
             </button>
           </form>
           <span
@@ -1810,13 +1809,13 @@ const SearchPage = () => {
         </div>
 
         {!shouldSearch && (
-          <section className="search-start" aria-label="شروع جستجو">
+          <section className="search-start" aria-label="شروع جست‌وجو">
             {recentSearches.length > 0 && (
               <div className="search-start-group">
                 <div className="search-start-heading">
                   <h2>
                     <FaHistory aria-hidden="true" />
-                    جستجوهای اخیر
+                    جست‌وجوهای اخیر
                   </h2>
                   <button
                     type="button"
@@ -1839,7 +1838,7 @@ const SearchPage = () => {
                       <button
                         type="button"
                         className="search-chip-remove"
-                        aria-label={`حذف «${item}» از جستجوهای اخیر`}
+                        aria-label={`حذف «${item}» از جست‌وجوهای اخیر`}
                         onClick={() => setRecentSearches(forgetRecentSearch(item))}
                       >
                         <FaTimes aria-hidden="true" />
@@ -1854,7 +1853,9 @@ const SearchPage = () => {
               <div className="search-start-heading">
                 <h2>
                   <FaFeatherAlt aria-hidden="true" />
-                  چند پیشنهاد
+                  {searchMode === "semantic"
+                    ? "چند موضوع برای شروع"
+                    : "چند عبارت برای شروع"}
                 </h2>
               </div>
               <ul className="search-chip-row">
@@ -1872,7 +1873,7 @@ const SearchPage = () => {
               </ul>
             </div>
 
-            <ul className="search-hints" aria-label="راهنمای جستجو">
+            <ul className="search-hints" aria-label="راهنمای جست‌وجو">
               {searchMode === "semantic" ? (
                 <>
                   <li>
@@ -1885,7 +1886,7 @@ const SearchPage = () => {
                   </li>
                   <li>
                     <strong>متنی</strong>
-                    <span>اگر مصرع را می‌دانید، جستجوی متنی را انتخاب کنید</span>
+                    <span>اگر مصرع را می‌دانید، جست‌وجوی متنی را انتخاب کنید</span>
                   </li>
                 </>
               ) : (
@@ -1909,7 +1910,7 @@ const SearchPage = () => {
         )}
 
         {showIntentLine && (
-          <div className="search-intent" aria-label="برداشت از جستجو">
+          <div className="search-intent" aria-label="برداشت از جست‌وجو">
             <span className="search-intent-label">برداشت ما:</span>
             {plan.poetFromIntent && plan.poet && (
               <span className="search-intent-chip">
@@ -1943,13 +1944,13 @@ const SearchPage = () => {
               className="search-text-button"
               onClick={() => updateParams({ exact: true })}
             >
-              جستجوی عین عبارت
+              جست‌وجوی عین عبارت
             </button>
           </div>
         )}
         {exact && shouldSearch && wouldRewrite && (
-          <div className="search-intent" aria-label="برداشت از جستجو">
-            <span className="search-intent-label">جستجوی دقیق:</span>
+          <div className="search-intent" aria-label="برداشت از جست‌وجو">
+            <span className="search-intent-label">جست‌وجوی دقیق:</span>
             <span className="search-intent-chip">
               <span>
                 <small>عبارت</small>
@@ -1961,7 +1962,7 @@ const SearchPage = () => {
               className="search-text-button"
               onClick={() => updateParams({ exact: false })}
             >
-              جستجوی هوشمند
+              جست‌وجوی هوشمند
             </button>
           </div>
         )}
@@ -1971,7 +1972,7 @@ const SearchPage = () => {
           detectedScopeLabel &&
           !plan.disableScopeDetection &&
           !plan.poet && (
-          <div className="search-intent" aria-label="محدوده جستجوی معنایی">
+          <div className="search-intent" aria-label="محدوده جست‌وجوی معنایی">
             <span className="search-intent-label">نتایج محدود به:</span>
             <span className="search-intent-chip">
               <span>{detectedScopeLabel}</span>
@@ -1981,13 +1982,13 @@ const SearchPage = () => {
               className="search-text-button"
               onClick={() => updateParams({ global: true })}
             >
-              جستجوی سراسری
+              جست‌وجوی سراسری
             </button>
           </div>
         )}
         {shouldSearch && plan.includeSemantic && plan.disableScopeDetection && (
-          <div className="search-intent" aria-label="محدوده جستجوی معنایی">
-            <span className="search-intent-label">جستجوی سراسری</span>
+          <div className="search-intent" aria-label="محدوده جست‌وجوی معنایی">
+            <span className="search-intent-label">جست‌وجوی سراسری</span>
             <button
               type="button"
               className="search-text-button"
@@ -2005,8 +2006,8 @@ const SearchPage = () => {
               <span className="search-strip-meta">
                 {modernLoading
                   ? plan.includeEcholalia && echolalia.status === "loading"
-                    ? "در حال جستجو در اکولالیا…"
-                    : "در حال جستجو…"
+                    ? "در حال جست‌وجو در اکولالیا…"
+                    : "در حال جست‌وجو…"
                   : echolaliaFailed
                     ? "اکولالیا پاسخ نداد"
                     : `${formatPersianNumber(modernHits.length)} نتیجه از اکولالیا و شاعران محلی`}
@@ -2050,7 +2051,7 @@ const SearchPage = () => {
             <strong>{formatPersianNumber(totalCount)}</strong> نتیجه برای «{plan.term}»
             {poetLabel ? ` در اشعار ${poetLabel}` : ""}
             {primary === "ganjoor" && sourceFilter === "all" ? " در گنجور" : ""}
-            {primary === "semantic" ? " با جستجوی معنایی" : ""}
+            {primary === "semantic" ? " با جست‌وجوی معنایی" : ""}
           </p>
         )}
         {shouldSearch && primary === "modern" && echolaliaFailed && modernHits.length > 0 && (
@@ -2076,10 +2077,10 @@ const SearchPage = () => {
         {shouldSearch && primaryError && primaryHits.length === 0 && (
           <div className="search-state search-state-error" role="alert">
             <FaExclamationCircle aria-hidden="true" />
-            <h2>جستجو کامل نشد</h2>
+            <h2>جست‌وجو کامل نشد</h2>
             <p>
               {primary === "semantic"
-                ? "ارتباط با جستجوی معنایی برقرار نشد. لطفاً دوباره تلاش کنید."
+                ? "ارتباط با جست‌وجوی معنایی برقرار نشد. لطفاً دوباره تلاش کنید."
                 : primary === "ganjoor"
                 ? "ارتباط با گنجور برقرار نشد. لطفاً دوباره تلاش کنید."
                 : "اکولالیا پاسخ نداد. لطفاً دوباره تلاش کنید."}
@@ -2095,17 +2096,17 @@ const SearchPage = () => {
           <div className="search-state search-state-empty">
             <FaFeatherAlt aria-hidden="true" />
             <h2>چیزی پیدا نشد</h2>
-            <p>برای «{plan.term}» نتیجه‌ای در {searchMode === "semantic" ? "جستجوی معنایی" : sourceFilter === "all" ? "هیچ منبعی" : SOURCE_LABELS[sourceFilter]} نبود.</p>
+            <p>برای «{plan.term}» نتیجه‌ای در {searchMode === "semantic" ? "جست‌وجوی معنایی" : sourceFilter === "all" ? "هیچ منبعی" : SOURCE_LABELS[sourceFilter]} نبود.</p>
             <ul>
               <li>
                 {searchMode === "semantic"
                   ? "موضوع را کمی کلی‌تر بنویسید؛ مثلاً «غم دوری» به‌جای یک جملهٔ بلند."
-                  : "کلمات کمتری بنویسید یا فقط یک واژهٔ کلیدی را جستجو کنید."}
+                  : "کلمات کمتری بنویسید یا فقط یک واژهٔ کلیدی را جست‌وجو کنید."}
               </li>
               <li>املای واژه‌ها را بررسی کنید؛ «ی» و «ک» فارسی و عربی یکسان شمرده می‌شوند.</li>
-              {plan.poet && <li>فیلتر شاعر را بردارید تا در همهٔ شاعران جستجو شود.</li>}
+              {plan.poet && <li>فیلتر شاعر را بردارید تا در همهٔ شاعران جست‌وجو شود.</li>}
               {searchMode === "semantic" && (
-                <li>اگر مصرع را می‌دانید، به جستجوی متنی بروید.</li>
+                <li>اگر مصرع را می‌دانید، به جست‌وجوی متنی بروید.</li>
               )}
             </ul>
             <div className="search-state-actions">
@@ -2128,7 +2129,7 @@ const SearchPage = () => {
                   className="search-chip"
                   onClick={() => updateParams({ mode: "keyword" })}
                 >
-                  جستجوی متنی
+                  جست‌وجوی متنی
                 </button>
               )}
               {searchMode !== "semantic" &&
@@ -2141,7 +2142,7 @@ const SearchPage = () => {
                   className="search-chip"
                   onClick={() => updateParams({ source: option.value, poet: null })}
                 >
-                  جستجو در {option.label}
+                  جست‌وجو در {option.label}
                 </button>
               ))}
             </div>

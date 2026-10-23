@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  FaArrowLeft,
   FaBookOpen,
   FaFeatherAlt,
   FaSearch,
@@ -61,6 +60,44 @@ const SEARCH_FILTERS: Array<{ value: SearchFilter; label: string }> = [
   { value: "poems", label: "شعرها" },
   { value: "books", label: "دفترها" },
 ];
+
+const SEARCH_FILTER_PARAM = "sf";
+
+const isSearchFilter = (value: string | null): value is SearchFilter =>
+  SEARCH_FILTERS.some((option) => option.value === value);
+
+const readFilterFromUrl = (fallback: SearchFilter): SearchFilter => {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  const value = new URLSearchParams(window.location.search).get(
+    SEARCH_FILTER_PARAM,
+  );
+
+  return isSearchFilter(value) ? value : fallback;
+};
+
+const writeFilterToUrl = (value: SearchFilter | null) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+
+  if (!value || value === "all") {
+    params.delete(SEARCH_FILTER_PARAM);
+  } else {
+    params.set(SEARCH_FILTER_PARAM, value);
+  }
+
+  const search = params.toString();
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`,
+  );
+};
 
 const getPoetHref = (poet: Poet) => {
   if (/^https?:\/\//.test(poet.fullUrl)) {
@@ -313,7 +350,9 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
   initialFilter = "all",
 }) => {
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<SearchFilter>(initialFilter);
+  const [filter, setFilter] = useState<SearchFilter>(() =>
+    readFilterFromUrl(initialFilter),
+  );
   const [results, setResults] = useState<SearchState>(emptyState);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -338,9 +377,38 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
       return;
     }
 
-    setFilter(initialFilter);
-    window.setTimeout(() => inputRef.current?.focus(), 80);
+    setFilter(readFilterFromUrl(initialFilter));
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 80);
+
+    return () => {
+      window.clearTimeout(timer);
+      writeFilterToUrl(null);
+    };
   }, [initialFilter, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    writeFilterToUrl(filter);
+  }, [filter, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (!isOpen || allPoets.length > 0) {
@@ -467,7 +535,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
       } catch (searchError) {
         logger.error("Global search failed:", searchError);
         if (!cancelled) {
-          setError("جستجو کامل نشد. کمی بعد دوباره تلاش کنید.");
+          setError("جست‌وجو کامل نشد. کمی بعد دوباره تلاش کنید.");
         }
       } finally {
         if (!cancelled) {
@@ -516,14 +584,14 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
               transition={{ type: "spring", duration: 0.35, bounce: 0.18 }}
             >
               <header className="global-search-header">
-                <h2 id="global-search-title">جستجو</h2>
+                <h2 id="global-search-title">جست‌وجو</h2>
                 <button
                   type="button"
                   className="global-search-close-button"
                   onClick={onClose}
                   aria-label="بستن"
                 >
-                  <FaArrowLeft />
+                  <FaTimes aria-hidden="true" />
                 </button>
               </header>
 
@@ -541,7 +609,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="نام شاعر، شعر یا دفتر..."
-                  aria-label="جستجوی سراسری"
+                  aria-label="جست‌وجوی سراسری"
                 />
                 {query && (
                   <button
@@ -551,7 +619,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
                       setQuery("");
                       inputRef.current?.focus();
                     }}
-                    aria-label="پاک کردن جستجو"
+                    aria-label="پاک کردن جست‌وجو"
                   >
                     <FaTimes />
                   </button>
@@ -564,6 +632,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
                     key={option.value}
                     type="button"
                     className={filter === option.value ? "active" : ""}
+                    aria-pressed={filter === option.value}
                     onClick={() => setFilter(option.value)}
                   >
                     {option.label}
@@ -578,7 +647,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
                   </p>
                 )}
                 {showLoadingMessage && (
-                  <p className="global-search-empty">در حال جستجو...</p>
+                  <p className="global-search-empty">در حال جست‌وجو...</p>
                 )}
                 {error && <p className="global-search-error">{error}</p>}
                 {shouldSearch && !isLoading && !error && !hasResults && (

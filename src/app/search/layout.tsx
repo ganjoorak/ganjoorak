@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
-  title: "جستجو",
+  title: "جست‌وجو",
   description:
-    "جستجوی متنی و معنایی در اشعار گنجور، شاعران محلی و اکولالیا.",
+    "جست‌وجوی متنی و معنایی در اشعار گنجور، شاعران محلی و اکولالیا.",
 };
 
 export default function SearchLayout({

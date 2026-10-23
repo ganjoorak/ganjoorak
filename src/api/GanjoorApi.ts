@@ -443,7 +443,7 @@ const ganjoorApi = {
         throw error;
       }
       logger.error("Error searching poems:", error);
-      throw new Error("متأسفانه در جستجوی شعرها مشکلی پیش آمد");
+      throw new Error("متأسفانه در جست‌وجوی شعرها مشکلی پیش آمد");
     }
   },
 
@@ -515,10 +515,10 @@ const ganjoorApi = {
       }
       if (axios.isAxiosError(error) && error.response?.status === 503) {
         logger.error("Semantic search unavailable:", error);
-        throw new Error("در حال حاضر جستجوی معنایی در دسترس نیست");
+        throw new Error("در حال حاضر جست‌وجوی معنایی در دسترس نیست");
       }
       logger.error("Error in semantic poem search:", error);
-      throw new Error("متأسفانه در جستجوی معنایی مشکلی پیش آمد");
+      throw new Error("متأسفانه در جست‌وجوی معنایی مشکلی پیش آمد");
     }
   },
 

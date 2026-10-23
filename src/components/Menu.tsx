@@ -108,7 +108,7 @@ const Menu: React.FC<MenuProps> = ({
   const primaryItems = useMemo<MenuLinkItem[]>(
     () => [
       { kind: "link", href: "/", icon: <FaHome />, label: "صفحه اصلی" },
-      { kind: "link", href: "/search", icon: <FaSearch />, label: "جستجو" },
+      { kind: "link", href: "/search", icon: <FaSearch />, label: "جست‌وجو" },
       { kind: "link", href: "/poets", icon: <FaUsers />, label: "شاعران" },
       { kind: "link", href: "/saved", icon: <FaBookmark />, label: "نشان‌شده‌ها" },
       { kind: "link", href: "/today", icon: <FaSun />, label: "شعر روز" },
@@ -517,7 +517,7 @@ export function SearchButton({
       ]
         .filter(Boolean)
         .join(" ")}
-      aria-label="جستجو"
+      aria-label="جست‌وجو"
     >
       <FaSearch size={15} aria-hidden="true" />
     </button>

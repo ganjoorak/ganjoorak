@@ -220,6 +220,21 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
     setAskRandomizePoemsOnPoetPages,
   ]);
 
+  const poemFontSizeRatio =
+    (pendingPoemFontSize - POEM_FONT_SIZE_MIN) /
+    (POEM_FONT_SIZE_MAX - POEM_FONT_SIZE_MIN);
+  const poemFontSizeDefaultRatio =
+    (DEFAULT_POEM_FONT_SIZE - POEM_FONT_SIZE_MIN) /
+    (POEM_FONT_SIZE_MAX - POEM_FONT_SIZE_MIN);
+  const poemFontSizeSliderStyle = {
+    "--range-progress": `${poemFontSizeRatio * 100}%`,
+  } as React.CSSProperties;
+  const poemFontSizeDefaultMarkerStyle = {
+    insetInlineStart: `calc(${poemFontSizeDefaultRatio * 100}% + ${(
+      0.5 - poemFontSizeDefaultRatio
+    ).toFixed(4)} * var(--range-thumb-size))`,
+  } as React.CSSProperties;
+
   const handleSave = () => {
     hasSavedRef.current = true;
     setTheme(pendingTheme);
@@ -417,7 +432,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
                     <h3 className="settings-section-title">اندازه قلم شعر</h3>
                     <div className="settings-size-control">
                       <div className="settings-size-readout">
-                        <span>{formatPersianNumber(pendingPoemFontSize)}٪</span>
+                        <span className="settings-size-value">
+                          {formatPersianNumber(pendingPoemFontSize)}٪
+                        </span>
                         <button
                           type="button"
                           className="settings-size-reset"
@@ -431,23 +448,35 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
                           بازنشانی
                         </button>
                       </div>
-                      <input
-                        className="settings-size-slider"
-                        type="range"
-                        min={POEM_FONT_SIZE_MIN}
-                        max={POEM_FONT_SIZE_MAX}
-                        step={POEM_FONT_SIZE_STEP}
-                        value={pendingPoemFontSize}
-                        onChange={(event) =>
-                          setPendingPoemFontSize(
-                            clampPoemFontSize(event.currentTarget.value),
-                          )
-                        }
-                        aria-label="اندازه قلم شعر"
-                      />
+                      <div className="settings-size-track">
+                        <input
+                          className="settings-size-slider"
+                          type="range"
+                          dir="rtl"
+                          min={POEM_FONT_SIZE_MIN}
+                          max={POEM_FONT_SIZE_MAX}
+                          step={POEM_FONT_SIZE_STEP}
+                          value={pendingPoemFontSize}
+                          style={poemFontSizeSliderStyle}
+                          onChange={(event) =>
+                            setPendingPoemFontSize(
+                              clampPoemFontSize(event.currentTarget.value),
+                            )
+                          }
+                          aria-label="اندازه قلم شعر"
+                          aria-valuetext={`${formatPersianNumber(pendingPoemFontSize)}٪`}
+                        />
+                      </div>
                       <div className="settings-size-scale" aria-hidden="true">
                         <span>{formatPersianNumber(POEM_FONT_SIZE_MIN)}٪</span>
-                        <span>
+                        <span
+                          className={`settings-size-scale-default ${
+                            pendingPoemFontSize === DEFAULT_POEM_FONT_SIZE
+                              ? "active"
+                              : ""
+                          }`}
+                          style={poemFontSizeDefaultMarkerStyle}
+                        >
                           {formatPersianNumber(DEFAULT_POEM_FONT_SIZE)}٪
                         </span>
                         <span>{formatPersianNumber(POEM_FONT_SIZE_MAX)}٪</span>

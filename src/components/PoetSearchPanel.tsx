@@ -180,8 +180,8 @@ const PoetSearchPanel = ({
   };
 
   return (
-    <section className="poet-search-panel" aria-label="جستجو در اشعار شاعر">
-      <h3 className="poet-info-section-title">جستجو در اشعار</h3>
+    <section className="poet-search-panel" aria-label="جست‌وجو در اشعار شاعر">
+      <h3 className="poet-info-section-title">جست‌وجو در اشعار</h3>
       <form
         className="poet-search-form"
         onSubmit={(event) => {
@@ -191,14 +191,14 @@ const PoetSearchPanel = ({
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={`جستجو در ${poet.nickname || poet.name}`}
-          aria-label="جستجو در اشعار این شاعر"
+          placeholder={`جست‌وجو در ${poet.nickname || poet.name}`}
+          aria-label="جست‌وجو در اشعار این شاعر"
         />
         {query ? (
           <button
             type="button"
             onClick={() => setQuery("")}
-            aria-label="پاک کردن جستجو"
+            aria-label="پاک کردن جست‌وجو"
           >
             <FaTimes />
           </button>
@@ -208,7 +208,7 @@ const PoetSearchPanel = ({
           </span>
         )}
       </form>
-      {loading && <p className="poet-search-status">در حال جستجو...</p>}
+      {loading && <p className="poet-search-status">در حال جست‌وجو...</p>}
       {!loading && query.trim().length >= MIN_SEARCH_QUERY_LENGTH && results.length === 0 && (
         <p className="poet-search-status">نتیجه‌ای پیدا نشد.</p>
       )}
