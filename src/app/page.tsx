@@ -15,7 +15,7 @@ import { FaRandom, FaSearch, FaTimes } from 'react-icons/fa';
 import poetSourceIndex from '@/data/poet-source-index.json';
 import InterestChipsRail from '@/components/InterestChipsRail';
 import InterestPickerDialog from '@/components/InterestPickerDialog';
-import { fetchInterestPoem, primeInterestPool } from '@/utils/interestFeed';
+import { fetchInterestPoem, fetchSimilarPoem, primeInterestPool } from '@/utils/interestFeed';
 
 const INITIAL_POEMS_COUNT = 12;
 const PREFETCH_THRESHOLD = 5;
@@ -23,6 +23,7 @@ const BATCH_SIZE = 6;
 const POEM_FETCH_CONCURRENCY = 3;
 const FEED_CACHE_KEY = 'ganjoorak:latest-feed-poems:v2';
 const FEED_CACHE_LIMIT = 8;
+const SIMILAR_POEM_SHARE = 0.25;
 
 type CachedFeed = {
     poems: Poem[];
@@ -583,6 +584,20 @@ export default function Home() {
 
     const fetchRandomPoemFromFollowedPoet = useCallback(async () => {
         const activeInterestKeys = settings.activeInterestKeys;
+        // A poets-only feed is an explicit filter, so similar poems from other poets stay out of it.
+        const isPoetFilterOnly =
+            activeInterestKeys.length === 0 && settings.followedPoetKeys.length > 0;
+
+        if (!isPoetFilterOnly && Math.random() < SIMILAR_POEM_SHARE) {
+            try {
+                const similarPoem = await fetchSimilarPoem();
+                if (similarPoem) {
+                    return similarPoem;
+                }
+            } catch (error) {
+                logger.error('Failed to fetch similar poem:', error);
+            }
+        }
 
         if (activeInterestKeys.length > 0) {
             const interestKey =
