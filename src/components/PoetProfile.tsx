@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
   FaArrowRight,
-  FaBookOpen,
   FaCheck,
   FaChevronLeft,
   FaLink,
@@ -75,10 +74,7 @@ interface PoetProfileProps {
   /** Present once a poem is on screen: lets the reader jump back to it. */
   onResume?: () => void;
   onRandom: () => void;
-  onRead: () => void;
   isRandomLoading?: boolean;
-  isReadLoading?: boolean;
-  readLabel?: string;
   children?: ReactNode;
 }
 
@@ -89,10 +85,7 @@ export default function PoetProfile({
   stats,
   onResume,
   onRandom,
-  onRead,
   isRandomLoading = false,
-  isReadLoading = false,
-  readLabel = "خواندن در فید",
   children,
 }: PoetProfileProps) {
   const router = useRouter();
@@ -271,19 +264,6 @@ export default function PoetProfile({
                       <FaRandom />
                     )}
                     شعر تصادفی
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="poet-profile-quick-button"
-                    onClick={onRead}
-                    disabled={isReadLoading}
-                  >
-                    {isReadLoading ? (
-                      <FaSpinner className="animate-spin" />
-                    ) : (
-                      <FaBookOpen />
-                    )}
-                    {readLabel}
                   </Button>
                 </div>
               </div>

@@ -14,7 +14,6 @@ import PoetProfile, {
 } from "@/components/PoetProfile";
 import { buildPoetFollowKey } from "@/hooks/useFollowPoet";
 import PoetSearchPanel from "@/components/PoetSearchPanel";
-import PoetGeoMap from "@/components/PoetGeoMap";
 import ganjoorApi from "@/api/GanjoorApi";
 import customApi from "@/api/CustomApi";
 import echolaliaApi, { type EcholaliaPoemSummary } from "@/api/EcholaliaApi";
@@ -637,22 +636,6 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
     return (root.poems?.length ?? 0) > 0 ? [root] : [];
   }, [catalog, categoryCache]);
 
-  const handleReadInFeed = useCallback(() => {
-    if (currentPoem) {
-      setIsInfoOpen(false);
-      return;
-    }
-    let target = topLevelCategories[0];
-    if (!target) return;
-    for (;;) {
-      const node = categoryCache[target.id] ?? target;
-      const firstChild = node.children?.[0];
-      if (!firstChild) break;
-      target = firstChild;
-    }
-    handleSelectCategory(target.id);
-  }, [categoryCache, currentPoem, handleSelectCategory, topLevelCategories]);
-
   const isFirstPoem = currentPoemIndex <= 0;
   const isLastPoem =
     !isRandomMode &&
@@ -713,8 +696,6 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
         onResume={currentPoem ? () => setIsInfoOpen(false) : undefined}
         onRandom={handleRandomPoem}
         isRandomLoading={isRandomLoading}
-        onRead={handleReadInFeed}
-        isReadLoading={!currentPoem && loadingCategoryId !== null}
       >
         <PoetProfileSection
           title="مجموعه‌ها"
@@ -753,7 +734,6 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
           )}
         </PoetProfileSection>
         <PoetSearchPanel poet={catalog.poet} />
-        <PoetGeoMap poet={catalog.poet} rootCategoryId={catalog.category.id} />
       </PoetProfile>
       <main
         className="relative flex flex-1 flex-col overflow-hidden"
@@ -1077,7 +1057,6 @@ function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
         stats={[{ label: "شعر", value: formatPersianNumber(summaries.length) }]}
         onResume={currentPoem ? () => setIsInfoOpen(false) : undefined}
         onRandom={handleRandomPoem}
-        onRead={() => setIsInfoOpen(false)}
       >
         <PoetProfileSection
           title="شعرها"
@@ -1553,7 +1532,6 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
         ]}
         onResume={currentPoem ? () => setIsInfoOpen(false) : undefined}
         onRandom={handleRandomPoem}
-        onRead={() => setIsInfoOpen(false)}
       >
         <PoetProfileSection
           title="شعرها"
