@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FaSignOutAlt } from "react-icons/fa";
 import Menu, { MenuButton, SearchButton } from "@/components/Menu";
@@ -273,7 +274,9 @@ export const ProfilePage = () => {
       </section>
 
       <section className="account-section" aria-labelledby="profile-poets">
-        <h2 id="profile-poets">شاعران دنبال‌شده</h2>
+        <h2 id="profile-poets">
+          <Link href="/following">شاعران دنبال‌شده</Link>
+        </h2>
         {settings.followedPoetKeys.length > 0 ? (
           <ul className="account-chips">
             {settings.followedPoetKeys.map((key) => (

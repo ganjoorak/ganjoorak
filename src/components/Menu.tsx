@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -9,22 +9,21 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   FaBars,
   FaBell,
-  FaBookOpen,
   FaBookmark,
   FaChevronLeft,
+  FaChevronRight,
+  FaEllipsisH,
   FaHome,
-  FaLock,
-  FaLockOpen,
   FaMinus,
   FaMoon,
   FaPlus,
   FaQuestionCircle,
   FaRegNewspaper,
   FaSearch,
-  FaShare,
   FaSlidersH,
   FaSun,
   FaTimes,
+  FaUserCheck,
   FaUserCircle,
   FaUsers,
 } from "react-icons/fa";
@@ -73,6 +72,7 @@ type MenuLinkItem = {
   icon: React.ReactNode;
   label: string;
   badge?: string;
+  count?: string;
   onClick?: () => void;
 };
 
@@ -113,12 +113,7 @@ const Menu: React.FC<MenuProps> = ({
   hasNewUpdates = false,
   onUpdatesViewed,
   onOpenSettings,
-  onOpenFeed,
-  onOpenFeedLabel = "شاعران صفحه اصلی",
   onOpenInterests,
-  isZenLocked = false,
-  onToggleZenLock,
-  poemActions,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -127,27 +122,52 @@ const Menu: React.FC<MenuProps> = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const lastPathnameRef = useRef(pathname);
+  const [view, setView] = useState<"main" | "more">("main");
 
-  const primaryItems = useMemo<MenuLinkItem[]>(
+  const followedCount = settings.followedPoetKeys?.length ?? 0;
+
+  const discoverItems = useMemo<MenuLinkItem[]>(
     () => [
       { kind: "link", href: "/", icon: <FaHome />, label: "صفحه اصلی" },
-      { kind: "link", href: "/search", icon: <FaSearch />, label: "جست‌وجو" },
       { kind: "link", href: "/poets", icon: <FaUsers />, label: "شاعران" },
-      { kind: "link", href: "/saved", icon: <FaBookmark />, label: "نشان‌شده‌ها" },
-      { kind: "link", href: "/profile", icon: <FaUserCircle />, label: "حساب کاربری" },
       { kind: "link", href: "/today", icon: <FaSun />, label: "شعر روز" },
     ],
     [],
   );
 
-  const secondaryItems = useMemo<MenuItem[]>(() => {
-    const items: MenuItem[] = [
+  const libraryItems = useMemo<MenuItem[]>(
+    () => [
+      { kind: "link", href: "/saved", icon: <FaBookmark />, label: "نشان‌شده‌ها" },
       {
         kind: "link",
-        href: "/faq",
-        icon: <FaQuestionCircle />,
-        label: "پرسش‌های متداول",
+        href: "/following",
+        icon: <FaUserCheck />,
+        label: "شاعران دنبال‌شده",
+        count: followedCount > 0 ? persianNumber.format(followedCount) : undefined,
       },
+      onOpenInterests
+        ? {
+            kind: "button",
+            icon: <FaSlidersH />,
+            label: "علاقه‌مندی‌ها",
+            onClick: () => {
+              onOpenInterests();
+              onClose();
+            },
+          }
+        : {
+            kind: "link",
+            href: "/?interests=1",
+            icon: <FaSlidersH />,
+            label: "علاقه‌مندی‌ها",
+          },
+      { kind: "link", href: "/profile", icon: <FaUserCircle />, label: "حساب کاربری" },
+    ],
+    [followedCount, onClose, onOpenInterests],
+  );
+
+  const moreItems = useMemo<MenuItem[]>(
+    () => [
       {
         kind: "link",
         href: "/updates",
@@ -156,75 +176,27 @@ const Menu: React.FC<MenuProps> = ({
         badge: hasNewUpdates ? "جدید" : undefined,
         onClick: () => onUpdatesViewed?.(),
       },
-    ];
-
-    if (onOpenFeed) {
-      items.push({
-        kind: "button",
-        icon: <FaBookOpen />,
-        label: onOpenFeedLabel,
-        onClick: () => {
-          onOpenFeed();
-          onClose();
-        },
-      });
-    } else {
-      items.push({
+      {
         kind: "link",
-        href: "/?feed=1",
-        icon: <FaBookOpen />,
-        label: "شاعران صفحه اصلی",
-      });
-    }
-
-    if (onOpenInterests) {
-      items.push({
-        kind: "button",
-        icon: <FaSlidersH />,
-        label: "علاقه‌مندی‌ها",
-        onClick: () => {
-          onOpenInterests();
-          onClose();
-        },
-      });
-    } else {
-      items.push({
-        kind: "link",
-        href: "/?interests=1",
-        icon: <FaSlidersH />,
-        label: "علاقه‌مندی‌ها",
-      });
-    }
-
-    if (onToggleZenLock) {
-      items.push({
-        kind: "button",
-        icon: isZenLocked ? <FaLock /> : <FaLockOpen />,
-        label: isZenLocked ? "باز کردن قفل شعر" : "قفل روی همین شعر",
-        onClick: onToggleZenLock,
-        ariaPressed: isZenLocked,
-      });
-    }
-
-    return items;
-  }, [
-    hasNewUpdates,
-    isZenLocked,
-    onClose,
-    onOpenFeed,
-    onOpenFeedLabel,
-    onOpenInterests,
-    onToggleZenLock,
-    onUpdatesViewed,
-  ]);
+        href: "/faq",
+        icon: <FaQuestionCircle />,
+        label: "پرسش‌های متداول",
+      },
+    ],
+    [hasNewUpdates, onUpdatesViewed],
+  );
 
   useEffect(() => {
-    [...primaryItems, ...secondaryItems].forEach((item) => {
+    if (!isOpen) setView("main");
+  }, [isOpen]);
+
+  useEffect(() => {
+    [...discoverItems, ...libraryItems, ...moreItems].forEach((item) => {
       if (item.kind === "link") {
         router.prefetch(item.href);
       }
     });
-  }, [primaryItems, router, secondaryItems]);
+  }, [discoverItems, libraryItems, moreItems, router]);
 
   // Close when the route changes underneath the drawer (back/forward, in-page navigation).
   useEffect(() => {
@@ -335,6 +307,7 @@ const Menu: React.FC<MenuProps> = ({
             {item.icon}
           </span>
           <span className="menu-link-label">{item.label}</span>
+          {item.count && <span className="menu-link-count">{item.count}</span>}
           {item.badge && <span className="menu-link-badge">{item.badge}</span>}
         </Link>
       </li>
@@ -414,106 +387,86 @@ const Menu: React.FC<MenuProps> = ({
             </header>
 
             <nav className="menu-drawer-body" aria-label="منوی اصلی">
-              {poemActions && (
-                <section
-                  className="menu-section menu-section--poem"
-                  aria-label="این شعر"
-                >
-                  <ul className="menu-list">
-                    {poemActions.poetName &&
-                      (poemActions.poetHref || poemActions.onPoetClick) && (
-                        <li>
-                          {poemActions.onPoetClick ? (
-                            <button
-                              type="button"
-                              className="menu-link menu-link--poet"
-                              onClick={() => {
-                                onClose();
-                                poemActions.onPoetClick?.();
-                              }}
-                            >
-                              <span className="menu-poet-avatar" aria-hidden="true">
-                                {poemActions.poetImageUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={poemActions.poetImageUrl} alt="" />
-                                ) : (
-                                  <FaUserCircle />
-                                )}
-                              </span>
-                              <span className="menu-link-label">
-                                {poemActions.poetName}
-                              </span>
-                            </button>
-                          ) : (
-                            <Link
-                              href={poemActions.poetHref!}
-                              prefetch
-                              className="menu-link menu-link--poet"
-                              onClick={onClose}
-                            >
-                              <span className="menu-poet-avatar" aria-hidden="true">
-                                {poemActions.poetImageUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={poemActions.poetImageUrl} alt="" />
-                                ) : (
-                                  <FaUserCircle />
-                                )}
-                              </span>
-                              <span className="menu-link-label">
-                                {poemActions.poetName}
-                              </span>
-                            </Link>
-                          )}
-                        </li>
-                      )}
-                    {renderItem({
-                      kind: "button",
-                      icon: <FaShare />,
-                      label: "اشتراک‌گذاری شعر",
-                      onClick: () => {
-                        onClose();
-                        poemActions.onShare();
-                      },
-                    })}
-                    {renderItem({
-                      kind: "button",
-                      icon: <FaSearch />,
-                      label: "جستجوی سریع",
-                      onClick: () => {
-                        onClose();
-                        poemActions.onOpenSearch();
-                      },
-                    })}
-                    {poemActions.onToggleZenLock &&
-                      renderItem({
-                        kind: "button",
-                        icon: poemActions.isZenLocked ? <FaLock /> : <FaLockOpen />,
-                        label: poemActions.isZenLocked
-                          ? "باز کردن قفل شعر"
-                          : "قفل روی همین شعر",
-                        onClick: () => {
-                          poemActions.onToggleZenLock?.();
-                          onClose();
-                        },
-                        ariaPressed: poemActions.isZenLocked,
-                      })}
-                  </ul>
-                </section>
-              )}
-              <section className="menu-section">
-                <ul className="menu-list">
-                  {primaryItems.map((item) => renderItem(item))}
-                </ul>
-              </section>
+              <AnimatePresence mode="wait" initial={false}>
+                {view === "main" ? (
+                  <motion.div
+                    key="menu-view-main"
+                    className="menu-view"
+                    initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <section className="menu-section" aria-labelledby="menu-section-discover">
+                      <h2 id="menu-section-discover" className="menu-section-title">
+                        کشف شعر
+                      </h2>
+                      <ul className="menu-list">
+                        {discoverItems.map((item) => renderItem(item))}
+                      </ul>
+                    </section>
 
-              <section className="menu-section" aria-labelledby="menu-section-more">
-                <h2 id="menu-section-more" className="menu-section-title">
-                  بیشتر
-                </h2>
-                <ul className="menu-list">
-                  {secondaryItems.map((item) => renderItem(item))}
-                </ul>
-              </section>
+                    <section className="menu-section" aria-labelledby="menu-section-library">
+                      <h2 id="menu-section-library" className="menu-section-title">
+                        کتابخانهٔ من
+                      </h2>
+                      <ul className="menu-list">
+                        {libraryItems.map((item) => renderItem(item))}
+                      </ul>
+                    </section>
+
+                    <section className="menu-section" aria-label="بیشتر">
+                      <ul className="menu-list">
+                        <li>
+                          <button
+                            type="button"
+                            className="menu-link menu-link--more"
+                            onClick={() => setView("more")}
+                            aria-haspopup="true"
+                          >
+                            <span className="menu-link-icon" aria-hidden="true">
+                              <FaEllipsisH />
+                            </span>
+                            <span className="menu-link-label">بیشتر</span>
+                            {hasNewUpdates && (
+                              <span className="menu-link-dot" aria-label="بروزرسانی جدید" />
+                            )}
+                            <span className="menu-settings-chevron" aria-hidden="true">
+                              <FaChevronLeft />
+                            </span>
+                          </button>
+                        </li>
+                      </ul>
+                    </section>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="menu-view-more"
+                    className="menu-view"
+                    initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <div className="menu-subpage-header">
+                      <button
+                        type="button"
+                        className="menu-subpage-back"
+                        onClick={() => setView("main")}
+                        aria-label="بازگشت به منو"
+                      >
+                        <FaChevronRight aria-hidden="true" />
+                      </button>
+                      <h2 className="menu-subpage-title">بیشتر</h2>
+                    </div>
+                    <section className="menu-section">
+                      <ul className="menu-list">
+                        {moreItems.map((item) => renderItem(item))}
+                      </ul>
+                    </section>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </nav>
 
             <footer className="menu-drawer-footer">

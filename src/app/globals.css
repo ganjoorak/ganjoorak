@@ -508,6 +508,65 @@ body {
     line-height: 1;
 }
 
+.menu-link-count {
+    flex: 0 0 auto;
+    min-width: 1.5rem;
+    padding: 0 0.45rem;
+    border-radius: 9999px;
+    background-color: rgb(var(--secondary));
+    color: rgb(var(--secondary-foreground));
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.5rem;
+    text-align: center;
+}
+
+.menu-link-dot {
+    flex: 0 0 auto;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background-color: rgb(var(--primary));
+}
+
+.menu-subpage-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0 0.25rem 0.6rem;
+    margin-bottom: 0.6rem;
+    border-bottom: 1px solid rgb(var(--border));
+}
+
+.menu-subpage-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: 0.75rem;
+    background: transparent;
+    color: rgb(var(--foreground));
+    cursor: pointer;
+}
+
+.menu-subpage-back:hover {
+    background-color: rgb(var(--foreground) / 0.06);
+}
+
+.menu-subpage-back:focus-visible {
+    outline: 2px solid rgb(var(--ring) / 0.7);
+    outline-offset: 2px;
+}
+
+.menu-subpage-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: rgb(var(--foreground));
+}
+
 .menu-drawer-footer {
     flex: 0 0 auto;
     display: grid;
