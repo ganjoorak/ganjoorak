@@ -220,3 +220,13 @@ html[data-theme="paper"] { --radius: 0.625rem; }
   :root .poem-viewer .title-section { transition: none; }
   :root.floating-controls-hidden .poem-viewer .title-section { translate: none; }
 }
+
+/* Mobile: verses 12% smaller; gutters 3.25rem (52px) so the longest verses end just at the share/like column edge (72px) */
+@media (max-width: 600px) {
+  :root .poem-viewer .verse-line { font-size: calc(var(--poem-verse-font-size, 1.5rem) * 0.88); }
+  :root .poem-content,
+  :root .poem-content.poem-content--centered {
+    padding-left: calc(3.25rem + env(safe-area-inset-left)) !important;
+    padding-right: calc(3.25rem + env(safe-area-inset-right)) !important;
+  }
+}
