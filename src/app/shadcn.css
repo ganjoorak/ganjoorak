@@ -402,7 +402,6 @@ html:root body .poem-viewer .verse-line.prose-paragraph::after { content: none; 
   background: rgb(0 0 0);
   opacity: 0;
 }
-html.gk-pulling-next .gk-pull-scrim { opacity: calc(var(--gk-pull-progress, 0) * 0.45); }
 /* While the next poem is being pulled in, the overlay controls step aside. */
 html.gk-pulling-next .action-buttons,
 html.gk-pulling-next .menu-button,

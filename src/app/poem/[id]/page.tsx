@@ -66,34 +66,37 @@ export default function PoemPage() {
         loadPoem();
     }, [params?.id, router]);
 
+    const poemId = poem?.id ?? null;
     useEffect(() => {
-        if (!poem || upcomingForRef.current === poem.id) return;
-        upcomingForRef.current = poem.id;
+        if (poemId === null || upcomingForRef.current === poemId) return;
+        const forId = poemId;
+        upcomingForRef.current = forId;
         setUpcoming(null);
-        let cancelled = false;
         ganjoorApi
             .getRandomPoem()
             .then((next) => {
-                if (!cancelled) setUpcoming(next);
+                // Ignore a result that arrives after the reader already moved on.
+                if (upcomingForRef.current === forId && next.id !== forId) setUpcoming(next);
             })
             .catch((err) => logger.error('Error preloading next poem:', err));
-        return () => {
-            cancelled = true;
-        };
-    }, [poem]);
+    }, [poemId]);
 
-    const handleNext = async () => {
+    const showPoem = (next: Poem) => {
+        setPoem(next);
+        setUpcoming(null);
+        // Client-side switch: update the URL without remounting the page (no loading flash).
+        window.history.pushState(null, '', `/poem/${next.id}`);
+    };
+
+    // `target` is the poem the pull sheet showed; it is used as-is so the landed poem always matches the peek.
+    const handleNext = async (target?: Poem) => {
         try {
-            if (upcoming && upcoming.id !== poem?.id) {
-                setPoem(upcoming);
-                setUpcoming(null);
-                // Client-side switch: update the URL without remounting the page (no loading flash).
-                window.history.pushState(null, '', `/poem/${upcoming.id}`);
+            const known = target ?? upcoming;
+            if (known && known.id !== poem?.id) {
+                showPoem(known);
                 return;
             }
-            const newPoem = await ganjoorApi.getRandomPoem();
-            setPoem(newPoem);
-            window.history.pushState(null, '', `/poem/${newPoem.id}`);
+            showPoem(await ganjoorApi.getRandomPoem());
         } catch (err) {
             logger.error('Error loading next poem:', err);
             setError(err instanceof Error ? err.message : 'خطا در بارگیری شعر بعدی');
@@ -105,7 +108,7 @@ export default function PoemPage() {
     }
 
     if (error) {
-        return <ErrorScreen message={error} onRetry={handleNext} />;
+        return <ErrorScreen message={error} onRetry={() => handleNext()} />;
     }
 
     return poem ? (

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { FaLock, FaLockOpen, FaSpinner } from "react-icons/fa";
 import PoemViewer from "@/components/PoemViewer";
 import type { Poem } from "@/types/poem";
+import { consumeWheelGesture, trackWheelGesture } from "@/utils/wheelGesture";
 
 const ZEN_STORAGE_KEY = "ganjoorak:zen-scroll-lock";
 const STRONG_SWIPE_PX = 72;
@@ -268,35 +269,40 @@ export default function PoemFeedPager({
       }
     };
 
+    // Passive: wheel/touchpad scrolling inside the poem stays native. "Next" belongs to the pull sheet
+    // (usePullToNext); "previous" needs a fresh gesture that began at the top, and fires once per gesture.
+    let upwardTotal = 0;
+    let upwardGestureId = -1;
     const handleWheel = (event: WheelEvent) => {
       if (isShareDialogOpen()) return;
 
-      const poemText = getPoemText(event.target);
+      const poemText = getPoemText(event.target) ?? getActivePoemText(root);
+      const gesture = trackWheelGesture(event, poemText);
       if (!poemText) return;
 
       updateTitleVisibility(poemText);
       hideReadingChromeTemporarily();
 
-      const deltaY = event.deltaY;
-      if (Math.abs(deltaY) < WHEEL_THRESHOLD_PX) return;
-
-      const canScrollInside = isScrollable(poemText);
-      const shouldGoNext = deltaY > 0 && (!canScrollInside || isAtBottom(poemText));
-      const shouldGoPrevious = deltaY < 0 && (!canScrollInside || isAtTop(poemText));
-
-      if (!shouldGoNext && !shouldGoPrevious) {
-        resetArm();
-        resetPreview();
+      const deltaY = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
+      if (deltaY > 0) {
+        if (!isScrollable(poemText) || isAtBottom(poemText)) showNextPreview();
         return;
       }
+      if (deltaY === 0) return;
 
-      if (shouldGoNext) {
-        // PoemViewer's pull-to-next follows the wheel and commits past its threshold.
-        showNextPreview();
+      if (!gesture.startedAtTop || gesture.consumed || !(isAtTop(poemText) || !isScrollable(poemText))) {
         return;
       }
-
-      stop(event);
+      if (upwardGestureId !== gesture.id) {
+        upwardGestureId = gesture.id;
+        upwardTotal = 0;
+      }
+      upwardTotal += -deltaY;
+      // Keep PoemViewer's own boundary handler out of this gesture.
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      if (upwardTotal < WHEEL_THRESHOLD_PX) return;
+      consumeWheelGesture(gesture.id);
       requestBoundaryNavigation("previous");
     };
 
@@ -349,7 +355,7 @@ export default function PoemFeedPager({
     };
 
     root.addEventListener("scroll", handlePoemScroll, { capture: true, passive: true });
-    root.addEventListener("wheel", handleWheel, { capture: true, passive: false });
+    root.addEventListener("wheel", handleWheel, { capture: true, passive: true });
     root.addEventListener("touchstart", handleTouchStart, { capture: true, passive: true });
     root.addEventListener("touchend", handleTouchEnd, { capture: true, passive: false });
 
@@ -696,7 +702,11 @@ export default function PoemFeedPager({
       <div className={`poem-feed-viewer${transitionClassName}`}>
         <PoemViewer
           poem={poem}
-          onNext={() => requestBoundaryNavigation("next")}
+          onNext={(target) => {
+            // The pull sheet passes the poem it showed; only advance if that is still the feed's next poem.
+            if (target && target.id !== nextPoem?.id) return;
+            requestBoundaryNavigation("next");
+          }}
           onPrevious={() => requestBoundaryNavigation("previous")}
           isFirst={isFirst}
           isLast={isLast}

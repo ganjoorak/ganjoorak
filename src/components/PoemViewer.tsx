@@ -32,6 +32,7 @@ import SharePoemDialog from "@/components/SharePoemDialog";
 import MobileAudioControl from "@/components/MobileAudioControl";
 import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { usePullToNext } from "@/hooks/usePullToNext";
+import { consumeWheelGesture, trackWheelGesture } from "@/utils/wheelGesture";
 import PullNextSheet from "@/components/PullNextSheet";
 import { useSettings } from "@/context/SettingsContext";
 import { useUpdateNotification } from "@/hooks/useUpdateNotification";
@@ -312,7 +313,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   }, [currentTime, verseSync, isPlaying, currentHighlightedVerse]);
 
   // Wrapper to handle next action with loading indicator
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback((target?: Poem) => {
     setNavigationDirection(1);
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
@@ -323,7 +324,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     setDuration(0);
     setCurrentRecitationIndex(0);
     // Don't set loading state when scrolling through poems
-    onNext();
+    onNext(target);
   }, [isPlaying, onNext]);
 
   const handlePrevious = useCallback(() => {
@@ -396,6 +397,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     };
 
     const wheelHandler = (event: WheelEvent) => {
+      const gesture = trackWheelGesture(event, poemTextRef.current);
       if (isShareOpen) {
         return;
       }
@@ -412,9 +414,12 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         deltaY < 0 &&
         atTop &&
         !isFirst &&
+        gesture.startedAtTop &&
+        !gesture.consumed &&
         canLeaveBoundary(reachedTopAtRef.current) &&
         canNavigate()
       ) {
+        consumeWheelGesture(gesture.id);
         handlePrevious();
       }
     };
@@ -810,12 +815,26 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   useHideOnScroll(poemTextRef, poem.id);
 
   const pullSheetRef = useRef<HTMLDivElement>(null);
+  // Once a pull commits, the sheet keeps showing the poem it committed to while it fades out, even though
+  // the page has already computed a new "next" for the poem that just landed.
+  const [committedPeek, setCommittedPeek] = useState<Poem | null>(null);
+  useEffect(() => {
+    if (!committedPeek) return;
+    const timer = window.setTimeout(() => setCommittedPeek(null), committedPeek.id === poem.id ? 400 : 7000);
+    return () => window.clearTimeout(timer);
+  }, [committedPeek, poem.id]);
   usePullToNext({
     scrollRef: poemTextRef,
     rootRef: containerRef,
     sheetRef: pullSheetRef,
     enabled: (pullToNext ?? !isLast) && !isZenLocked && !isShareOpen,
-    onCommit: handleNext,
+    // While the next poem is still loading the sheet springs back instead of navigating somewhere unseen.
+    hasNext: Boolean(nextPoemPeek) || !isPreparingNext,
+    // Navigate to exactly the poem the sheet showed (single source of truth for "next").
+    onCommit: () => {
+      if (nextPoemPeek) setCommittedPeek(nextPoemPeek);
+      handleNext(nextPoemPeek ?? undefined);
+    },
     resetKey: poem.id,
   });
 
@@ -1059,7 +1078,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
           <button
             type="button"
             className="nav-button"
-            onClick={handleNext}
+            onClick={() => handleNext()}
             disabled={!canNavigateNext}
             aria-label="شعر بعدی"
             title="شعر بعدی"
@@ -1444,7 +1463,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         </div>
       )}
       {(pullToNext ?? !isLast) && (
-        <PullNextSheet ref={pullSheetRef} nextPoem={nextPoemPeek} isPreparing={isPreparingNext} />
+        <PullNextSheet ref={pullSheetRef} nextPoem={committedPeek ?? nextPoemPeek} isPreparing={isPreparingNext} />
       )}
     </motion.div>
   );
