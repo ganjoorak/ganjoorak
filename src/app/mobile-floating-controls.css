@@ -147,3 +147,12 @@
     --mobile-left-audio-offset: 4.35rem;
   }
 }
+
+/* Keep verse ends clear of the floating button columns on both sides (3.5rem = 1rem inset + 2.5rem button). */
+@media (max-width: 600px) {
+  .poem-content,
+  .poem-content.poem-content--centered {
+    padding-left: calc(3.5rem + env(safe-area-inset-left)) !important;
+    padding-right: calc(3.5rem + env(safe-area-inset-right)) !important;
+  }
+}
