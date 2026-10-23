@@ -22,7 +22,7 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
   isLoading = false,
 }) => {
   const interests = useMemo<PoemInterest[]>(
-    () => orderInterestsForRail(selectedKeys),
+    () => orderInterestsForRail(selectedKeys).filter((interest) => selectedKeys.includes(interest.key)),
     [selectedKeys],
   );
   const activeKeySet = useMemo(() => new Set(activeKeys), [activeKeys]);
@@ -44,6 +44,7 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
       >
         <FaSlidersH aria-hidden="true" />
       </button>
+      {interests.length > 0 && (
       <div className="interest-rail-track">
         <button
           type="button"
@@ -68,6 +69,7 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
           );
         })}
       </div>
+      )}
     </div>
   );
 };
