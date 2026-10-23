@@ -94,6 +94,33 @@ html[data-theme="paper"] { --radius: 0.625rem; }
   border-radius: calc(var(--radius) + 4px) calc(var(--radius) + 4px) 0 0;
   box-shadow: 0 -1px 2px rgb(0 0 0 / 0.04);
 }
+/* Desktop: the reading (recitation) bar floats as a detached pill above the content, centered at the bottom. */
+@media (min-width: 601px) {
+  html:root body .audio-player {
+    left: 50%;
+    right: auto;
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100vw - 2rem);
+    min-height: 0;
+    padding: 0.4rem 0.75rem;
+    grid-template-columns: auto minmax(10rem, 26rem) auto;
+    gap: 1rem;
+    border: 1px solid rgb(var(--border));
+    border-radius: 999px;
+    background: rgb(var(--card) / 0.78);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: 0 12px 32px -10px rgb(0 0 0 / 0.28), 0 2px 8px rgb(0 0 0 / 0.08);
+  }
+  html:root body .audio-player .audio-controls { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (min-width: 1024px) {
+  /* Poet pages with the sidebar open: center in the remaining area. */
+  html:root body .poet-page.sidebar-open.sidebar-w-96 .audio-player { left: calc((100vw - 24rem) / 2); right: auto; }
+  html:root body .poet-page.sidebar-open.sidebar-w-80 .audio-player { left: calc((100vw - 20rem) / 2); right: auto; }
+}
 :root .audio-control-button[data-slot="button"] { width: 2.75rem; height: 2.75rem; min-width: 2.75rem; min-height: 2.75rem; padding: 0; }
 :root .audio-control-button[data-slot="button"] svg { width: 1rem; height: 1rem; }
 :root .audio-control-button.rounded-full[data-slot="button"] svg { width: 1.125rem; height: 1.125rem; }
@@ -118,8 +145,7 @@ html[data-theme="paper"] { --radius: 0.625rem; }
 @media (max-width: 768px) {
   body:has([data-slot="dialog-popup"]) .menu-button,
   body:has([data-slot="dialog-popup"]) .global-search-button,
-  body:has([data-slot="dialog-popup"]) .poem-feed-lock-button,
-  body:has([data-slot="dialog-popup"]) .poem-feed-next-preview {
+  body:has([data-slot="dialog-popup"]) .poem-feed-lock-button {
     opacity: 0 !important;
     pointer-events: none !important;
   }
@@ -291,8 +317,6 @@ html:root body .poem-viewer .poem-text > .title-section {
 
   /* last verse clears the play button */
   html:root body .poem-viewer .poem-content .poem-text { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)) !important; }
-  /* "next poem" pill sits above the play button */
-  html:root body .poem-feed-next-preview { bottom: calc(5rem + env(safe-area-inset-bottom)) !important; }
 
   .mobile-audio-hint.is-leaving { opacity: 0; transition: opacity 0.3s ease; }
 }
@@ -400,11 +424,6 @@ html:root body .poem-viewer .verse-line.prose-paragraph::after { content: none; 
   pointer-events: none;
   background: rgb(0 0 0);
   opacity: 0;
-}
-/* While the next poem is being pulled in, the feed's "next poem" pill steps aside (the sheet is the preview). */
-html.gk-pulling-next .poem-feed-next-preview {
-  opacity: 0 !important;
-  pointer-events: none !important;
 }
 
 /* App feel on phones: no grey tap flashes, no page bounce or pull-to-refresh, no text-selection callouts on controls. */

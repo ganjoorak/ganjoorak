@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { FaLock, FaLockOpen, FaSpinner } from "react-icons/fa";
+import { FaLock, FaLockOpen } from "react-icons/fa";
 import PoemViewer from "@/components/PoemViewer";
 import type { Poem } from "@/types/poem";
 import { consumeWheelGesture, trackWheelGesture } from "@/utils/wheelGesture";
@@ -15,7 +15,6 @@ const EDGE_THRESHOLD_PX = 8;
 const KEY_SCROLL_AMOUNT_PX = 110;
 const READING_CHROME_HIDE_MS = 850;
 const CONTENT_TRANSITION_MS = 260;
-const NEXT_PREVIEW_HIDE_MS = 900;
 
 type Direction = "next" | "previous";
 type ContentTransition = "next" | "previous" | null;
@@ -82,13 +81,11 @@ export default function PoemFeedPager({
   const readingChromeTimeoutRef = useRef<number | null>(null);
   const previousIndexRef = useRef(currentIndex);
   const contentTransitionTimeoutRef = useRef<number | null>(null);
-  const nextPreviewTimeoutRef = useRef<number | null>(null);
   const [isZenLocked, setIsZenLocked] = useState(false);
   const [contentTransition, setContentTransition] = useState<ContentTransition>(null);
   // Set when the pull sheet commits: that poem is already on screen (the sheet is its exact copy), so it lands
   // without the slide-in below.
   const seamlessArrivalAtRef = useRef(0);
-  const [isNextPreviewVisible, setIsNextPreviewVisible] = useState(false);
 
   useEffect(() => {
     const previousIndex = previousIndexRef.current;
@@ -99,12 +96,10 @@ export default function PoemFeedPager({
     if (Date.now() - seamlessArrivalAtRef.current < 1500) {
       seamlessArrivalAtRef.current = 0;
       setContentTransition(null);
-      setIsNextPreviewVisible(false);
       return;
     }
 
     setContentTransition(currentIndex > previousIndex ? "next" : "previous");
-    setIsNextPreviewVisible(false);
 
     if (contentTransitionTimeoutRef.current !== null) {
       window.clearTimeout(contentTransitionTimeoutRef.current);
@@ -145,14 +140,6 @@ export default function PoemFeedPager({
     };
   }, [poem.id]);
 
-  const resetPreview = useCallback(() => {
-    setIsNextPreviewVisible(false);
-    if (nextPreviewTimeoutRef.current !== null) {
-      window.clearTimeout(nextPreviewTimeoutRef.current);
-      nextPreviewTimeoutRef.current = null;
-    }
-  }, []);
-
   const resetTitleVisibility = useCallback(() => {
     rootRef.current
       ?.querySelectorAll(".poem-content--title-hidden")
@@ -160,20 +147,6 @@ export default function PoemFeedPager({
         element.classList.remove("poem-content--title-hidden");
       });
   }, []);
-
-  const showNextPreview = useCallback(() => {
-    if ((!nextPoem && !isPreparingNextPoem) || isZenLocked) return;
-
-    setIsNextPreviewVisible(true);
-    if (nextPreviewTimeoutRef.current !== null) {
-      window.clearTimeout(nextPreviewTimeoutRef.current);
-    }
-
-    nextPreviewTimeoutRef.current = window.setTimeout(() => {
-      setIsNextPreviewVisible(false);
-      nextPreviewTimeoutRef.current = null;
-    }, NEXT_PREVIEW_HIDE_MS);
-  }, [isPreparingNextPoem, isZenLocked, nextPoem]);
 
   const resetArm = useCallback(() => {
     document.documentElement.classList.remove("poem-feed-boundary-armed");
@@ -213,7 +186,6 @@ export default function PoemFeedPager({
     if (isZenLocked || isShareDialogOpen() || !canNavigate()) return;
 
     resetArm();
-    resetPreview();
     resetTitleVisibility();
 
     if (direction === "next") {
@@ -233,7 +205,6 @@ export default function PoemFeedPager({
     onNext,
     onPrevious,
     resetArm,
-    resetPreview,
     resetTitleVisibility,
   ]);
 
@@ -244,7 +215,6 @@ export default function PoemFeedPager({
 
   useEffect(() => {
     resetArm();
-    resetPreview();
     resetTitleVisibility();
     document.documentElement.classList.remove("poem-feed-is-reading");
 
@@ -253,7 +223,7 @@ export default function PoemFeedPager({
       poemText.scrollTop = 0;
       updateTitleVisibility(poemText);
     }
-  }, [poem.id, resetArm, resetPreview, resetTitleVisibility, updateTitleVisibility]);
+  }, [poem.id, resetArm, resetTitleVisibility, updateTitleVisibility]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -273,12 +243,6 @@ export default function PoemFeedPager({
 
       updateTitleVisibility(poemText);
       hideReadingChromeTemporarily();
-
-      if (isAtBottom(poemText)) {
-        showNextPreview();
-      } else {
-        resetPreview();
-      }
     };
 
     // Passive: wheel/touchpad scrolling inside the poem stays native. "Next" belongs to the pull sheet
@@ -296,11 +260,7 @@ export default function PoemFeedPager({
       hideReadingChromeTemporarily();
 
       const deltaY = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
-      if (deltaY > 0) {
-        if (!isScrollable(poemText) || isAtBottom(poemText)) showNextPreview();
-        return;
-      }
-      if (deltaY === 0) return;
+      if (deltaY >= 0) return;
 
       if (!gesture.startedAtTop || gesture.consumed || !(isAtTop(poemText) || !isScrollable(poemText))) {
         return;
@@ -353,7 +313,6 @@ export default function PoemFeedPager({
 
       if (!shouldGoNext && !shouldGoPrevious) {
         resetArm();
-        resetPreview();
         return;
       }
 
@@ -377,7 +336,7 @@ export default function PoemFeedPager({
       root.removeEventListener("touchstart", handleTouchStart, true);
       root.removeEventListener("touchend", handleTouchEnd, true);
     };
-  }, [hideReadingChromeTemporarily, requestBoundaryNavigation, resetArm, resetPreview, showNextPreview, updateTitleVisibility]);
+  }, [hideReadingChromeTemporarily, requestBoundaryNavigation, resetArm, updateTitleVisibility]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -413,12 +372,7 @@ export default function PoemFeedPager({
           behavior: "smooth",
         });
         resetArm();
-        resetPreview();
         return;
-      }
-
-      if (direction === "next") {
-        showNextPreview();
       }
 
       requestBoundaryNavigation(direction);
@@ -426,7 +380,7 @@ export default function PoemFeedPager({
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [hideReadingChromeTemporarily, requestBoundaryNavigation, resetArm, resetPreview, showNextPreview, updateTitleVisibility]);
+  }, [hideReadingChromeTemporarily, requestBoundaryNavigation, resetArm, updateTitleVisibility]);
 
   useEffect(() => {
     return () => {
@@ -436,9 +390,6 @@ export default function PoemFeedPager({
       }
       if (contentTransitionTimeoutRef.current !== null) {
         window.clearTimeout(contentTransitionTimeoutRef.current);
-      }
-      if (nextPreviewTimeoutRef.current !== null) {
-        window.clearTimeout(nextPreviewTimeoutRef.current);
       }
     };
   }, []);
@@ -557,65 +508,6 @@ export default function PoemFeedPager({
         .poem-feed-lock-button svg {
           width: 1rem;
           height: 1rem;
-        }
-
-        .poem-feed-next-preview {
-          position: fixed;
-          left: 50%;
-          bottom: calc(1rem + env(safe-area-inset-bottom));
-          z-index: 8;
-          width: min(22rem, calc(100vw - 7.5rem));
-          transform: translateX(-50%) translateY(0.75rem);
-          opacity: 0;
-          pointer-events: none;
-          border: 1px solid rgb(var(--foreground) / 0.1);
-          border-radius: 1rem;
-          background: rgb(var(--background) / 0.72);
-          color: rgb(var(--foreground));
-          -webkit-backdrop-filter: blur(14px);
-          backdrop-filter: blur(14px);
-          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
-          padding: 0.7rem 0.9rem;
-          text-align: center;
-          transition: opacity 0.22s ease, transform 0.22s ease;
-        }
-
-        html.gk-pulling-next .poem-feed-next-preview {
-          opacity: 0 !important;
-        }
-
-        .poem-feed-next-preview.is-visible {
-          opacity: 1;
-          transform: translateX(-50%) translateY(0);
-        }
-
-        .poem-feed-next-preview-label {
-          display: block;
-          margin-bottom: 0.2rem;
-          font-size: 0.72rem;
-          opacity: 0.68;
-        }
-
-        .poem-feed-next-preview-title {
-          display: block;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          font-size: 0.95rem;
-          font-weight: 700;
-        }
-
-        .poem-feed-next-spinner {
-          display: inline-block;
-          width: 0.95rem;
-          height: 0.95rem;
-          animation: poem-feed-spin 0.85s linear infinite;
-        }
-
-        @keyframes poem-feed-spin {
-          to {
-            transform: rotate(360deg);
-          }
         }
 
         .poem-zen-mode .navigation-controls,
@@ -737,16 +629,6 @@ export default function PoemFeedPager({
           isPreparingNext={isPreparingNextPoem}
         />
       </div>
-      {(nextPoem || isPreparingNextPoem) && (
-        <div className={`poem-feed-next-preview${isNextPreviewVisible ? " is-visible" : ""}`}>
-          <span className="poem-feed-next-preview-label">
-            {isPreparingNextPoem ? "در حال آماده‌سازی" : "شعر بعدی"}
-          </span>
-          <span className="poem-feed-next-preview-title">
-            {nextPoem ? nextPoem.title : <FaSpinner className="poem-feed-next-spinner" aria-hidden="true" />}
-          </span>
-        </div>
-      )}
       <Button
         type="button"
         variant={isZenLocked ? "default" : "outline"}
