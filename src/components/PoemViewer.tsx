@@ -816,6 +816,45 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
   useHideOnScroll(poemTextRef, poem.id);
 
+  // Phones: the verse column sits between the side control columns. Scale verses down only as much as the
+  // poem's longest mesra needs to stay on one line (never above the Ganjoor size set in CSS).
+  useEffect(() => {
+    const el = poemTextRef.current;
+    if (!el || typeof window === "undefined") return;
+    let frame = 0;
+    const fit = () => {
+      if (window.innerWidth > 600) {
+        el.style.removeProperty("--gk-verse-fit");
+        return;
+      }
+      el.style.setProperty("--gk-verse-fit", "1");
+      el.classList.add("gk-verse-measuring");
+      const texts = el.querySelectorAll<HTMLElement>(".verse-line:not(.prose-paragraph) .verse-text");
+      let longest = 0;
+      texts.forEach((t) => { longest = Math.max(longest, t.getBoundingClientRect().width); });
+      const sampleBase = el.querySelector<HTMLElement>(".verse-line:not(.prose-paragraph)");
+      const baseSize = sampleBase ? parseFloat(getComputedStyle(sampleBase).fontSize) || 22 : 22;
+      el.classList.remove("gk-verse-measuring");
+      const cs = getComputedStyle(el);
+      const available = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
+      // Floor at 15px: below that, let the longest mesras wrap rather than shrink further.
+      const minScale = Math.min(1, 15 / baseSize);
+      const scale = longest > available && longest > 0 ? Math.max(minScale, available / longest) : 1;
+      el.style.setProperty("--gk-verse-fit", scale.toFixed(4));
+    };
+    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
+    schedule();
+    document.fonts?.ready.then(schedule).catch(() => {});
+    const ro = new ResizeObserver(schedule);
+    ro.observe(el);
+    const mo = new MutationObserver(schedule);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["style", "data-font", "data-poem-font-size"] });
+    // Verses can arrive after mount (feed preloading, lazy recitation data): re-fit when they change.
+    const contentMo = new MutationObserver(schedule);
+    contentMo.observe(el, { childList: true, subtree: true, characterData: true });
+    return () => { cancelAnimationFrame(frame); ro.disconnect(); mo.disconnect(); contentMo.disconnect(); };
+  }, [poem.id]);
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -223,102 +223,87 @@ html:root body .poem-viewer .poem-text > .title-section {
   html:root body .poem-viewer .poem-text > .title-section { padding-bottom: 1rem; }
 }
 
-/* Mobile: Ganjoor-sized verses (1.4em = 22.4px, line-height 30px at the default setting) on a near full-width column, one line per mesra */
+/* Mobile: Ganjoor-sized verses (1.4em = 22.4px, line-height 30px at the default setting), one line per mesra.
+   The verse column is inset 2.5rem inside .poem-text so the side control columns (0.625rem edge + 2.75rem button)
+   never overlap a verse: 56px from the screen edge at 390/375/360, and 278/263/249px of verse width remain. */
 @media (max-width: 600px) {
   :root .poem-viewer .verse-line {
-    font-size: calc(var(--poem-verse-font-size, 1.5rem) * 0.9333);
+    font-size: calc(var(--poem-verse-font-size, 1.5rem) * 0.9333 * var(--gk-verse-fit, 1));
     line-height: 1.34;
     padding-inline: 0 !important;
   }
-  :root .poem-viewer .poem-text { padding-inline: 0 !important; }
   :root .poem-content,
   :root .poem-content.poem-content--centered {
     padding-left: calc(0.75rem + env(safe-area-inset-left)) !important;
     padding-right: calc(0.75rem + env(safe-area-inset-right)) !important;
   }
+  /* No scrollbar gutter on phones: "stable both-edges" reserved ~20px wherever classic scrollbars render
+     (narrow desktop windows, desktop emulation), which made the longest mesras wrap. */
+  html:root body .poem-viewer .poem-content .poem-text {
+    padding-inline: 2.5rem !important;
+    scrollbar-width: none !important;
+    scrollbar-gutter: auto !important;
+  }
+  html:root body .poem-viewer .poem-content .poem-text::-webkit-scrollbar { display: none; width: 0; height: 0; }
 }
 /* Phones narrower than 390px: Vazirmatn runs ~3% wider than Ganjoor's Vazir, so step the verse down 8% to keep the longest mesras on one line */
 @media (max-width: 389px) {
-  :root .poem-viewer .verse-line { font-size: calc(var(--poem-verse-font-size, 1.5rem) * 0.9333 * 0.92); }
+  :root .poem-viewer .verse-line { font-size: calc(var(--poem-verse-font-size, 1.5rem) * 0.9333 * 0.92 * var(--gk-verse-fit, 1)); }
+}
+/* PoemViewer measures each mesra's natural one-line width with this class on, then sets --gk-verse-fit */
+@media (max-width: 600px) {
+  html:root body .poem-viewer .poem-text.gk-verse-measuring .verse-line:not(.prose-paragraph) .verse-text { white-space: nowrap !important; display: inline-block !important; }
 }
 
-/* Mobile bottom bar: solid strip (page background, no fade) holding three controls.
-   Left: like. Center: play/pause ring (long-press opens the player sheet). Right: menu.
-   Share, quick search, lock and the poet link live in the menu's first section. */
+/* Mobile controls: two vertical side columns plus the play button alone at bottom center.
+   Left column (bottom up): poet avatar, like, share. Right column (bottom up): menu, search, lock.
+   Both columns and the play button hide while scrolling down (useHideOnScroll). */
 @media (max-width: 600px) {
-  :root {
-    --gk-bar-h: 3.75rem;
-    --gk-bar-btn: 2.75rem;
-    --gk-bar-edge: 1rem;
+  html:root {
+    --gk-col-edge: 0.625rem;
+    --gk-col-btn: 2.75rem;
+    --mobile-floating-right: var(--gk-col-edge);
+    --mobile-floating-size: var(--gk-col-btn);
+    --mobile-floating-gap: 0.5rem;
+    --mobile-floating-bottom: 1rem;
   }
-  .poem-viewer::after {
-    content: "";
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 30;
-    height: calc(var(--gk-bar-h) + env(safe-area-inset-bottom));
-    background: rgb(var(--background));
-    border-top: 1px solid rgb(var(--border) / 0.6);
-    pointer-events: none;
-    transition: opacity 200ms ease, translate 200ms ease;
-  }
-  :root.floating-controls-hidden .poem-viewer::after { opacity: 0; translate: 0 1rem; }
-  body:has([data-slot="dialog-popup"]) .poem-viewer::after { display: none; }
-
-  html:root body .global-search-button,
-  html:root body .poem-feed-lock-button,
-  html:root body .action-buttons > :not(.poem-favorite-button) { display: none !important; }
-
   html:root body .action-buttons {
-    position: fixed !important;
-    top: auto !important;
+    left: calc(var(--gk-col-edge) + env(safe-area-inset-left)) !important;
     right: auto !important;
-    left: calc(var(--gk-bar-edge) + env(safe-area-inset-left)) !important;
-    bottom: calc((var(--gk-bar-h) - var(--gk-bar-btn)) / 2 + env(safe-area-inset-bottom)) !important;
-    flex-direction: row !important;
     align-items: center !important;
-    gap: 0 !important;
-    z-index: 1000;
   }
-  html:root body .action-buttons > .poem-favorite-button,
-  html:root body .poem-viewer .menu-button:not(.poem-feed-lock-button) {
-    box-shadow: none !important;
-    width: var(--gk-bar-btn) !important;
-    min-width: var(--gk-bar-btn) !important;
-    max-width: var(--gk-bar-btn) !important;
-    height: var(--gk-bar-btn) !important;
-    min-height: var(--gk-bar-btn) !important;
-    max-height: var(--gk-bar-btn) !important;
+  html:root body .action-buttons .poet-profile {
+    width: var(--gk-col-btn) !important;
+    height: var(--gk-col-btn) !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 999px !important;
+    overflow: hidden;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgb(0 0 0 / 0.12);
   }
-  html:root body .poem-viewer .menu-button:not(.poem-feed-lock-button) {
-    top: auto !important;
-    left: auto !important;
-    right: calc(var(--gk-bar-edge) + env(safe-area-inset-right)) !important;
-    bottom: calc((var(--gk-bar-h) - var(--gk-bar-btn)) / 2 + env(safe-area-inset-bottom)) !important;
+  html:root body .action-buttons .poet-profile .poet-profile-name { display: none !important; }
+  html:root body .action-buttons .poet-profile .poet-image-container {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 999px !important;
   }
-  html:root body .mobile-audio-control {
-    bottom: calc((var(--gk-bar-h) - 3.5rem) / 2 + env(safe-area-inset-bottom)) !important;
-  }
-  .mobile-audio-control .mobile-audio-button[data-slot="button"] { box-shadow: none !important; }
+  html:root body .action-buttons .poet-profile img { width: 100% !important; height: 100% !important; object-fit: cover; }
 
-  /* Locked feed: keep like and menu reachable on phones (unlock lives in the menu) */
-  html:root.poem-zen-mode:not(.floating-controls-hidden) body .poem-viewer .menu-button:not(.poem-feed-lock-button),
-  html:root.poem-zen-mode:not(.floating-controls-hidden) body .action-buttons {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-
-  /* last verse clears the bar */
-  :root .poem-text { padding-bottom: calc(var(--gk-bar-h) + 1.25rem + env(safe-area-inset-bottom)) !important; }
-  /* "next poem" pill sits above the bar */
-  html:root body .poem-feed-next-preview { bottom: calc(var(--gk-bar-h) + 0.5rem + env(safe-area-inset-bottom)) !important; }
+  /* last verse clears the play button */
+  html:root body .poem-viewer .poem-content .poem-text { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)) !important; }
+  /* "next poem" pill sits above the play button */
+  html:root body .poem-feed-next-preview { bottom: calc(5rem + env(safe-area-inset-bottom)) !important; }
 
   .mobile-audio-hint.is-leaving { opacity: 0; transition: opacity 0.3s ease; }
 }
 
-/* Poet-specific menu section is phone-only; desktop keeps its own buttons */
+/* The menu's poem section (share/search/lock/poet) is only needed when those buttons are hidden; they are visible again on every width. */
 .menu-poet-avatar {
   display: inline-flex; align-items: center; justify-content: center;
   width: 1.75rem; height: 1.75rem; border-radius: 999px; overflow: hidden; flex-shrink: 0;
@@ -326,10 +311,8 @@ html:root body .poem-viewer .poem-text > .title-section {
 }
 .menu-poet-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .menu-link--poet { font-weight: 600; }
-@media (min-width: 601px) {
-  .menu-section--poem { display: none; }
-  .menu-section--poem + .menu-section { margin-top: 0; padding-top: 0; border-top: 0; }
-}
+.menu-section--poem { display: none; }
+.menu-section--poem + .menu-section { margin-top: 0; padding-top: 0; border-top: 0; }
 
 /* Prose (Ganjoor paragraph blocks, e.g. letters and Golestan): wrapping, justified RTL paragraphs */
 .poem-viewer .prose-block {
