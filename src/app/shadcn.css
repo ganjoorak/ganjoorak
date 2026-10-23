@@ -200,29 +200,27 @@ html[data-theme="paper"] { --radius: 0.625rem; }
   :root.floating-controls-hidden :is(.menu-button, .global-search-button, .action-buttons, .mobile-audio-control, .poem-feed-lock-button) { translate: none; }
 }
 
-/* Mobile: solid header, hides with the floating controls. The verse column starts below the
-   header's measured height (--gk-title-h, set by PoemViewer) so a wrapped title never covers verse 1. */
-@media (max-width: 600px) {
-  :root .poem-viewer .title-section {
-    padding-bottom: 0.75rem;
-    background: rgb(var(--background)) !important;
-    transition: opacity 200ms ease, translate 200ms ease;
-  }
-  :root .poem-viewer .poem-content:not(.poem-content--has-eyebrow) .poem-text {
-    padding-top: calc(8.5rem + env(safe-area-inset-top)) !important;
-  }
-  html:root body .poem-viewer .poem-content .poem-text[style*="--gk-title-h"] {
-    padding-top: calc(var(--gk-title-h) + 0.25rem) !important;
-  }
-  :root.floating-controls-hidden .poem-viewer .title-section {
-    opacity: 0 !important;
-    translate: 0 -1rem;
-    pointer-events: none !important;
-  }
+/* Title header lives inside the scroll container (first child of .poem-text), so it scrolls
+   away with the poem and is visible only at the very top. Never re-shown on scroll-up mid-poem. */
+html:root body .poem-viewer .poem-content .poem-text.poem-text--title-in-flow {
+  padding-top: 0 !important;
 }
-@media (max-width: 600px) and (prefers-reduced-motion: reduce) {
-  :root .poem-viewer .title-section { transition: none; }
-  :root.floating-controls-hidden .poem-viewer .title-section { translate: none; }
+html:root body .poem-viewer .poem-text > .title-section {
+  position: relative !important;
+  inset: auto !important;
+  z-index: auto !important;
+  flex-shrink: 0;
+  max-height: none !important;
+  overflow: visible !important;
+  background: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  translate: none !important;
+  pointer-events: auto !important;
+  margin-bottom: 0.25rem;
+}
+@media (max-width: 600px) {
+  html:root body .poem-viewer .poem-text > .title-section { padding-bottom: 1rem; }
 }
 
 /* Mobile: Ganjoor-sized verses (1.4em = 22.4px, line-height 30px at the default setting) on a near full-width column, one line per mesra */

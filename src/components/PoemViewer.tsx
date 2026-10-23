@@ -2,13 +2,7 @@
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import React, {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useCallback,
-} from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaShare,
@@ -149,7 +143,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const poemTextRef = useRef<HTMLDivElement>(null);
-  const titleSectionRef = useRef<HTMLDivElement>(null);
   const boundaryNavigationUntilRef = useRef(0);
   const lastBoundaryNavigationAtRef = useRef(0);
   const reachedTopAtRef = useRef(0);
@@ -823,29 +816,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
   useHideOnScroll(poemTextRef, poem.id);
 
-  // The title block floats over the scroll container. Publish its real
-  // height so the first verse starts below it even when the title wraps.
-  useLayoutEffect(() => {
-    const title = titleSectionRef.current;
-    const text = poemTextRef.current;
-    if (!text) return;
-    if (!title) {
-      text.style.removeProperty("--gk-title-h");
-      return;
-    }
-    const update = () => {
-      const height = title.offsetTop + title.offsetHeight - text.offsetTop;
-      if (height > 0) {
-        text.style.setProperty("--gk-title-h", `${Math.ceil(height)}px`);
-      }
-    };
-    update();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(update);
-    observer.observe(title);
-    return () => observer.disconnect();
-  }, [poem.id]);
-
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -981,6 +951,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     highlightActive ? "highlight-on" : "",
     !isAudioPlayerVisible ? "poem-text--no-audio" : "",
     isMinimalPoemView ? "poem-text--minimal" : "",
+    showTitleSection ? "poem-text--title-in-flow" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -1237,59 +1208,60 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
             }}
             transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
           >
-            {showTitleSection && (
-              <motion.div className="title-section" ref={titleSectionRef}>
-                {hasTitleEyebrow && (
-                  <motion.div
-                    className="poem-eyebrow"
-                    initial={{ opacity: 0, y: -8 }}
+            <div key={poem.id} className={poemTextClassName} ref={poemTextRef}>
+              {/* Title scrolls with the poem: visible only at the very top. */}
+              {showTitleSection && (
+                <motion.div className="title-section">
+                  {hasTitleEyebrow && (
+                    <motion.div
+                      className="poem-eyebrow"
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {titleEyebrow}
+                    </motion.div>
+                  )}
+                  <motion.h2
+                    className="poem-title"
+                    initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
-                  >
-                    {titleEyebrow}
-                  </motion.div>
-                )}
-                <motion.h2
-                  className="poem-title"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  style={{
-                    fontSize:
-                      "clamp(1.45rem, var(--poem-title-font-size, 2.25rem), 3.1rem)",
-                    lineHeight: 1.18,
-                    maxWidth: "100%",
-                    marginInline: "auto",
-                  }}
-                >
-                  {poem.title}
-                </motion.h2>
-                {!isPoetPage && (
-                  <motion.div
-                    className="poet-line"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 }}
                     style={{
-                      fontSize: "clamp(0.85rem, 2.4vw, 1rem)",
-                      lineHeight: 1.45,
+                      fontSize:
+                        "clamp(1.45rem, var(--poem-title-font-size, 2.25rem), 3.1rem)",
+                      lineHeight: 1.18,
                       maxWidth: "100%",
+                      marginInline: "auto",
                     }}
                   >
-                    <span className="poet-name">
-                      {poem.poet}
-                      {showTitleBreadcrumbs &&
-                        fullTitleIntermediateParts.length > 0 && (
-                          <span>
-                            {"، " + fullTitleIntermediateParts.join("، ")}
-                          </span>
-                        )}
-                    </span>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
-            <div key={poem.id} className={poemTextClassName} ref={poemTextRef}>
+                    {poem.title}
+                  </motion.h2>
+                  {!isPoetPage && (
+                    <motion.div
+                      className="poet-line"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
+                      style={{
+                        fontSize: "clamp(0.85rem, 2.4vw, 1rem)",
+                        lineHeight: 1.45,
+                        maxWidth: "100%",
+                      }}
+                    >
+                      <span className="poet-name">
+                        {poem.poet}
+                        {showTitleBreadcrumbs &&
+                          fullTitleIntermediateParts.length > 0 && (
+                            <span>
+                              {"، " + fullTitleIntermediateParts.join("، ")}
+                            </span>
+                          )}
+                      </span>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
               {isModern ? (
                 <motion.div
                   className="modern-poem"
