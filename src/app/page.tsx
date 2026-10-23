@@ -11,7 +11,12 @@ import { Poem } from '@/types/poem';
 import { Poet, isValidPoetSlug } from '@/types/poet';
 import { useSettings } from '@/context/SettingsContext';
 import { logger } from '@/utils/logger';
-import { FaRandom, FaSearch, FaTimes } from 'react-icons/fa';
+import { FaRandom, FaSearch, FaTimes, FaUserPlus, FaUsers } from 'react-icons/fa';
+import Link from 'next/link';
+import FeedModeSwitch from '@/components/FeedModeSwitch';
+import FeedModeEmpty from '@/components/FeedModeEmpty';
+import { buttonVariants } from '@/components/ui/button';
+import type { FeedMode } from '@/context/SettingsContext';
 import poetSourceIndex from '@/data/poet-source-index.json';
 import InterestChipsRail from '@/components/InterestChipsRail';
 import InterestPickerDialog from '@/components/InterestPickerDialog';
@@ -278,7 +283,7 @@ function FeedPoetDialog({
                 >
                     <header className="settings-header">
                         <h2 id="feed-poets-title" className="settings-title">
-                            شاعران صفحه اصلی
+                            شاعران دنبال‌شده
                         </h2>
                         <button
                             type="button"
@@ -406,10 +411,9 @@ function FeedPoetDialog({
                         <button
                             type="button"
                             className="settings-action-button primary"
-                            disabled={pendingKeys.length === 0}
                             onClick={() => onSave(pendingKeys)}
                         >
-                            شروع
+                            ذخیره
                         </button>
                     </footer>
                 </section>
@@ -426,7 +430,12 @@ export default function Home() {
         setInterestKeys,
         toggleActiveInterest,
         clearActiveInterests,
+        setFeedMode,
     } = useSettings();
+    const feedMode = settings.feedMode;
+    const isFollowingMode = feedMode === 'following';
+    const hasNoFollows = settings.followedPoetKeys.length === 0;
+    const isFollowingEmpty = isFollowingMode && hasNoFollows;
     const [poems, setPoems] = useState<Poem[]>([]);
     const [availablePoets, setAvailablePoets] = useState<Poet[]>([]);
     const [loading, setLoading] = useState(true);
@@ -463,9 +472,6 @@ export default function Home() {
         [settings.activeInterestKeys],
     );
 
-    useEffect(() => {
-        writeCachedFeedPoems(poems, currentPoemIndex, activeInterestSignature);
-    }, [activeInterestSignature, currentPoemIndex, poems]);
 
     useEffect(() => {
         currentPoemIndexRef.current = currentPoemIndex;
@@ -488,18 +494,15 @@ export default function Home() {
         setCurrentPoemIndex(pendingIndex);
     }, [poems.length]);
 
-    const effectiveFollowedPoetKeys = useMemo(() => {
-        if (settings.followedPoetKeys.length > 0) {
-            return settings.followedPoetKeys;
-        }
-
-        return availablePoets
-            .filter((poet) => (poet.source || 'ganjoor') === 'ganjoor')
-            .map(getPoetKey);
-    }, [availablePoets, settings.followedPoetKeys]);
-
     const followedKeySignature = settings.followedPoetKeys.join('|');
-    const feedSignature = `${activeInterestSignature}::${followedKeySignature}`;
+    // «همه» never depends on follows; «دنبال‌شده‌ها» never depends on interests.
+    const feedSignature = isFollowingMode
+        ? `following::${followedKeySignature}`
+        : `all::${activeInterestSignature}`;
+
+    useEffect(() => {
+        writeCachedFeedPoems(poems, currentPoemIndex, feedSignature);
+    }, [feedSignature, currentPoemIndex, poems]);
     const currentPoem = poems[currentPoemIndex];
     const nextPoem = poems[currentPoemIndex + 1];
 
@@ -582,41 +585,11 @@ export default function Home() {
         };
     }, [areSettingsHydrated, currentPoem]);
 
-    const fetchRandomPoemFromFollowedPoet = useCallback(async () => {
-        const activeInterestKeys = settings.activeInterestKeys;
-        // A poets-only feed is an explicit filter, so similar poems from other poets stay out of it.
-        const isPoetFilterOnly =
-            activeInterestKeys.length === 0 && settings.followedPoetKeys.length > 0;
-
-        if (!isPoetFilterOnly && Math.random() < SIMILAR_POEM_SHARE) {
-            try {
-                const similarPoem = await fetchSimilarPoem();
-                if (similarPoem) {
-                    return similarPoem;
-                }
-            } catch (error) {
-                logger.error('Failed to fetch similar poem:', error);
-            }
-        }
-
-        if (activeInterestKeys.length > 0) {
-            const interestKey =
-                activeInterestKeys[Math.floor(Math.random() * activeInterestKeys.length)];
-
-            return fetchInterestPoem(
-                interestKey,
-                settings.followedPoetKeys
-                    .map((key) => parseFollowedPoetKey(key))
-                    .filter((poet) => poet?.source === 'ganjoor')
-                    .map((poet) => poet!.slug),
-            );
-        }
-
+    const fetchRandomPoemFromFollowedPoets = useCallback(async () => {
         const selectedKeys = settings.followedPoetKeys;
 
         if (selectedKeys.length === 0) {
-            const randomPoem = await ganjoorApi.getRandomPoem();
-            return loadFullGanjoorPoem(randomPoem);
+            throw new Error('No followed poets');
         }
 
         const selectedKey = selectedKeys[Math.floor(Math.random() * selectedKeys.length)];
@@ -645,7 +618,36 @@ export default function Home() {
 
         const randomPoem = await ganjoorApi.getRandomPoemByPoet(poet.slug);
         return loadFullGanjoorPoem(randomPoem);
-    }, [settings.activeInterestKeys, settings.followedPoetKeys]);
+    }, [settings.followedPoetKeys]);
+
+    // «همه»: the open feed across every poet, shaped only by interests and similar poems.
+    const fetchRandomPoemFromAll = useCallback(async () => {
+        const activeInterestKeys = settings.activeInterestKeys;
+
+        if (Math.random() < SIMILAR_POEM_SHARE) {
+            try {
+                const similarPoem = await fetchSimilarPoem();
+                if (similarPoem) {
+                    return similarPoem;
+                }
+            } catch (error) {
+                logger.error('Failed to fetch similar poem:', error);
+            }
+        }
+
+        if (activeInterestKeys.length > 0) {
+            const interestKey =
+                activeInterestKeys[Math.floor(Math.random() * activeInterestKeys.length)];
+            return fetchInterestPoem(interestKey);
+        }
+
+        const randomPoem = await ganjoorApi.getRandomPoem();
+        return loadFullGanjoorPoem(randomPoem);
+    }, [settings.activeInterestKeys]);
+
+    const fetchRandomPoemFromFollowedPoet = isFollowingMode
+        ? fetchRandomPoemFromFollowedPoets
+        : fetchRandomPoemFromAll;
 
     const fetchPoemBatch = useCallback(async (count: number) => {
         const fetchedPoems: Poem[] = [];
@@ -745,14 +747,16 @@ export default function Home() {
             if (feedVersionRef.current === version) {
                 logger.error('Failed to fetch initial poem:', err);
                 setError(
-                    settings.activeInterestKeys.length > 0
+                    isFollowingMode
+                        ? 'شعری از شاعران دنبال‌شده بارگیری نشد. لطفاً دوباره تلاش کنید.'
+                        : settings.activeInterestKeys.length > 0
                         ? 'در حال حاضر شعری برای این دسته‌ها پیدا نشد. لطفاً دسته دیگری را امتحان کنید.'
                         : 'متأسفانه در بارگیری شعرها مشکلی پیش آمد. لطفاً دوباره تلاش کنید.',
                 );
                 setLoading(false);
             }
         }
-    }, [appendPoems, fetchPoemBatch, fetchRandomPoemFromFollowedPoet, settings.activeInterestKeys]);
+    }, [appendPoems, fetchPoemBatch, fetchRandomPoemFromFollowedPoet, isFollowingMode, settings.activeInterestKeys]);
 
     useEffect(() => {
         if (!areSettingsHydrated) {
@@ -766,9 +770,18 @@ export default function Home() {
             previousSignature !== feedSignature;
         const cachedInterestMismatch =
             previousSignature === null &&
-            cachedInterestKeyRef.current !== activeInterestSignature;
+            cachedInterestKeyRef.current !== feedSignature;
 
-        cachedInterestKeyRef.current = activeInterestSignature;
+        cachedInterestKeyRef.current = feedSignature;
+
+        if (isFollowingEmpty) {
+            // Nothing to fetch; the empty state links to /poets.
+            feedVersionRef.current += 1;
+            fetchMorePromiseRef.current = null;
+            setError(null);
+            setLoading(false);
+            return;
+        }
 
         if (poems.length > 0 && !feedChanged && !cachedInterestMismatch) {
             setLoading(false);
@@ -777,16 +790,17 @@ export default function Home() {
 
         fetchInitialPoems();
     }, [
-        activeInterestSignature,
         areSettingsHydrated,
         feedSignature,
         fetchInitialPoems,
+        isFollowingEmpty,
         poems.length,
     ]);
 
     useEffect(() => {
         const shouldFetchMore =
             !loading &&
+            !isFollowingEmpty &&
             currentPoemIndex >= poems.length - PREFETCH_THRESHOLD &&
             poems.length > 0 &&
             !isFetchingMore;
@@ -799,11 +813,15 @@ export default function Home() {
         poems.length,
         loading,
         isFetchingMore,
+        isFollowingEmpty,
         fetchMorePoems,
     ]);
 
     const handleSaveFeedPoets = (keys: string[]) => {
         setFollowedPoetKeys(keys);
+        if (keys.length > 0) {
+            handleChangeFeedMode('following');
+        }
         setIsFeedDialogOpen(false);
         if (shouldClearFeedQuery) {
             clearFeedQuery();
@@ -833,6 +851,22 @@ export default function Home() {
         toggleActiveInterest(key);
     }, [toggleActiveInterest]);
 
+    // Keep the poem on screen but drop the queued poems of the old mode, so the
+    // next pull always lands on a poem from the newly selected mode.
+    function handleChangeFeedMode(mode: FeedMode) {
+        if (mode === feedMode) {
+            return;
+        }
+        const visiblePoem = poemsRef.current[currentPoemIndexRef.current];
+        feedVersionRef.current += 1;
+        fetchMorePromiseRef.current = null;
+        pendingNavigationIndexRef.current = null;
+        setIsFetchingMore(false);
+        setPoems(visiblePoem ? [visiblePoem] : []);
+        setCurrentPoemIndex(0);
+        setFeedMode(mode);
+    }
+
     const handleNext = useCallback(() => {
         const nextIndex = currentPoemIndexRef.current + 1;
 
@@ -853,8 +887,17 @@ export default function Home() {
         setCurrentPoemIndex((prevIndex) => Math.max(prevIndex - 1, 0));
     }, []);
 
+    // Rendered above the title so it scrolls away with it (r5 title behaviour).
+    const feedModeSwitch = (
+        <FeedModeSwitch
+            mode={feedMode}
+            onChange={(mode) => handleChangeFeedMode(mode)}
+            isLoading={loading && Boolean(currentPoem)}
+        />
+    );
+
     // Interests are edited from the menu (علاقه‌مندی‌ها); the rail only shows when there are chips to toggle.
-    const interestRail = settings.interestKeys.length > 0 ? (
+    const interestRail = !isFollowingMode && settings.interestKeys.length > 0 ? (
         <InterestChipsRail
             selectedKeys={settings.interestKeys}
             activeKeys={settings.activeInterestKeys}
@@ -872,6 +915,67 @@ export default function Home() {
             onClose={handleCloseInterestDialog}
         />
     ) : null;
+
+    if (isFollowingEmpty && areSettingsHydrated) {
+        return (
+            <>
+                {interestDialog}
+                <FeedModeEmpty
+                    switcher={feedModeSwitch}
+                    icon={<FaUsers />}
+                    title="هنوز شاعری را دنبال نمی‌کنید"
+                    description="شاعران را دنبال کنید تا این فید فقط از شعرهای آن‌ها پر شود. فید «همه» همچنان از همهٔ شاعران است."
+                    actions={(
+                        <>
+                            <Link href="/poets" className={buttonVariants({ size: 'lg' })}>
+                                <FaUserPlus aria-hidden="true" />
+                                دیدن شاعران
+                            </Link>
+                            <button
+                                type="button"
+                                className={buttonVariants({ variant: 'ghost', size: 'lg' })}
+                                onClick={() => handleChangeFeedMode('all')}
+                            >
+                                بازگشت به همه
+                            </button>
+                        </>
+                    )}
+                />
+            </>
+        );
+    }
+
+    if (error && !currentPoem && isFollowingMode) {
+        return (
+            <>
+                {interestDialog}
+                <FeedModeEmpty
+                    switcher={feedModeSwitch}
+                    icon={<FaUsers />}
+                    title="فید دنبال‌شده‌ها بارگیری نشد"
+                    description={error}
+                    actions={(
+                        <>
+                            <button
+                                type="button"
+                                className={buttonVariants({ size: 'lg' })}
+                                onClick={fetchInitialPoems}
+                            >
+                                تلاش دوباره
+                            </button>
+                            <button
+                                type="button"
+                                className={buttonVariants({ variant: 'ghost', size: 'lg' })}
+                                onClick={() => handleChangeFeedMode('all')}
+                            >
+                                بازگشت به همه
+                            </button>
+                        </>
+                    )}
+                />
+            </>
+        );
+    }
 
     if (!currentPoem && !error) {
         return (
@@ -897,7 +1001,7 @@ export default function Home() {
             {isFeedDialogOpen && (
                 <FeedPoetDialog
                     poets={availablePoets}
-                    selectedKeys={effectiveFollowedPoetKeys}
+                    selectedKeys={settings.followedPoetKeys}
                     onSave={handleSaveFeedPoets}
                     onClose={() => {
                         setIsFeedDialogOpen(false);
@@ -918,7 +1022,12 @@ export default function Home() {
                     onPrevious={handlePrevious}
                     onOpenFeed={() => setIsFeedDialogOpen(true)}
                     onOpenInterests={() => setIsInterestDialogOpen(true)}
-                    titleEyebrow={interestRail}
+                    titleEyebrow={(
+                        <div className="home-feed-eyebrow">
+                            {feedModeSwitch}
+                            {interestRail}
+                        </div>
+                    )}
                 />
             )}
         </main>

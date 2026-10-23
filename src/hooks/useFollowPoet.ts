@@ -8,8 +8,8 @@ import { useSettings } from "@/context/SettingsContext";
  *
  * Followed poets live in `settings.followedPoetKeys` (`source:slug`), which is
  * persisted to localStorage and, when the reader is signed in, merged into the
- * account data on the Go backend by <AccountSync>. The home feed already reads
- * the same list, so following a poet also biases the feed toward them.
+ * account data on the Go backend by <AccountSync>. Follows only feed the home
+ * «دنبال‌شده‌ها» tab; the «همه» feed ignores them.
  */
 export const buildPoetFollowKey = (source: string, slug: string) =>
   `${source || "ganjoor"}:${slug.replace(/^\/+|\/+$/g, "")}`;

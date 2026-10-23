@@ -41,7 +41,7 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
           onClick={onClear}
           aria-pressed={!hasActive}
         >
-          همه
+          همهٔ موضوع‌ها
         </button>
         {interests.map((interest) => {
           const isActive = activeKeySet.has(interest.key);

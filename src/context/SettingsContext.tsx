@@ -46,7 +46,11 @@ interface SettingsState {
   interestKeys: string[];
   activeInterestKeys: string[];
   hasChosenInterests: boolean;
+  /** Home feed source: everything («همه») or only followed poets («دنبال‌شده‌ها»). */
+  feedMode: FeedMode;
 }
+
+export type FeedMode = "all" | "following";
 
 interface SettingsContextValue {
   settings: SettingsState;
@@ -65,6 +69,7 @@ interface SettingsContextValue {
   setInterestKeys: (keys: string[]) => void;
   toggleActiveInterest: (key: string) => void;
   clearActiveInterests: () => void;
+  setFeedMode: (mode: FeedMode) => void;
 }
 
 const FONT_STACKS: Record<FontFamilyOption, string> = {
@@ -194,6 +199,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   interestKeys: [],
   activeInterestKeys: [],
   hasChosenInterests: false,
+  feedMode: "all",
 };
 
 const STORAGE_KEY = "ganjoorak:settings";
@@ -264,8 +270,18 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
             ? parsed.hasChosenInterests
             : nextInterestKeys.length > 0;
 
+        // Before r14 the followed list was the home feed filter, so readers who had
+        // one keep that feed by starting in «دنبال‌شده‌ها».
+        const nextFeedMode: FeedMode =
+          parsed.feedMode === "all" || parsed.feedMode === "following"
+            ? parsed.feedMode
+            : nextFollowedPoetKeys.length > 0
+              ? "following"
+              : "all";
+
         setSettings((prev) => ({
           ...prev,
+          feedMode: nextFeedMode,
           theme: nextTheme,
           fontFamily: nextFontFamily,
           poemFontSize: nextPoemFontSize,
@@ -422,6 +438,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, []);
 
+  const setFeedMode = useCallback((mode: FeedMode) => {
+    setSettings((prev) => (prev.feedMode === mode ? prev : { ...prev, feedMode: mode }));
+  }, []);
+
   const value = useMemo(
     () => ({
       settings,
@@ -438,6 +458,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       setInterestKeys,
       toggleActiveInterest,
       clearActiveInterests,
+      setFeedMode,
     }),
     [
       settings,
@@ -454,6 +475,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       setInterestKeys,
       toggleActiveInterest,
       clearActiveInterests,
+      setFeedMode,
     ],
   );
 

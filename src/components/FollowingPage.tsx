@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FaChevronLeft, FaSlidersH, FaUserPlus, FaUsers } from "react-icons/fa";
+import { FaBookOpen, FaChevronLeft, FaSlidersH, FaUserPlus, FaUsers } from "react-icons/fa";
 import Menu, { MenuButton, SearchButton } from "@/components/Menu";
 import SettingsDialog from "@/components/SettingsDialog";
 import GlobalSearchDialog from "@/components/GlobalSearchDialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useUpdateNotification } from "@/hooks/useUpdateNotification";
 import { useFollowedPoetKeys } from "@/hooks/useFollowPoet";
+import { useSettings } from "@/context/SettingsContext";
 import {
   findDirectoryPoet,
   getDirectoryPoetDisplayName,
@@ -32,6 +33,7 @@ const FollowingPage = () => {
   const [, setDirectoryVersion] = useState(0);
   const { hasNewUpdates, markAsRead } = useUpdateNotification();
   const { keys, unfollow } = useFollowedPoetKeys();
+  const { setFeedMode } = useSettings();
 
   useEffect(() => {
     const unsubscribe = subscribePoetDirectory(() =>
@@ -79,8 +81,8 @@ const FollowingPage = () => {
           <h1>شاعران دنبال‌شده</h1>
           <p>
             {keys.length > 0
-              ? `${persianNumber.format(keys.length)} شاعر. فید صفحهٔ اصلی بیشتر از همین شاعران شعر می‌آورد.`
-              : "شاعرانی که دنبال می‌کنید اینجا جمع می‌شوند و فید صفحهٔ اصلی بیشتر از آن‌ها شعر می‌آورد."}
+              ? `${persianNumber.format(keys.length)} شاعر. زبانهٔ «دنبال‌شده‌ها» در صفحهٔ اصلی فقط از همین شاعران شعر می‌آورد.`
+              : "شاعرانی که دنبال می‌کنید اینجا جمع می‌شوند و زبانهٔ «دنبال‌شده‌ها» در صفحهٔ اصلی از آن‌ها شعر می‌آورد."}
           </p>
         </header>
 
@@ -119,14 +121,22 @@ const FollowingPage = () => {
               ))}
             </ul>
             <div className="following-actions">
+              <Link
+                href="/"
+                className={buttonVariants({ size: "lg" })}
+                onClick={() => setFeedMode("following")}
+              >
+                <FaBookOpen aria-hidden="true" />
+                خواندن از دنبال‌شده‌ها
+              </Link>
               <Link href="/poets" className={buttonVariants({ variant: "secondary", size: "lg" })}>
-                  <FaUserPlus aria-hidden="true" />
-                  پیدا کردن شاعر تازه
-                </Link>
+                <FaUserPlus aria-hidden="true" />
+                پیدا کردن شاعر تازه
+              </Link>
               <Link href="/?feed=1" className={buttonVariants({ variant: "ghost", size: "lg" })}>
-                  <FaSlidersH aria-hidden="true" />
-                  ویرایش گروهی فید
-                </Link>
+                <FaSlidersH aria-hidden="true" />
+                ویرایش گروهی
+              </Link>
             </div>
           </>
         ) : (
