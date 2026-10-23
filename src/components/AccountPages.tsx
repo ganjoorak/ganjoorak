@@ -1,16 +1,22 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FaSignOutAlt } from "react-icons/fa";
-import Menu, { MenuButton, SearchButton } from "@/components/Menu";
-import SettingsDialog from "@/components/SettingsDialog";
-import GlobalSearchDialog from "@/components/GlobalSearchDialog";
-import { PoemLibraryList } from "@/components/PoemLibraryPage";
+import {
+  FaBookmark,
+  FaChevronLeft,
+  FaHeart,
+  FaHistory,
+  FaMobileAlt,
+  FaSignOutAlt,
+  FaUsers,
+} from "react-icons/fa";
+import AppPage from "@/components/AppPage";
+import { PoemLibraryList, useLibraryVersion } from "@/components/PoemLibraryPage";
+import { Button } from "@/components/ui/button";
 import { useSettings } from "@/context/SettingsContext";
 import { getInterestByKey } from "@/data/interests";
-import { useUpdateNotification } from "@/hooks/useUpdateNotification";
 import {
   AccountError,
   fetchAccount,
@@ -19,44 +25,12 @@ import {
   signUp,
   type AccountUser,
 } from "@/utils/accountApi";
-import {
-  LIBRARY_CHANGE_EVENT,
-  readFavorites,
-  readHistory,
-} from "@/utils/poemLibrary";
+import { readFavorites, readHistory } from "@/utils/poemLibrary";
 import {
   findDirectoryPoet,
   getDirectoryPoetDisplayName,
 } from "@/utils/poetDirectory";
 import "../styles/PoemLibrary.css";
-
-/** Same page chrome as the saved-poems page. */
-const AccountShell = ({ children }: { children: ReactNode }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const { hasNewUpdates, markAsRead } = useUpdateNotification();
-
-  return (
-    <div className="poem-library-page" dir="rtl">
-      <MenuButton onClick={() => setIsMenuOpen(true)} hasNotification={hasNewUpdates} />
-      <SearchButton onClick={() => setIsSearchOpen(true)} />
-      <Menu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        hasNewUpdates={hasNewUpdates}
-        onUpdatesViewed={markAsRead}
-        onOpenSettings={() => {
-          setIsSettingsOpen(true);
-          setIsMenuOpen(false);
-        }}
-      />
-      <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-      <GlobalSearchDialog isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-      <main className="poem-library-shell">{children}</main>
-    </div>
-  );
-};
 
 type AuthMode = "login" | "signup";
 
@@ -96,91 +70,110 @@ export const LoginPage = () => {
   const isSignup = mode === "signup";
 
   return (
-    <AccountShell>
-      <header className="poem-library-header">
-        <h1>{isSignup ? "ساخت حساب" : "ورود به حساب"}</h1>
-        <p>
-          گنجورک بدون حساب هم کامل کار می‌کند. با حساب، نشان‌شده‌ها، شاعران
-          دنبال‌شده، علاقه‌مندی‌ها و تاریخچهٔ خواندن روی همهٔ دستگاه‌هایتان
-          می‌ماند.
-        </p>
-      </header>
+    <AppPage
+      title={isSignup ? "ساخت حساب" : "ورود به حساب"}
+      subtitle="گنجورک بدون حساب هم کامل کار می‌کند. با حساب، همه‌چیز روی همهٔ دستگاه‌هایتان می‌ماند."
+      width="narrow"
+      hideSearch
+    >
+      <div className="app-card account-card">
+        <div className="app-segmented" role="tablist" aria-label="ورود یا ثبت‌نام">
+          {(["login", "signup"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={mode === value}
+              onClick={() => {
+                setMode(value);
+                setError("");
+              }}
+            >
+              {value === "login" ? "ورود" : "ثبت‌نام"}
+            </button>
+          ))}
+        </div>
 
-      <div className="poem-library-tabs" role="tablist">
-        {(["login", "signup"] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            role="tab"
-            className={mode === value ? "active" : ""}
-            aria-selected={mode === value}
-            onClick={() => {
-              setMode(value);
-              setError("");
-            }}
-          >
-            {value === "login" ? "ورود" : "ثبت‌نام"}
-          </button>
-        ))}
+        <form className="account-form" onSubmit={handleSubmit}>
+          <label className="account-field">
+            <span>نام کاربری</span>
+            <input
+              name="username"
+              dir="ltr"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              minLength={3}
+              maxLength={32}
+              pattern="[A-Za-z0-9_]+"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+            />
+            {isSignup && <small>حروف لاتین، رقم یا _ (۳ تا ۳۲ نویسه)</small>}
+          </label>
+
+          {isSignup && (
+            <label className="account-field">
+              <span>نام نمایشی (اختیاری)</span>
+              <input
+                name="displayName"
+                autoComplete="nickname"
+                maxLength={50}
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+              />
+            </label>
+          )}
+
+          <label className="account-field">
+            <span>گذرواژه</span>
+            <input
+              name="password"
+              type="password"
+              dir="ltr"
+              autoComplete={isSignup ? "new-password" : "current-password"}
+              required
+              minLength={isSignup ? 8 : undefined}
+              maxLength={128}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            {isSignup && <small>دست‌کم ۸ نویسه</small>}
+          </label>
+
+          {error && (
+            <p className="account-error" role="alert" aria-live="assertive">
+              {error}
+            </p>
+          )}
+
+          <Button type="submit" size="lg" className="account-submit" disabled={isSubmitting}>
+            {isSubmitting ? "صبر کنید…" : isSignup ? "ساخت حساب" : "ورود"}
+          </Button>
+        </form>
       </div>
 
-      <form className="account-form" onSubmit={handleSubmit}>
-        <label className="account-field">
-          <span>نام کاربری</span>
-          <input
-            name="username"
-            dir="ltr"
-            autoComplete="username"
-            autoCapitalize="none"
-            spellCheck={false}
-            required
-            minLength={3}
-            maxLength={32}
-            pattern="[A-Za-z0-9_]+"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-          />
-          {isSignup && <small>حروف لاتین، رقم یا _ (۳ تا ۳۲ نویسه)</small>}
-        </label>
-
-        {isSignup && (
-          <label className="account-field">
-            <span>نام نمایشی (اختیاری)</span>
-            <input
-              name="displayName"
-              autoComplete="nickname"
-              maxLength={50}
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-            />
-          </label>
-        )}
-
-        <label className="account-field">
-          <span>گذرواژه</span>
-          <input
-            name="password"
-            type="password"
-            dir="ltr"
-            autoComplete={isSignup ? "new-password" : "current-password"}
-            required
-            minLength={isSignup ? 8 : undefined}
-            maxLength={128}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-          {isSignup && <small>دست‌کم ۸ نویسه</small>}
-        </label>
-
-        <p className="account-error" role="alert" aria-live="assertive">
-          {error}
-        </p>
-
-        <button type="submit" className="account-primary" disabled={isSubmitting}>
-          {isSubmitting ? "صبر کنید…" : isSignup ? "ساخت حساب" : "ورود"}
-        </button>
-      </form>
-    </AccountShell>
+      <section className="app-section account-benefits">
+        <h2 className="app-section-title">با حساب چه می‌ماند</h2>
+        <ul className="app-list">
+          {[
+            { icon: <FaBookmark />, title: "نشان‌شده‌ها", meta: "شعرهای ذخیره‌شده" },
+            { icon: <FaUsers />, title: "شاعران دنبال‌شده", meta: "و فید «دنبال‌شده‌ها»" },
+            { icon: <FaHeart />, title: "علاقه‌مندی‌ها", meta: "موضوع‌های فید" },
+            { icon: <FaMobileAlt />, title: "همهٔ دستگاه‌ها", meta: "تاریخچهٔ خواندن همگام می‌شود" },
+          ].map((item) => (
+            <li key={item.title} className="app-row">
+              <span className="app-row-icon" aria-hidden="true">{item.icon}</span>
+              <span className="app-row-body">
+                <span className="app-row-title">{item.title}</span>
+                <span className="app-row-meta">{item.meta}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </AppPage>
   );
 };
 
@@ -192,12 +185,16 @@ const poetNameForKey = (key: string) => {
 
 const persianDateFormatter = new Intl.DateTimeFormat("fa-IR", { dateStyle: "long" });
 
+const persianNumber = new Intl.NumberFormat("fa-IR");
+
 export const ProfilePage = () => {
   const router = useRouter();
   const { settings } = useSettings();
   const [user, setUser] = useState<AccountUser | null>(null);
   const [error, setError] = useState("");
-  const [, setLibraryVersion] = useState(0);
+  // Lists come from this device, which AccountSync keeps merged with the
+  // account; re-render when it writes so other devices' data shows up.
+  const libraryVersion = useLibraryVersion();
 
   useEffect(() => {
     fetchAccount()
@@ -211,42 +208,48 @@ export const ProfilePage = () => {
       });
   }, [router]);
 
-  // Lists come from this device, which AccountSync keeps merged with the
-  // account; re-render when it writes so other devices' data shows up.
-  useEffect(() => {
-    const refresh = () => setLibraryVersion((value) => value + 1);
-    window.addEventListener(LIBRARY_CHANGE_EVENT, refresh);
-    return () => window.removeEventListener(LIBRARY_CHANGE_EVENT, refresh);
-  }, []);
-
   if (!user) {
     return (
-      <AccountShell>
-        <p className="poem-library-empty" role={error ? "alert" : "status"}>
-          {error || "در حال بارگذاری حساب…"}
-        </p>
-      </AccountShell>
+      <AppPage title="حساب من" width="narrow">
+        <div className="app-empty" role={error ? "alert" : "status"}>
+          <p>{error || "در حال بارگذاری حساب…"}</p>
+        </div>
+      </AppPage>
     );
   }
 
+  const isReady = libraryVersion > 0;
+  const history = isReady ? readHistory() : [];
+  const favorites = isReady ? readFavorites() : [];
   const interests = settings.interestKeys
     .map((key) => getInterestByKey(key)?.label)
     .filter(Boolean);
 
+  const stats = [
+    { label: "ذخیره", value: favorites.length, href: "/saved" },
+    { label: "دنبال‌شده", value: settings.followedPoetKeys.length, href: "/following" },
+    { label: "خوانده", value: history.length, href: "/saved" },
+  ];
+
   return (
-    <AccountShell>
-      <header className="poem-library-header account-profile-header">
-        <div>
-          <h1>{user.displayName}</h1>
-          <p>
+    <AppPage title="حساب من" width="narrow">
+      <div className="app-card account-hero">
+        <span className="account-hero-avatar" aria-hidden="true">
+          {user.displayName.trim().slice(0, 1) || "؟"}
+        </span>
+        <div className="account-hero-text">
+          <strong>{user.displayName}</strong>
+          <span>
             <span dir="ltr">@{user.username}</span>
             {" · "}
             عضو از {persianDateFormatter.format(new Date(user.createdAt))}
-          </p>
+          </span>
         </div>
-        <button
+        <Button
           type="button"
-          className="account-secondary"
+          variant="outline"
+          size="sm"
+          className="account-logout"
           onClick={async () => {
             await logOut().catch(() => undefined);
             window.location.assign("/");
@@ -254,52 +257,85 @@ export const ProfilePage = () => {
         >
           <FaSignOutAlt aria-hidden="true" />
           خروج
-        </button>
-      </header>
+        </Button>
+        <div className="account-stats">
+          {stats.map((stat) => (
+            <Link key={stat.label} href={stat.href} className="account-stat">
+              <strong>{persianNumber.format(stat.value)}</strong>
+              <span>{stat.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
 
-      <section className="account-section" aria-labelledby="profile-history">
-        <h2 id="profile-history">در حال خواندن و شنیدن</h2>
+      <section className="app-section" aria-labelledby="profile-history">
+        <h2 id="profile-history" className="app-section-title">
+          <span>در حال خواندن و شنیدن</span>
+        </h2>
         <PoemLibraryList
-          entries={readHistory().slice(0, 10)}
+          entries={history.slice(0, 5)}
+          icon="history"
           emptyMessage="هنوز شعری نخوانده یا نشنیده‌اید."
         />
       </section>
 
-      <section className="account-section" aria-labelledby="profile-favorites">
-        <h2 id="profile-favorites">پسندیده‌ها</h2>
+      <section className="app-section" aria-labelledby="profile-favorites">
+        <h2 id="profile-favorites" className="app-section-title">
+          <span>پسندیده‌ها</span>
+          {favorites.length > 5 && (
+            <Link href="/saved" className="account-section-link">
+              همه
+              <FaChevronLeft aria-hidden="true" />
+            </Link>
+          )}
+        </h2>
         <PoemLibraryList
-          entries={readFavorites()}
+          entries={favorites.slice(0, 5)}
           emptyMessage="هنوز شعری نپسندیده‌اید. روی آیکن قلب در صفحهٔ شعر بزنید."
         />
       </section>
 
-      <section className="account-section" aria-labelledby="profile-poets">
-        <h2 id="profile-poets">
-          <Link href="/following">شاعران دنبال‌شده</Link>
+      <section className="app-section" aria-labelledby="profile-poets">
+        <h2 id="profile-poets" className="app-section-title">
+          <span>شاعران دنبال‌شده</span>
+          <Link href="/following" className="account-section-link">
+            مدیریت
+            <FaChevronLeft aria-hidden="true" />
+          </Link>
         </h2>
-        {settings.followedPoetKeys.length > 0 ? (
-          <ul className="account-chips">
-            {settings.followedPoetKeys.map((key) => (
-              <li key={key}>{poetNameForKey(key)}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="poem-library-empty">هنوز شاعری را دنبال نمی‌کنید.</p>
-        )}
+        <div className="app-card app-card-pad">
+          {settings.followedPoetKeys.length > 0 ? (
+            <ul className="account-chips">
+              {settings.followedPoetKeys.map((key) => (
+                <li key={key}>{poetNameForKey(key)}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="app-row-meta">هنوز شاعری را دنبال نمی‌کنید.</p>
+          )}
+        </div>
       </section>
 
-      <section className="account-section" aria-labelledby="profile-interests">
-        <h2 id="profile-interests">علاقه‌مندی‌ها</h2>
-        {interests.length > 0 ? (
-          <ul className="account-chips">
-            {interests.map((label) => (
-              <li key={label}>{label}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="poem-library-empty">هنوز علاقه‌مندی‌ای انتخاب نکرده‌اید.</p>
-        )}
+      <section className="app-section" aria-labelledby="profile-interests">
+        <h2 id="profile-interests" className="app-section-title">
+          <span>علاقه‌مندی‌ها</span>
+          <Link href="/?interests=1" className="account-section-link">
+            ویرایش
+            <FaChevronLeft aria-hidden="true" />
+          </Link>
+        </h2>
+        <div className="app-card app-card-pad">
+          {interests.length > 0 ? (
+            <ul className="account-chips">
+              {interests.map((label) => (
+                <li key={label}>{label}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="app-row-meta">هنوز علاقه‌مندی‌ای انتخاب نکرده‌اید.</p>
+          )}
+        </div>
       </section>
-    </AccountShell>
+    </AppPage>
   );
 };
