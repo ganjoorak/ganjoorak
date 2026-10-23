@@ -18,8 +18,8 @@ env:
   # Baked into `next build` (rewrites, client) and honoured by API proxy routes + server-side fetches.
   GANJOOR_API_BASE_URL: https://api.ganjoor.net
   NEXT_PUBLIC_GANJOOR_API_BASE_URL: https://api.ganjoor.net
-  # Baked into the Next rewrite for /api/account/*: the accounts container's name on the shared Docker network.
-  ACCOUNTS_API_URL: http://ganjoorak-accounts:8787
+  # Baked into the Next rewrite for /api/account/*: the server service name on the shared Docker network.
+  ACCOUNTS_API_URL: http://server:8787
 
 jobs:
   docker:
@@ -69,7 +69,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  accounts:
+  server:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -86,7 +86,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-accounts
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-server
           tags: |
             type=ref,event=branch
             type=sha
