@@ -18,6 +18,8 @@ const FAVORITES_KEY = "ganjoorak:favorites:v1";
 const HISTORY_KEY = "ganjoorak:history:v1";
 const MAX_FAVORITES = 200;
 const MAX_HISTORY = 30;
+// Fired after every library write so AccountSync can push the change.
+export const LIBRARY_CHANGE_EVENT = "ganjoorak:library-change";
 
 const getSource = (poem: Poem): PoemLibrarySource =>
   poem.source === "custom" || poem.source === "echolalia" ? poem.source : "ganjoor";
@@ -102,11 +104,21 @@ const writeEntries = (storageKey: string, entries: PoemLibraryEntry[]) => {
   }
 
   window.localStorage.setItem(storageKey, JSON.stringify(entries));
+  window.dispatchEvent(new Event(LIBRARY_CHANGE_EVENT));
 };
 
 export const readFavorites = () => readEntries(FAVORITES_KEY);
 
 export const readHistory = () => readEntries(HISTORY_KEY);
+
+/** Replaces both lists, used when account data is merged into this device. */
+export const writeLibrary = (
+  favorites: PoemLibraryEntry[],
+  history: PoemLibraryEntry[],
+) => {
+  writeEntries(FAVORITES_KEY, favorites.slice(0, MAX_FAVORITES));
+  writeEntries(HISTORY_KEY, history.slice(0, MAX_HISTORY));
+};
 
 export const isFavorite = (key: string) =>
   readFavorites().some((entry) => entry.key === key);
@@ -149,5 +161,6 @@ export const addToHistory = (poem: Poem) => {
 export const clearHistory = () => {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(HISTORY_KEY);
+    window.dispatchEvent(new Event(LIBRARY_CHANGE_EVENT));
   }
 };

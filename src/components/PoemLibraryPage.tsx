@@ -26,7 +26,7 @@ const persianDateFormatter = new Intl.DateTimeFormat("fa-IR", {
 const formatSavedAt = (timestamp: number) =>
   persianDateFormatter.format(new Date(timestamp));
 
-const PoemLibraryList = ({
+export const PoemLibraryList = ({
   entries,
   emptyMessage,
   onRemove,

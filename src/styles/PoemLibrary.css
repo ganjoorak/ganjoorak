@@ -204,3 +204,92 @@
 .poem-favorite-button.is-active {
   color: #f87171;
 }
+
+/* Login, sign-up and profile pages (src/components/AccountPages.tsx). */
+.account-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.account-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.account-field small {
+  font-size: 0.8rem;
+  color: rgb(var(--foreground) / 0.62);
+}
+
+.account-field input {
+  width: 100%;
+  min-height: 2.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgb(var(--foreground) / 0.14);
+  background: rgb(var(--foreground) / 0.04);
+  padding: 0 1rem;
+  color: inherit;
+}
+
+.account-field input:focus-visible {
+  outline: 2px solid rgb(var(--foreground) / 0.5);
+  outline-offset: 2px;
+}
+
+.account-error {
+  min-height: 1.5rem;
+  color: #f87171;
+  line-height: 1.7;
+}
+
+.account-primary,
+.account-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0 1.25rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--foreground) / 0.24);
+  background: rgb(var(--foreground) / 0.14);
+}
+
+.account-secondary {
+  background: transparent;
+}
+
+.account-primary:disabled {
+  opacity: 0.6;
+}
+
+.account-profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.account-section {
+  margin-top: 2rem;
+}
+
+.account-section h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.account-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.account-chips li {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--foreground) / 0.12);
+  background: rgb(var(--foreground) / 0.04);
+  font-size: 0.9rem;
+}

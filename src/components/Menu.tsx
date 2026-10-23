@@ -23,6 +23,7 @@ import {
   FaSlidersH,
   FaSun,
   FaTimes,
+  FaUserCircle,
   FaUsers,
 } from "react-icons/fa";
 import {
@@ -111,6 +112,7 @@ const Menu: React.FC<MenuProps> = ({
       { kind: "link", href: "/search", icon: <FaSearch />, label: "جست‌وجو" },
       { kind: "link", href: "/poets", icon: <FaUsers />, label: "شاعران" },
       { kind: "link", href: "/saved", icon: <FaBookmark />, label: "نشان‌شده‌ها" },
+      { kind: "link", href: "/profile", icon: <FaUserCircle />, label: "حساب کاربری" },
       { kind: "link", href: "/today", icon: <FaSun />, label: "شعر روز" },
     ],
     [],

@@ -11,6 +11,7 @@ import { SettingsProvider } from "@/context/SettingsContext";
 import RouteTransition from "@/components/RouteTransition";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import AccountSync from "@/components/AccountSync";
 import "samim-font/dist/font-face.css";
 import "tanha-font/dist/font-face.css";
 import "shabnam-font/dist/font-face.css";
@@ -97,6 +98,7 @@ export default function RootLayout({
           <RouteTransition>{children}</RouteTransition>
           <PwaInstallPrompt />
           <ServiceWorkerRegistration />
+          <AccountSync />
         </SettingsProvider>
         <Analytics />
         <SpeedInsights />

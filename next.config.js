@@ -8,6 +8,11 @@ const isDesktopBuild = process.env.DESKTOP_BUILD === '1';
 
 const isVercel = Boolean(process.env.VERCEL);
 
+// Go accounts service (backend/). Proxied same-origin so the session cookie
+// stays first-party. Rewrites are resolved at `next build`, so set this at
+// build time, not only when the server starts.
+const ACCOUNTS_API_URL = (process.env.ACCOUNTS_API_URL || 'http://127.0.0.1:8787').replace(/\/+$/, '');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 
@@ -18,6 +23,10 @@ const nextConfig = {
         const ganjoorApiBaseUrl = GANJOOR_API_BASE_URL.replace(/\/+$/, '');
 
         return [
+            {
+                source: '/api/account/:path*',
+                destination: `${ACCOUNTS_API_URL}/api/account/:path*`,
+            },
             {
                 source: '/api/ganjoor/search/semantic',
                 destination: 'https://ganjgah.ir/api/ganjoor/search/semantic',
