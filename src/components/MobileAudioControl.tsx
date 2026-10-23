@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { FaBackward, FaEye, FaEyeSlash, FaForward, FaPause, FaPlay, FaSpinner } from "react-icons/fa";
+import { FaBackward, FaEye, FaEyeSlash, FaForward, FaPause, FaPlay, FaSpinner, FaListUl } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from "@/components/ui/drawer";
 import { Slider } from "@/components/ui/slider";
 import { useLongPress } from "@/hooks/useLongPress";
+import RecitationList from "@/components/RecitationList";
+import type { PoemRecitation } from "@/types/poem";
 
 const HINT_KEY = "ganjoorak:player-hold-hint-seen";
 const RING_RADIUS = 26;
@@ -33,6 +35,10 @@ type MobileAudioControlProps = {
   onNext: () => void;
   onToggleHighlight: () => void;
   onSeek: (time: number) => void;
+  recitations: PoemRecitation[];
+  currentRecitationIndex: number;
+  onSelectRecitation: (index: number) => void;
+  poemTitle?: string;
 };
 
 export default function MobileAudioControl({
@@ -49,6 +55,10 @@ export default function MobileAudioControl({
   onNext,
   onToggleHighlight,
   onSeek,
+  recitations,
+  currentRecitationIndex,
+  onSelectRecitation,
+  poemTitle,
 }: MobileAudioControlProps) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [showHint, setShowHint] = useState(false);
@@ -129,6 +139,20 @@ export default function MobileAudioControl({
       >
         {playIcon}
       </Button>
+      {/* Right of the play button: opens the sheet with the reciters list. */}
+      <Button
+        variant="outline"
+        size="icon"
+        className="mobile-audio-list-button rounded-full"
+        onClick={() => {
+          dismissHint();
+          setIsSheetOpen(true);
+        }}
+        aria-label="خوانش‌ها"
+        title="خوانش‌ها"
+      >
+        <FaListUl aria-hidden="true" />
+      </Button>
 
       <Drawer open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <DrawerPopup dir="rtl" showBar className="mobile-audio-sheet">
@@ -175,6 +199,20 @@ export default function MobileAudioControl({
                 {isHighlightEnabled ? <FaEye /> : <FaEyeSlash />}
               </Button>
             </div>
+            <section className="mobile-audio-reciters" aria-label="خوانش‌ها">
+              <div className="audio-reciters-header">
+                <span className="audio-reciters-title">خوانش‌ها</span>
+                <span className="audio-reciters-count">{toPersianDigits(String(recitations.length))}</span>
+              </div>
+              <RecitationList
+                recitations={recitations}
+                currentIndex={currentRecitationIndex}
+                isPlaying={isPlaying}
+                currentDuration={duration}
+                onSelect={onSelectRecitation}
+                poemTitle={poemTitle}
+              />
+            </section>
           </DrawerPanel>
         </DrawerPopup>
       </Drawer>

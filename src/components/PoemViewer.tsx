@@ -19,6 +19,7 @@ import {
   FaChevronDown,
   FaEye,
   FaEyeSlash,
+  FaListUl,
 } from "react-icons/fa";
 import "../styles/PoemViewer.css";
 import type { Poem, PoemRecitation, VerseSync } from "@/types/poem";
@@ -30,6 +31,7 @@ import SettingsDialog from "@/components/SettingsDialog";
 import GlobalSearchDialog from "@/components/GlobalSearchDialog";
 import SharePoemDialog from "@/components/SharePoemDialog";
 import MobileAudioControl from "@/components/MobileAudioControl";
+import RecitationList from "@/components/RecitationList";
 import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { usePullToNext } from "@/hooks/usePullToNext";
 import { consumeWheelGesture, MOUSE_NOTCHES_TO_NAVIGATE, trackWheelGesture } from "@/utils/wheelGesture";
@@ -154,6 +156,10 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   const [currentHighlightedVerse, setCurrentHighlightedVerse] =
     useState<number>(-1);
   const [isHighlightEnabled, setIsHighlightEnabled] = useState(true);
+  /** The reading bar is expanded into the list of reciters. */
+  const [isRecitersOpen, setIsRecitersOpen] = useState(false);
+  const playAfterSwitchRef = useRef(false);
+  const audioPlayerRef = useRef<HTMLDivElement>(null);
   const [isAtTop, setIsAtTop] = useState(true);
   const [isAtBottom, setIsAtBottom] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -401,6 +407,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       if (isShareOpen) {
         return;
       }
+      if (event.target instanceof Element && event.target.closest(".audio-reciters")) {
+        return;
+      }
 
       const atTop = isScrollNearTop();
       const deltaY = event.deltaY;
@@ -590,6 +599,69 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       }
     }
   };
+
+  /** Pick a reciter from the list: switch to it and play (tapping the loaded one toggles play/pause). */
+  const selectRecitation = (index: number) => {
+    if (!poem.recitations || index < 0 || index >= poem.recitations.length) return;
+    if (index === currentRecitationIndex) {
+      toggleAudio();
+      return;
+    }
+    if (audioRef.current) audioRef.current.pause();
+    setIsPlaying(false);
+    playAfterSwitchRef.current = true;
+    setCurrentRecitationIndex(index);
+    setCurrentTime(0);
+    setDuration(0);
+    setError(null);
+  };
+
+  // After a switch from the list, start the new recitation once its src is in the DOM.
+  useEffect(() => {
+    if (!playAfterSwitchRef.current) return;
+    playAfterSwitchRef.current = false;
+    const audio = audioRef.current;
+    if (!audio || !currentAudioSrc) return;
+    setIsAudioLoading(true);
+    audio
+      .play()
+      .then(() => {
+        setIsPlaying(true);
+        setError(null);
+      })
+      .catch((err) => {
+        logger.error("Error playing audio:", err);
+        setError("خطا در پخش صدا");
+        setIsPlaying(false);
+      })
+      .finally(() => setIsAudioLoading(false));
+  }, [currentAudioSrc]);
+
+  // A new poem starts with the list closed.
+  useEffect(() => {
+    setIsRecitersOpen(false);
+  }, [poem.id]);
+
+  // Esc or a click anywhere outside the bar collapses the list.
+  useEffect(() => {
+    if (!isRecitersOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        setIsRecitersOpen(false);
+      }
+    };
+    const onPointer = (event: PointerEvent) => {
+      const bar = audioPlayerRef.current;
+      if (bar && event.target instanceof Node && !bar.contains(event.target)) setIsRecitersOpen(false);
+    };
+    window.addEventListener("keydown", onKey, true);
+    document.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, [isRecitersOpen]);
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
@@ -849,7 +921,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     scrollRef: poemTextRef,
     rootRef: containerRef,
     sheetRef: pullSheetRef,
-    enabled: (pullToNext ?? !isLast) && !isZenLocked && !isShareOpen,
+    // The open reciters list owns the wheel and the bottom of the screen: no pull while it is open.
+    enabled: (pullToNext ?? !isLast) && !isZenLocked && !isShareOpen && !isRecitersOpen,
     // While the next poem is still loading the sheet springs back instead of navigating somewhere unseen.
     hasNext: Boolean(nextPoemPeek) || !isPreparingNext,
     // Navigate to exactly the poem the sheet showed (single source of truth for "next").
@@ -1309,7 +1382,37 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
       {/* Audio player - show only when a recitation is available */}
       {isAudioPlayerVisible && (
-        <div className="audio-player">
+        <div
+          ref={audioPlayerRef}
+          className={`audio-player${isRecitersOpen ? " is-expanded" : ""}`}
+        >
+          {/* Expands upward out of the bar: the reciters of this poem. */}
+          <div
+            className="audio-reciters"
+            id="audio-reciters-panel"
+            aria-hidden={!isRecitersOpen}
+            inert={!isRecitersOpen}
+          >
+            <div className="audio-reciters-clip">
+              <div className="audio-reciters-inner" dir="rtl">
+                <div className="audio-reciters-header">
+                  <span className="audio-reciters-title">خوانش‌ها</span>
+                  <span className="audio-reciters-count">
+                    {String(poem.recitations?.length ?? 0).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                  </span>
+                </div>
+                <RecitationList
+                  recitations={poem.recitations ?? []}
+                  currentIndex={currentRecitationIndex}
+                  isPlaying={isPlaying}
+                  currentDuration={duration}
+                  onSelect={selectRecitation}
+                  poemTitle={poem.title}
+                  className="audio-reciters-list"
+                />
+              </div>
+            </div>
+          </div>
           <div className="audio-controls">
             <Button
               variant="ghost"
@@ -1373,6 +1476,19 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
             {formatTime(currentTime)} / {formatTime(duration)}
           </div>
 
+          {/* Physically on the right (the bar is laid out LTR like a media player). */}
+          <Button
+            variant={isRecitersOpen ? "secondary" : "ghost"}
+            size="icon"
+            className="audio-control-button audio-reciters-toggle"
+            onClick={() => setIsRecitersOpen((open) => !open)}
+            aria-expanded={isRecitersOpen}
+            aria-controls="audio-reciters-panel"
+            title={isRecitersOpen ? "بستن فهرست خوانش‌ها" : "خوانش‌ها"}
+          >
+            <FaListUl aria-hidden="true" />
+          </Button>
+
           <audio
             ref={audioRef}
             src={currentAudioSrc}
@@ -1427,6 +1543,10 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
           onNext={handleNextRecitation}
           onToggleHighlight={() => setIsHighlightEnabled((v) => !v)}
           onSeek={handleSeek}
+          recitations={poem.recitations ?? []}
+          currentRecitationIndex={currentRecitationIndex}
+          onSelectRecitation={selectRecitation}
+          poemTitle={poem.title}
         />
       )}
 

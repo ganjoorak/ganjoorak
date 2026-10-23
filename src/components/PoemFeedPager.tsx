@@ -237,6 +237,8 @@ export default function PoemFeedPager({
 
     const handlePoemScroll = (event: Event) => {
       if (isShareDialogOpen()) return;
+      // The reciters list scrolls on its own; a wheel over it never navigates.
+      if (event.target instanceof Element && event.target.closest(".audio-reciters")) return;
 
       const poemText = getPoemText(event.target);
       if (!poemText) return;
