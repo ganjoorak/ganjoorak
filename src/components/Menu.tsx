@@ -130,7 +130,6 @@ const Menu: React.FC<MenuProps> = ({
     () => [
       { kind: "link", href: "/", icon: <FaHome />, label: "صفحه اصلی" },
       { kind: "link", href: "/poets", icon: <FaUsers />, label: "شاعران" },
-      { kind: "link", href: "/today", icon: <FaSun />, label: "شعر روز" },
     ],
     [],
   );
