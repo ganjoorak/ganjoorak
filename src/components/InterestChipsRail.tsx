@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { SlidersHorizontalIcon } from "lucide-react";
 import { orderInterestsForRail, type PoemInterest } from "@/data/interests";
 
 interface InterestChipsRailProps {
@@ -8,6 +9,8 @@ interface InterestChipsRailProps {
   activeKeys: string[];
   onToggle: (key: string) => void;
   onClear: () => void;
+  /** Opens the interest picker panel. */
+  onEdit?: () => void;
   isLoading?: boolean;
 }
 
@@ -16,6 +19,7 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
   activeKeys,
   onToggle,
   onClear,
+  onEdit,
   isLoading = false,
 }) => {
   const interests = useMemo<PoemInterest[]>(
@@ -58,6 +62,17 @@ const InterestChipsRail: React.FC<InterestChipsRailProps> = ({
           );
         })}
       </div>
+      {onEdit && (
+        <button
+          type="button"
+          className="interest-chip interest-chip--icon"
+          onClick={onEdit}
+          aria-label="ویرایش علاقه‌مندی‌ها"
+          title="ویرایش علاقه‌مندی‌ها"
+        >
+          <SlidersHorizontalIcon aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 };

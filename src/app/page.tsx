@@ -869,13 +869,14 @@ export default function Home() {
         />
     );
 
-    // Interests are edited from the menu (علاقه‌مندی‌ها); the rail only shows when there are chips to toggle.
+    // Interests are edited from the menu (علاقه‌مندی‌ها) or the rail's edit button; the rail only shows when there are chips to toggle.
     const interestRail = !isFollowingMode && settings.interestKeys.length > 0 ? (
         <InterestChipsRail
             selectedKeys={settings.interestKeys}
             activeKeys={settings.activeInterestKeys}
             onToggle={handleToggleInterest}
             onClear={clearActiveInterests}
+            onEdit={() => setIsInterestDialogOpen(true)}
             isLoading={loading}
         />
     ) : null;
