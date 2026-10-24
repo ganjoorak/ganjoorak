@@ -1,6 +1,6 @@
 import { Century, Poet } from '@/types/poet';
 import ganjoorApi from '@/api/GanjoorApi';
-import customApi from '@/api/CustomApi';
+import { getCustomPoetsFromDisk } from '@/lib/customPoetsStore';
 import { categoriesToPoets } from '@/api/EcholaliaApi';
 import { getCategories as getEcholaliaCategories } from '@/lib/echolaliaStore';
 import PoetsContent from '@/components/PoetsContent';
@@ -22,7 +22,7 @@ async function getCenturies(): Promise<Century[]> {
 async function getCustomPoets(): Promise<Poet[]> {
     try {
         logger.log("Fetching custom poets...");
-        const poets = await customApi.getPoets();
+        const poets = await getCustomPoetsFromDisk();
         logger.log(`Found ${poets.length} custom poets`);
         return poets;
     } catch (error) {

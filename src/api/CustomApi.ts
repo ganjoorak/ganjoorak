@@ -23,6 +23,36 @@ const poetFallbackPaths: Record<string, string> = {
   'farrokhzad': '/poems/farrokhzad.json',
 };
 
+/** A custom poet's Poet entry from its poems file. Shared with the server-rendered poets page. */
+export const customPoetFromData = (
+  poetSlug: PoetSlug,
+  poetData: { poet: string; poetSlug: string },
+): Poet =>
+  createPoet({
+    id: customPoetIds[poetSlug],
+    name: poetData.poet,
+    nickname: "",
+    fullUrl: poetData.poetSlug,
+    urlSlug: poetData.poetSlug,
+    imageUrl: getLocalPoetImageUrl(poetSlug),
+    published: true,
+    description: null,
+    rootCatId: 0,
+    birthYearInLHijri: null,
+    validBirthDate: false,
+    deathYearInLHijri: null,
+    validDeathDate: false,
+    pinOrder: 0,
+    birthPlace: null,
+    birthPlaceLatitude: null,
+    birthPlaceLongitude: null,
+    deathPlace: null,
+    deathPlaceLatitude: null,
+    deathPlaceLongitude: null,
+    source: "custom",
+    sourceGroupName: "شاعران معاصر",
+  });
+
 const customApi = {
   /**
    * Get poet data from local JSON or cache.
@@ -177,33 +207,7 @@ const customApi = {
     try {
       // Get poet's data from blob or local file
       const poetData = await customApi._getPoetData(poetSlug);
-
-      // Create a complete Poet object
-      return createPoet({
-        id: customPoetIds[poetSlug],
-        name: poetData.poet,
-        nickname: "",
-        fullUrl: poetData.poetSlug,
-        urlSlug: poetData.poetSlug,
-        imageUrl: poetData.imageUrl,
-        published: true,
-        description: null,
-        rootCatId: 0,
-        birthYearInLHijri: null,
-        validBirthDate: false,
-        deathYearInLHijri: null,
-        validDeathDate: false,
-        pinOrder: 0,
-        birthPlace: null,
-        birthPlaceLatitude: null,
-        birthPlaceLongitude: null,
-        deathPlace: null,
-        deathPlaceLatitude: null,
-        deathPlaceLongitude: null,
-        source: "custom",
-        sourceGroupName: "شاعران معاصر",
-
-      });
+      return customPoetFromData(poetSlug, poetData);
     } catch (error) {
       logger.error("Error fetching poet info:", error);
       throw new Error("متأسفانه در دریافت اطلاعات شاعر مشکلی پیش آمد");

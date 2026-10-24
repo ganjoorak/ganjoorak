@@ -23,6 +23,7 @@ import { PoetSlug, isValidPoetSlug } from "@/types/poet";
 import PoetImage from "@/components/PoetImage";
 import { useSettings } from "@/context/SettingsContext";
 import { logger } from "@/utils/logger";
+import { fetchRandomPoemByPoetId } from "@/utils/poemIndex";
 import poetSourceIndex from "@/data/poet-source-index.json";
 import { FaSpinner } from "react-icons/fa";
 import RandomizePoemsPrompt from "@/components/RandomizePoemsPrompt";
@@ -451,7 +452,7 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
     if (!catalog) {
       throw new Error("Poet catalog is not loaded");
     }
-    const poem = await ganjoorApi.getRandomPoemByPoetId(catalog.poet.id);
+    const poem = await fetchRandomPoemByPoetId(catalog.poet.id);
     poemCacheRef.current[poem.id] = poem;
     return poem;
   }, [catalog]);

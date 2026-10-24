@@ -25,7 +25,7 @@ const nextConfig = {
     // The Echolalia mirror is read with fs at runtime, so tell file tracing to ship it.
     outputFileTracingIncludes: {
         '/api/echolalia/**': ['./data/echolalia/**'],
-        '/poets': ['./data/echolalia/**'],
+        '/poets': ['./data/echolalia/**', './public/poems/**'],
     },
     ...(isVercel ? {} : { output: 'standalone' }),
 

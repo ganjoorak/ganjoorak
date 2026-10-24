@@ -8,6 +8,7 @@ import ErrorScreen from '@/components/ErrorScreen';
 import ganjoorApi from '@/api/GanjoorApi';
 import type { Poem } from '@/types/poem';
 import { logger } from '@/utils/logger';
+import { fetchRandomGanjoorPoem } from '@/utils/poemIndex';
 
 export default function PoemPage() {
     const params = useParams();
@@ -28,14 +29,14 @@ export default function PoemPage() {
                 const id = params?.id;
 
                 if (!id) {
-                    const randomPoem = await ganjoorApi.getRandomPoem();
+                    const randomPoem = await fetchRandomGanjoorPoem();
                     router.push(`/poem/${randomPoem.id}`);
                     return;
                 }
 
                 const poemId = parseInt(id as string);
                 if (isNaN(poemId) || poemId < 1) {
-                    const randomPoem = await ganjoorApi.getRandomPoem();
+                    const randomPoem = await fetchRandomGanjoorPoem();
                     router.push(`/poem/${randomPoem.id}`);
                     return;
                 }
@@ -51,7 +52,7 @@ export default function PoemPage() {
                     setError(null);
                 } catch (err) {
                     // If poem not found, redirect to a random poem
-                    const randomPoem = await ganjoorApi.getRandomPoem();
+                    const randomPoem = await fetchRandomGanjoorPoem();
                     router.push(`/poem/${randomPoem.id}`);
                     return;
                 }
@@ -72,8 +73,7 @@ export default function PoemPage() {
         const forId = poemId;
         upcomingForRef.current = forId;
         setUpcoming(null);
-        ganjoorApi
-            .getRandomPoem()
+        fetchRandomGanjoorPoem()
             .then((next) => {
                 // Ignore a result that arrives after the reader already moved on.
                 if (upcomingForRef.current === forId && next.id !== forId) setUpcoming(next);
@@ -96,7 +96,7 @@ export default function PoemPage() {
                 showPoem(known);
                 return;
             }
-            showPoem(await ganjoorApi.getRandomPoem());
+            showPoem(await fetchRandomGanjoorPoem());
         } catch (err) {
             logger.error('Error loading next poem:', err);
             setError(err instanceof Error ? err.message : 'خطا در بارگیری شعر بعدی');

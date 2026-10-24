@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import ganjoorApi from '@/api/GanjoorApi';
 import type { Poem } from '@/types/poem';
 import LoadingScreen from '@/components/LoadingScreen';
 import { useRouter } from 'next/navigation';
 import { logger } from '@/utils/logger';
+import { fetchRandomGanjoorPoem } from '@/utils/poemIndex';
 
 export default function NotFound() {
     const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ export default function NotFound() {
     const goToRandomPoem = async () => {
         setLoading(true);
         try {
-            const randomPoem = await ganjoorApi.getRandomPoem();
+            const randomPoem = await fetchRandomGanjoorPoem();
             window.location.href = `/poem/${randomPoem.id}`;
         } catch (error) {
             logger.error('Error loading random poem:', error);

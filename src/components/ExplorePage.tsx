@@ -7,7 +7,6 @@ import { FaFeatherAlt, FaHeadphones, FaRedoAlt } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
 import PoetImage from "@/components/PoetImage";
 import { Button } from "@/components/ui/button";
-import ganjoorApi from "@/api/GanjoorApi";
 import poetSourceIndex from "@/data/poet-source-index.json";
 import type { Poem } from "@/types/poem";
 import {
@@ -18,6 +17,7 @@ import {
   type DirectoryPoet,
 } from "@/utils/poetDirectory";
 import { logger } from "@/utils/logger";
+import { fetchRandomGanjoorPoem } from "@/utils/poemIndex";
 import { getIndexedPoetImageUrl } from "@/utils/poetImages";
 import "../styles/Explore.css";
 
@@ -368,9 +368,7 @@ export default function ExplorePage() {
       while (remaining > 0 && generation === generationRef.current) {
         remaining -= 1;
         try {
-          const random = await ganjoorApi.getRandomPoem();
-          // The random endpoint leaves out recitations; the full poem has them.
-          const poem = await ganjoorApi.getPoemById(random.id);
+          const poem = await fetchRandomGanjoorPoem();
           if (generation !== generationRef.current) return;
           appendPoem(poem);
           loaded += 1;
