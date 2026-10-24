@@ -1698,7 +1698,6 @@ const SearchPage = () => {
     <AppPage
       title="جست‌وجو"
       subtitle="در شعرهای گنجور و اکولالیا، با واژه یا با معنا."
-      hideSearch
       className="search-page"
     >
       <div className={`search-page-shell${shouldSearch ? " has-query" : ""}`}>

@@ -5,10 +5,6 @@ import { FaSun } from "react-icons/fa";
 import PoemFeedPager from "@/components/PoemFeedPager";
 import LoadingScreen from "@/components/LoadingScreen";
 import ErrorScreen from "@/components/ErrorScreen";
-import Menu, { MenuButton, SearchButton } from "@/components/Menu";
-import SettingsDialog from "@/components/SettingsDialog";
-import GlobalSearchDialog from "@/components/GlobalSearchDialog";
-import { useUpdateNotification } from "@/hooks/useUpdateNotification";
 import type { Poem } from "@/types/poem";
 import {
   formatDailyPoemDateLabel,
@@ -57,10 +53,6 @@ export default function TodayPage() {
   const [poem, setPoem] = useState<Poem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const { hasNewUpdates, markAsRead } = useUpdateNotification();
 
   const loadDailyPoem = useCallback(async () => {
     setError(null);
@@ -118,26 +110,6 @@ export default function TodayPage() {
 
   return (
     <main className="h-screen overflow-hidden">
-      <MenuButton onClick={() => setIsMenuOpen(true)} hasNotification={hasNewUpdates} />
-      <SearchButton onClick={() => setIsSearchOpen(true)} />
-      <Menu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        hasNewUpdates={hasNewUpdates}
-        onUpdatesViewed={markAsRead}
-        onOpenSettings={() => {
-          setIsSettingsOpen(true);
-          setIsMenuOpen(false);
-        }}
-      />
-      <SettingsDialog
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
-      <GlobalSearchDialog
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-      />
       <PoemFeedPager
         poem={poem}
         currentIndex={0}
