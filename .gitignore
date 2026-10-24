@@ -49,3 +49,4 @@ scrapes/
 .env.test.local
 .env.production.local
 
+tsconfig.tsbuildinfo
