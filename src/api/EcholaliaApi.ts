@@ -4,12 +4,13 @@ import { createPoet, type Poet } from "@/types/poet";
 import { logger } from "@/utils/logger";
 import { getIndexedPoetImageUrl } from "@/utils/poetImages";
 
-const ECHOLALIA_API_BASE_URL = "https://echolalia.ir/wp-json/wp/v2";
+// Our own mirror of echolalia.ir's WordPress REST API (src/app/api/echolalia/wp), served from data/echolalia.
+const ECHOLALIA_API_BASE_URL = "/api/echolalia/wp";
 const ECHOLALIA_POET_ROOT_SLUG = "sher";
 const HIDDEN_ECHOLALIA_POET_SLUGS = new Set(["forough-farrokhzad"]);
 const API_TIMEOUT_MS = 15000;
 
-interface EcholaliaCategory {
+export interface EcholaliaCategory {
   id: number;
   count: number;
   link: string;
@@ -149,58 +150,8 @@ const isHiddenEcholaliaPoetSlug = (slug: string) =>
 const isHiddenEcholaliaPoetCategory = (category: EcholaliaCategory) =>
   isHiddenEcholaliaPoetSlug(category.slug);
 
-const extractMetaContent = (html: string, property: string) => {
-  const metaTagPattern = /<meta\s+[^>]*>/gi;
-  const attributePattern = /([\w:-]+)=["']([^"']*)["']/gi;
-  const tags = html.match(metaTagPattern) ?? [];
-
-  for (const tag of tags) {
-    const attributes: Record<string, string> = {};
-    let attributeMatch: RegExpExecArray | null;
-    attributePattern.lastIndex = 0;
-
-    while ((attributeMatch = attributePattern.exec(tag)) !== null) {
-      attributes[attributeMatch[1].toLowerCase()] = attributeMatch[2];
-    }
-
-    if (
-      attributes.name?.toLowerCase() === property.toLowerCase() ||
-      attributes.property?.toLowerCase() === property.toLowerCase()
-    ) {
-      return decodeHtmlEntities(attributes.content ?? "").trim();
-    }
-  }
-
-  return "";
-};
-
-const getMediaImageUrl = (media: any): string | null => {
-  const sizes = media?.media_details?.sizes;
-  const preferred =
-    sizes?.detail?.source_url ||
-    sizes?.thumbnail?.source_url ||
-    sizes?.["post-image"]?.source_url;
-
-  if (preferred) {
-    return preferred;
-  }
-
-  if (sizes && typeof sizes === "object") {
-    const firstSize = Object.values(sizes).find(
-      (size: any) => typeof size?.source_url === "string" && size.source_url,
-    ) as { source_url?: string } | undefined;
-
-    if (firstSize?.source_url) {
-      return firstSize.source_url;
-    }
-  }
-
-  return media?.source_url || null;
-};
-
 const mapCategoryToPoet = (
   category: EcholaliaCategory,
-  profile?: { description?: string },
   sourceGroupName?: string,
 ): Poet => {
   const slug = decodeWordPressSlug(category.slug);
@@ -208,10 +159,7 @@ const mapCategoryToPoet = (
   return createPoet({
     id: category.id,
     name: category.name,
-    description:
-      profile?.description ||
-      category.description ||
-      "اکولالیا - آرشیو شعر جهان",
+    description: category.description || "اکولالیا - آرشیو شعر جهان",
     fullUrl: `/${slug}`,
     urlSlug: slug,
     rootCatId: category.id,
@@ -223,6 +171,42 @@ const mapCategoryToPoet = (
     source: "echolalia",
     sourceGroupName,
   });
+};
+
+/** Poets are the leaf categories under «شعر» that have posts. Shared with the server-rendered poets page. */
+export const categoriesToPoets = (
+  categories: EcholaliaCategory[],
+  rootCategoryId: number,
+): Poet[] => {
+  const childrenByParent = new Map<number, EcholaliaCategory[]>();
+
+  categories.forEach((category) => {
+    const siblings = childrenByParent.get(category.parent) ?? [];
+    siblings.push(category);
+    childrenByParent.set(category.parent, siblings);
+  });
+
+  const descendantIds = new Set<number>();
+  const collectDescendants = (parentId: number) => {
+    (childrenByParent.get(parentId) ?? []).forEach((child) => {
+      descendantIds.add(child.id);
+      collectDescendants(child.id);
+    });
+  };
+  collectDescendants(rootCategoryId);
+
+  return categories
+    .filter((category) => descendantIds.has(category.id))
+    .filter((category) => category.count > 0)
+    .filter(
+      (category) => (childrenByParent.get(category.id) ?? []).length === 0,
+    )
+    .filter((category) => !isHiddenEcholaliaPoetCategory(category))
+    .map((category) => {
+      const parent = categories.find((item) => item.id === category.parent);
+      return mapCategoryToPoet(category, parent?.name);
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "fa"));
 };
 
 const echolaliaApi = {
@@ -274,39 +258,10 @@ const echolaliaApi = {
             )
           : [];
 
-      const categories = [
+      return categoriesToPoets([
         ...firstPageResponse.data,
         ...remainingPages.flatMap((response) => response.data),
-      ];
-      const childrenByParent = new Map<number, EcholaliaCategory[]>();
-
-      categories.forEach((category) => {
-        const siblings = childrenByParent.get(category.parent) ?? [];
-        siblings.push(category);
-        childrenByParent.set(category.parent, siblings);
-      });
-
-      const descendantIds = new Set<number>();
-      const collectDescendants = (parentId: number) => {
-        (childrenByParent.get(parentId) ?? []).forEach((child) => {
-          descendantIds.add(child.id);
-          collectDescendants(child.id);
-        });
-      };
-      collectDescendants(rootCategory.id);
-
-      return categories
-        .filter((category) => descendantIds.has(category.id))
-        .filter((category) => category.count > 0)
-        .filter(
-          (category) => (childrenByParent.get(category.id) ?? []).length === 0,
-        )
-        .filter((category) => !isHiddenEcholaliaPoetCategory(category))
-        .map((category) => {
-          const parent = categories.find((item) => item.id === category.parent);
-          return mapCategoryToPoet(category, undefined, parent?.name);
-        })
-        .sort((a, b) => a.name.localeCompare(b.name, "fa"));
+      ], rootCategory.id);
     } catch (error) {
       logger.error("Error fetching Echolalia poets:", error);
       return [];
@@ -342,24 +297,6 @@ const echolaliaApi = {
         throw new Error("شاعر مورد نظر در اکولالیا پیدا نشد");
       }
 
-      let profile: { description?: string } | undefined;
-      if (typeof window === "undefined") {
-        try {
-          const profileResponse = await echolaliaHttp.get<string>(category.link, {
-            headers: {
-              Accept: "text/html",
-            },
-          });
-          profile = {
-            description:
-              extractMetaContent(profileResponse.data, "description") ||
-              extractMetaContent(profileResponse.data, "og:description"),
-          };
-        } catch (error) {
-          logger.warn("Could not fetch Echolalia poet profile page:", error);
-        }
-      }
-
       let sourceGroupName: string | undefined;
       if (category.parent) {
         try {
@@ -377,7 +314,7 @@ const echolaliaApi = {
         }
       }
 
-      const poet = mapCategoryToPoet(category, profile, sourceGroupName);
+      const poet = mapCategoryToPoet(category, sourceGroupName);
       poetCache[slug] = poet;
       poetCache[poet.urlSlug] = poet;
       return poet;
@@ -388,69 +325,6 @@ const echolaliaApi = {
       return await request;
     } finally {
       delete poetPromiseCache[slug];
-    }
-  },
-
-  async getPoetImageUrl(categoryId: number): Promise<string | null> {
-    const postsResponse = await echolaliaHttp.get<EcholaliaPost[]>(
-      `${ECHOLALIA_API_BASE_URL}/posts`,
-      {
-        params: {
-          categories: categoryId,
-          per_page: 1,
-          _fields: "id,featured_media,link",
-        },
-      },
-    );
-    const post = postsResponse.data[0];
-    const mediaId = post?.featured_media;
-
-    if (mediaId) {
-      try {
-        const mediaResponse = await echolaliaHttp.get<any>(
-          `${ECHOLALIA_API_BASE_URL}/media/${mediaId}`,
-          {
-            params: {
-              _fields:
-                "source_url,media_details.sizes.thumbnail.source_url,media_details.sizes.post-image.source_url,media_details.sizes.detail.source_url",
-            },
-          },
-        );
-
-        return getMediaImageUrl(mediaResponse.data);
-      } catch (error) {
-        if (
-          axios.isAxiosError(error) &&
-          (error.response?.status === 401 || error.response?.status === 403)
-        ) {
-          logger.warn(
-            `Echolalia media ${mediaId} is not public; trying post metadata instead`,
-          );
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    if (!post?.link) {
-      return null;
-    }
-
-    try {
-      const postPageResponse = await echolaliaHttp.get<string>(post.link, {
-        headers: {
-          Accept: "text/html",
-        },
-      });
-
-      return (
-        extractMetaContent(postPageResponse.data, "og:image") ||
-        extractMetaContent(postPageResponse.data, "twitter:image") ||
-        null
-      );
-    } catch {
-      logger.warn("Could not fetch Echolalia post metadata for poet image");
-      return null;
     }
   },
 

@@ -22,6 +22,11 @@ const nextConfig = {
 
     reactStrictMode: true,
     env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },
+    // The Echolalia mirror is read with fs at runtime, so tell file tracing to ship it.
+    outputFileTracingIncludes: {
+        '/api/echolalia/**': ['./data/echolalia/**'],
+        '/poets': ['./data/echolalia/**'],
+    },
     ...(isVercel ? {} : { output: 'standalone' }),
 
     async rewrites() {

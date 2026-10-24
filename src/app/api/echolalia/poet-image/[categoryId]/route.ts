@@ -1,66 +1,41 @@
+import { access } from "node:fs/promises";
+import path from "node:path";
 import { NextResponse } from "next/server";
-import axios from "axios";
-import echolaliaApi from "@/api/EcholaliaApi";
-import { logger } from "@/utils/logger";
+import { getCategory } from "@/lib/echolaliaStore";
 
-export const dynamic = "force-dynamic";
+// Fallback image for an Echolalia poet: the image shipped in public/images/poets, else the default.
+// (Poets normally link their local image directly; this covers ones the poet index doesn't know.)
 
-const redirectToDefaultPoetImage = (requestUrl: string) => {
-  const response = NextResponse.redirect(
-    new URL("/images/default-poet.png", requestUrl),
-  );
+const redirectTo = (imagePath: string, requestUrl: string) => {
+  const response = NextResponse.redirect(new URL(imagePath, requestUrl));
   response.headers.set("Cache-Control", "public, max-age=86400");
   return response;
 };
 
-const getAxiosErrorSummary = (error: unknown) => {
-  if (!axios.isAxiosError(error)) {
-    return error;
+const decodeSlug = (slug: string) => {
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
   }
-
-  return {
-    message: error.message,
-    status: error.response?.status,
-    url: error.config?.url,
-  };
 };
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ categoryId: string }> },
 ) {
-  const { categoryId: categoryIdParam } = await params;
-  const categoryId = Number(categoryIdParam);
+  const categoryId = Number((await params).categoryId);
+  const category = Number.isInteger(categoryId) && categoryId > 0 ? await getCategory(categoryId).catch(() => null) : null;
 
-  if (!Number.isInteger(categoryId) || categoryId < 1) {
-    return redirectToDefaultPoetImage(_request.url);
-  }
-
-  try {
-    const imageUrl = await echolaliaApi.getPoetImageUrl(categoryId);
-
-    if (!imageUrl) {
-      return redirectToDefaultPoetImage(_request.url);
+  if (category) {
+    const fileName = `echolalia-${decodeSlug(category.slug)}.jpg`;
+    try {
+      await access(path.join(process.cwd(), "public", "images", "poets", fileName));
+      return redirectTo(`/images/poets/${encodeURIComponent(fileName)}`, request.url);
+    } catch {
+      // No local image for this poet.
     }
-
-    const imageResponse = await axios.get<ArrayBuffer>(imageUrl, {
-      responseType: "arraybuffer",
-      proxy: false,
-      timeout: 15000,
-    });
-
-    return new NextResponse(imageResponse.data, {
-      status: 200,
-      headers: {
-        "Content-Type": String(imageResponse.headers["content-type"] || "image/jpeg"),
-        "Cache-Control": "public, max-age=86400, s-maxage=604800",
-      },
-    });
-  } catch (error) {
-    logger.error(
-      "Error fetching Echolalia poet image:",
-      getAxiosErrorSummary(error),
-    );
-    return redirectToDefaultPoetImage(_request.url);
   }
+
+  return redirectTo("/images/default-poet.png", request.url);
 }

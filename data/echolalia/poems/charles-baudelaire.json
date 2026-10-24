@@ -1,0 +1,191 @@
+{
+  "poet": {
+    "id": 602,
+    "slug": "charles-baudelaire",
+    "name": "شارل بودلر"
+  },
+  "poems": [
+    {
+      "id": 484,
+      "date": "2016-09-15T09:17:25",
+      "modified": "2018-09-11T18:48:55",
+      "slug": "%d8%a7%db%8c-%d9%85%d8%b1%da%af-%d8%a7%db%8c-%d9%86%d8%a7%d8%ae%d8%af%d8%a7%db%8c-%d9%be%db%8c%d8%b1",
+      "link": "https://echolalia.ir/%d8%a7%db%8c-%d9%85%d8%b1%da%af-%d8%a7%db%8c-%d9%86%d8%a7%d8%ae%d8%af%d8%a7%db%8c-%d9%be%db%8c%d8%b1/",
+      "title": "ای مرگ! ای ناخدای پیر",
+      "content": "<p>ای مرگ!<br />\nای ناخدای پیر!<br />\nاینک گاهِ رفتن!<br />\nبیا تا لنگرها بر کشیم!<br />\nاین سرزمین بر نمی انگیزد جز ملال<br />\nآه مرگ<br />\nبگذار بادبان برافروزیم!<br />\nگرچه چون مُرکب سیاه است این دریا و آسمان<br />\nلیک هزار توی قلب هامان<br />\n<!--more-->-که تو آشنایی با هر خم و هر پیچ اش-<br />\nلبریز است ز پرتوهای درخشان.<br />\nجاری کن شوکران تلخ ات را<br />\nتا مگر جانی تازه دمد ما را<br />\nاین آتش<br />\nسبعانه می گدازد مغزهامان<br />\nو ما سخت آرزومندیم سقوط را؛<br />\n&#8211; بهشت یا دوزخ،چه تفاوت دارد؟-<br />\nسقوط به ژرفای ناشناخته ها<br />\nتا مگر بازیابیم<br />\nیک چیز تازه ی دیگر!</p>\n<p><span style=\"font-size: 10pt; color: #999999;\">اکولالیا | شارل بودلر<br />\nترجمه:نیما زاغیان<br />\n</span></p>\n",
+      "excerpt": "<p>ای مرگ! ای ناخدای پیر! اینک گاهِ رفتن! بیا تا لنگرها بر کشیم! این سرزمین بر نمی انگیزد جز ملال آه مرگ بگذار بادبان برافروزیم! گرچه چون مُرکب سیاه است این دریا و آسمان لیک هزار توی قلب هامان</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 2773,
+      "date": "2017-11-02T10:45:00",
+      "modified": "2018-09-11T18:48:54",
+      "slug": "%d8%a7%db%8c%d9%86-%da%a9%d9%87-%d8%a8%d8%b1-%da%af%d9%88%d9%86%d9%87-%d8%a7%d8%aa-%d9%81%d8%b1%d9%88-%d9%85%db%8c-%d8%ba%d9%84%d8%aa%d8%af",
+      "link": "https://echolalia.ir/%d8%a7%db%8c%d9%86-%da%a9%d9%87-%d8%a8%d8%b1-%da%af%d9%88%d9%86%d9%87-%d8%a7%d8%aa-%d9%81%d8%b1%d9%88-%d9%85%db%8c-%d8%ba%d9%84%d8%aa%d8%af/",
+      "title": "این که بر گونه ات فرو می غلتد",
+      "content": "<p>این که بر گونه ات فرو می غلتد<br />\nاشک نمک سوده ی تو نیست<br />\nآرزوهای دل مرده ی من است<br />\nکه سیاه مست<br />\nاز پستوی میکده دویده است به بازار<br />\nتا به طبل عداوت بکوبد<br />\n<!--more--><br />\n<span style=\"font-size: 10pt; color: #999999;\">اکولالیا |<span class=\"hashtag\"> #<a href=\"https://echolalia.ir?s=%23شارل_بودلر\">شارل_بودلر</a></span></span></p>\n",
+      "excerpt": "<p>این که بر گونه ات فرو می غلتد اشک نمک سوده ی تو نیست آرزوهای دل مرده ی من است که سیاه مست از پستوی میکده دویده است به بازار تا به طبل عداوت بکوبد</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 2788,
+      "date": "2017-11-04T19:19:32",
+      "modified": "2018-09-11T18:48:54",
+      "slug": "%d8%b2%db%8c%d8%a8%d8%a7-%d9%87%d8%b3%d8%aa%d9%85-%d8%a7%db%8c-%d9%85%d8%b1%d8%af%d9%85",
+      "link": "https://echolalia.ir/%d8%b2%db%8c%d8%a8%d8%a7-%d9%87%d8%b3%d8%aa%d9%85-%d8%a7%db%8c-%d9%85%d8%b1%d8%af%d9%85/",
+      "title": "زیبا هستم ای مردم",
+      "content": "<p>زیبا هستم ای مردم<br />\nهمچون رویایی به سختی سنگ<br />\nو سینه‌ام جایی‌ست<br />\nکه هرکس در نوبت خویش زخم می‌خورد<br />\nتا عشقی را در جان شاعر بدمد<br />\nگنگ و ابدی<br />\nمثل ذات</p>\n<p>من بر مسند لاجوردی آسمان می‌نشینم<br />\nهمچون افسانه‌ای که در ادراک نمی‌گنجد<br />\nمن قلبی از برف را به سپیدی قوها پیوند می‌زنم<br />\nبیزارم از تحرکی که خطوط را جابجا می‌کند<br />\nهرگز نمی‌گریم و هرگز نمی‌خندم<br />\n<!--more--><br />\nشاعران دربرابر منش‌های والایم<br />\nکه گویی از مفتخرترین یادبودها وام گرفته‌ام<br />\nروزگارشان را به ریاضت تحصیل گذراندند<br />\nدر عوض<br />\nمن برای افسون کردن این عاشقان سربراه<br />\nدر آینه‌های زلالی که همه چیز را زیباتر نشان می‌دهند<br />\nچشمانم را دارم<br />\nچشمان درشتم را<br />\nبا درخشش جاوید</p>\n<p><span style=\"font-size: 10pt; color: #999999;\">اکولالیا |<span class=\"hashtag\"> #<a href=\"https://echolalia.ir?s=%23شارل_بودلر\">شارل_بودلر</a></span></span\n\n\n\n</p>\n",
+      "excerpt": "<p>زیبا هستم ای مردم همچون رویایی به سختی سنگ و سینه‌ام جایی‌ست که هرکس در نوبت خویش زخم می‌خورد تا عشقی را در جان شاعر بدمد گنگ و ابدی مثل ذات من بر مسند لاجوردی آسمان می‌نشینم همچون افسانه‌ای که در ادراک نمی‌گنجد من قلبی از برف را به سپیدی قوها پیوند می‌زنم بیزارم از [&hellip;]</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 2808,
+      "date": "2017-11-07T08:12:24",
+      "modified": "2018-09-11T18:48:54",
+      "slug": "%d8%aa%d9%85%d8%a7%d9%85-%d9%85%d8%a7%d8%ac%d8%b1%d8%a7-%d9%87%d9%85%db%8c%d9%86-%d8%a7%d8%b3%d8%aa",
+      "link": "https://echolalia.ir/%d8%aa%d9%85%d8%a7%d9%85-%d9%85%d8%a7%d8%ac%d8%b1%d8%a7-%d9%87%d9%85%db%8c%d9%86-%d8%a7%d8%b3%d8%aa/",
+      "title": "تمام ماجرا همین است",
+      "content": "<p>مست شوید<br />\nتمام ماجرا همین است<br />\nمدام باید مست بود<br />\nتنها همین<br />\nباید مست بود تا سنگینی رقت‌بار زمان<br />\nکه تورا می‌شکند<br />\nو شانه‌هایت را خمیده می‌کند را احساس نکنی<br />\nمادام باید مست بود<br />\nاما مستی از چه ؟<br />\nاز شراب از شعر یا از پرهیزکاری<br />\nآن‌طور که دلتان می‌خواهد مست باشید<br />\nو اگر گاهی بر پله‌های یک قصر<br />\nروی چمن‌های سبز کنار نهری<br />\nیا در تنهایی اندوه‌بار اتاقتان<br />\n<!--more-->در حالیکه مستی از سرتان پریده یا کمرنگ شده ، بیدار شدید<br />\nبپرسید از باد از موج از ستاره از پرنده از ساعت<br />\nاز هرچه که می‌‌وزد<br />\nو هر آنچه در حرکت است<br />\nآواز می‌خواند و سخن می‌گوید<br />\nبپرسید اکنون زمانِ چیست ؟<br />\nو باد ، موج ، ستاره ، پرنده<br />\nساعت جوابتان را می‌دهند<br />\nزمانِ مستی است<br />\nبرای اینکه برده‌ی شکنجه دیده‌ی زمان نباشید<br />\nمست کنید<br />\nهمواره مست باشید<br />\nاز شراب از شعر یا از پرهیزکاری<br />\nآن‌طور که دل‌تان می‌خواهد</p>\n<p><span style=\"font-size: 10pt; color: #999999;\">اکولالیا |<span class=\"hashtag\"> #<a href=\"https://echolalia.ir?s=%23شارل_بودلر\">شارل_بودلر</a></span><br />\nمترجم از<span class=\"hashtag\"> #<a href=\"https://echolalia.ir?s=%23سپیده_حشمدار\">سپیده_حشمدار</a></span></span></p>\n",
+      "excerpt": "<p>مست شوید تمام ماجرا همین است مدام باید مست بود تنها همین باید مست بود تا سنگینی رقت‌بار زمان که تورا می‌شکند و شانه‌هایت را خمیده می‌کند را احساس نکنی مادام باید مست بود اما مستی از چه ؟ از شراب از شعر یا از پرهیزکاری آن‌طور که دلتان می‌خواهد مست باشید و اگر گاهی [&hellip;]</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 7637,
+      "date": "2019-03-08T15:44:44",
+      "modified": "2019-11-25T22:52:28",
+      "slug": "where-this-strange-grief-came-from",
+      "link": "https://echolalia.ir/where-this-strange-grief-came-from/",
+      "title": "این اندوهِ غریب از کجا آمده است",
+      "content": "\n<p>می‌گفتی: «این اندوهِ غریب از کجا آمده است<br>\nکه چون دریا روی صخره‌های عریان و سیاه را می‌گیرد؟»<br>\nمی‌گویم: از آن دم که دل یک‌بار کینه ورزد.<br>\nزیستن دردی‌ست! این راز را همه‌گان می‌دانند.</p>\n\n\n\n<p>رنجی بسیار ساده و بی‌رمزوراز<br>و هم‌چون شادیِ تو در چشمِ همه عیان.<br>پس ای زیباروی مشتاق، از پُرس‌وجو دست بدار<br>و کرَم نما آهسته سخن بگو، خاموش باش!</p>\n\n\n\n<!--more-->\n\n\n\n<p>خاموش باش ای بی‌خبر! ای جانِ هماره‌ شیفته!<br> دهانِ شِکَرخند! <br> مرگ بیش از زنده‌گی<br> اغلب با رشته‌های ظریف ما را در بند می‌کشد</p>\n\n\n\n<p>بگذار، بگذار تا دل‌ام از دروغی سرمست شود<br> چون رؤیایی شیرین در چشمانِ زیبای‌ات غرق شود<br> و در سایه‌سارِ مژگان‌ات به خوابی عمیق فرو رود.</p>\n\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/french-poets/charles-baudelaire/\">\n\t\tشارل بودلر          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=محمد+زیار\">\n\t\tمحمد زیار          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>می‌گفتی: «این اندوهِ غریب از کجا آمده است که چون دریا روی صخره‌های عریان و سیاه را می‌گیرد؟» می‌گویم: از آن دم که دل یک‌بار کینه ورزد. زیستن دردی‌ست! این راز را همه‌گان می‌دانند. رنجی بسیار ساده و بی‌رمزورازو هم‌چون شادیِ تو در چشمِ همه عیان.پس ای زیباروی مشتاق، از پُرس‌وجو دست بدارو کرَم نما [&hellip;]</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 7656,
+      "date": "2019-03-13T11:51:47",
+      "modified": "2019-03-13T11:51:51",
+      "slug": "the-sick-lady",
+      "link": "https://echolalia.ir/the-sick-lady/",
+      "title": "بانوی ناخوش",
+      "content": "\n<p>ای شعر بانوی بیمار، دریغا! تو را چه می‌شود این بامداد؟<br>چشمانِ گود افتاده‌ات اینک لب‌ ریز از خیالاتِ شبانه است؛<br>و معاینه می‌بینم که بر رُخسارت جنون و هراس<br>سرد و خاموش یک‌به‌یک پدیدار می‌شوند.</p>\n\n\n\n<p>ای ابلیس‌ بانوی سبز قبا و ای شیطان‌ بچه‌ی سرخ‌پوش<br>آیا هراس و عشق را از انبانِ خویش به جان‌ات فرو ریخته‌اند؟<br>آیا کابوس با حرکتی جبارانه و خموش<br>تو را در قعرِ زندان افسانه‌ییِ «منتورن» فرو غلتانده است؟</p>\n\n\n\n<!--more-->\n\n\n\n<p>دل‌ام می‌خواهد با استشمامِ بوی تن‌درستیِ سینه‌ات<br>هماره گذرگاهِ اندیشه‌های سترگ،<br>و خون مسیحی تو<br>موج‌موج و موزون جریان می‌داشت.</p>\n\n\n\n<p>هم‌چون آواهای پرشمارِ شعرهای کهن<br>که بر آن‌ها گاه‌به‌گاه «فبوس» &#8211; پدر سرودها &#8211;<br>و «پانِ» بزرگ &#8211; خداوندگارِ خرمن‌ها &#8211; فرمان می‌رانند.</p>\n\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/french-poets/charles-baudelaire/\">\n\t\tشارل بودلر          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=محمد+زیار\">\n\t\tمحمد زیار          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4><p>از شماره‌ی چهارم فصل‌نامه‌ی هفتاد</p>\n</h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>ای شعر بانوی بیمار، دریغا! تو را چه می‌شود این بامداد؟چشمانِ گود افتاده‌ات اینک لب‌ ریز از خیالاتِ شبانه است؛و معاینه می‌بینم که بر رُخسارت جنون و هراسسرد و خاموش یک‌به‌یک پدیدار می‌شوند. ای ابلیس‌ بانوی سبز قبا و ای شیطان‌ بچه‌ی سرخ‌پوشآیا هراس و عشق را از انبانِ خویش به جان‌ات فرو ریخته‌اند؟آیا کابوس [&hellip;]</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 7660,
+      "date": "2019-03-16T23:30:30",
+      "modified": "2019-03-16T23:30:38",
+      "slug": "be-reasonable-my-pain",
+      "link": "https://echolalia.ir/be-reasonable-my-pain/",
+      "title": "معقول باش ای درد من",
+      "content": "\n<p>معقول باش ای درد من، و اندکی آرام‌تر گیر<br>تو شب را می‌طلبیدی و او هم اکنون فرا می‌رسد<br>جوّی تیره، شهر را دربر می‌گیرد<br>کسانی را آسایش می‌آورد و کسانی را تشویش.</p>\n\n\n\n<p>بدان هنگام که فوج رجاله‌های پست<br>در زیر تازیانه‌ی لذت که دژخیمی غدّار است<br>می‌روند تا در جشنِ بنده پرور، میوه‌های ندامت بچینند؛<br>ای درد من، دستت را به من بده و دور از آنان، از این‌سو بیا.</p>\n\n\n\n<!--more-->\n\n\n\n<p>بنگر سال‌های مرده را<br>که در جامه‌های قدیمی از ایوان‌های آسمان خم شده‌اند.<br>بنگر تأسف را که لبخندزنان از قعر آب‌ها سر برمی‌کشد.</p>\n\n\n\n<p>خورشید محتضر را ببین که زیر طاقی می‌خسبد<br>و چون کفن درازی که بر شرق کشیده شود.<br>بشنو، عزیز من، بشنو شب دلاویز را که گام بر می‌دارد.</p>\n\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/french-poets/charles-baudelaire/\">\n\t\tشارل بودلر          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=محمدعلی+اسلامی‌+ندوشن\">\n\t\tمحمدعلی اسلامی‌ ندوشن          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>معقول باش ای درد من، و اندکی آرام‌تر گیرتو شب را می‌طلبیدی و او هم اکنون فرا می‌رسدجوّی تیره، شهر را دربر می‌گیردکسانی را آسایش می‌آورد و کسانی را تشویش. بدان هنگام که فوج رجاله‌های پستدر زیر تازیانه‌ی لذت که دژخیمی غدّار استمی‌روند تا در جشنِ بنده پرور، میوه‌های ندامت بچینند؛ای درد من، دستت را [&hellip;]</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 8509,
+      "date": "2019-07-20T00:44:08",
+      "modified": "2019-07-20T00:44:10",
+      "slug": "moan-of-icare",
+      "link": "https://echolalia.ir/moan-of-icare/",
+      "title": "شکوهٔ یک ایکار",
+      "content": "\n<p>سبک‌بارند و سعادتمند و سیراب، <br>آنان که همخوابهٔ فاحشگان‌اند، <br>ولی، من بازوانم از هم گسیخته‌اند، <br>زیرا، ابرها را در بر کشیده‌ام.</p>\n\n\n\n<p>به لطف ستارگان بی‌همتاست، <br>شعله‌زنان در قعر آسمان، <br>که چشمان سوختهٔ من نمی‌بینند، <br>جز خاطره‌های خورشید را.</p>\n\n\n\n<!--more-->\n\n\n\n<p>بیهوده خواستم از فضا مقصد و مأوا بیابم</p>\n\n\n\n<p>اکنون در پرتو چشمی آتشین، <br>می‌بینم که بالم می‌گسلد.</p>\n\n\n\n<p>و چون در راهِ عشق به زیبایی سوختم، <br>این افتخار بزرگ را نخواهم داشت، <br>تا نام خود را بر مکانی،<br>که گور من تواند بود، بنهم.</p>\n\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/french-poets/charles-baudelaire/\">\n\t\tشارل بودلر          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=محمدعلی+اسلامی+ندوشن\">\n\t\tمحمدعلی اسلامی ندوشن          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre><p>به اساطیر یونان، ایکار ( ایکاروس) کسی بود که بال‌هایی با قیر به او چسبانده شد و او به کمک آنها پرواز کرد. چون به خورشید نزدیک شد، قیر آب شد، بالها گسست و او در دریا فرو افتاد</p>\n</pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>سبک‌بارند و سعادتمند و سیراب، آنان که همخوابهٔ فاحشگان‌اند، ولی، من بازوانم از هم گسیخته‌اند، زیرا، ابرها را در بر کشیده‌ام. به لطف ستارگان بی‌همتاست، شعله‌زنان در قعر آسمان، که چشمان سوختهٔ من نمی‌بینند، جز خاطره‌های خورشید را.</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 9637,
+      "date": "2020-08-06T19:36:04",
+      "modified": "2020-08-08T01:14:42",
+      "slug": "the-dead-among-the-deads",
+      "link": "https://echolalia.ir/the-dead-among-the-deads/",
+      "title": "مرده‌ای میان مردگان",
+      "content": "\n<p>می‌خواهم در زمینی گل آلوده و پر حلزون <br>بــه دست خود گودالی ژرف بکنم <br>تا آسوده استخوان‌های فرسوده‌ام را در آن بچینم <br>و چون کوســه‌ای در موج در فراموشی بیارامم <br>من از وصیت نامــه و گور بیزارم <br>پیش از آن کــه اشکی از مردمان طلب کنم <br>مرا خوشتر آن کــه تا زنده‌ام زاغان را فرا خوانم <br>تا از سراپای پیکر ناپاکم خون روانــه کنند <br>ای کرم‌ها! <br>همرهان سیــه روی بی‌چشم و گوش<br>بنگرید کــه مرده‌ای شاد و رها بــه سویتان می‌آید</p>\n\n\n\n<!--more-->\n\n\n\n<p>ای فیلسوفان کامروا، فرزندان فساد<br>بی سرزنش میان ویرانــه‌ی پیکرم رویید و بگویید<br>هنوز هم، آیا رنج دیگری هست؟<br>برای این تن فرسوده‌ی بی‌جان<br>مرده‌ای میان مردگان</p>\n\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/french-poets/charles-baudelaire/\">\n\t\tشارل بودلر          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>می‌خواهم در زمینی گل آلوده و پر حلزون بــه دست خود گودالی ژرف بکنم تا آسوده استخوان‌های فرسوده‌ام را در آن بچینم و چون کوســه‌ای در موج در فراموشی بیارامم من از وصیت نامــه و گور بیزارم پیش از آن کــه اشکی از مردمان طلب کنم مرا خوشتر آن کــه تا زنده‌ام زاغان را فرا [&hellip;]</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 11101,
+      "date": "2021-06-18T19:33:31",
+      "modified": "2021-06-18T19:33:33",
+      "slug": "come-on-my-heart",
+      "link": "https://echolalia.ir/come-on-my-heart/",
+      "title": "بر روی قلب من بیا",
+      "content": "\n<p>بر روی قلب من بیا، <br>ای روح ستم‌گر و بی‌رحم <br>ای ببر محبوب، ای دیو بی‌اعتنا <br>می‌خواهم <br>انگشتان لرزان‌ام را درون یال‌های سنگی‌ات فرو برم </p>\n\n\n\n<p>می‌خواهم سر دردآلودم را <br>در دامن عطرآگین تو بگذارم و <br>رطوبت عشق مرده‌ام را <br>چون گل پژمرده‌ای ببویم. </p>\n\n\n\n<p>می‌خواهم بخوابم، می‌خواهم در خوابی <br>راحت چون آرامش مرگ غرق شوم. <br>می‌خواهم بر پیکر زیبا و صاف و <br>مسی‌رنگ تو بی‌آن‌که دندان فرو کنم، بوسه گستران‌ام </p>\n\n\n\n<!--more-->\n\n\n\n<p>هق‌هق گریه‌های مرا <br>تنها غرقاب بستر تو می‌بلعد و معدوم می‌کند <br>نسیان پرقدرت درون دهان تو جای گرفته و لِتِه در بوسه‌های تو جاری‌است. </p>\n\n\n\n<p>از این پس، ای لذت زندگانی من، <br>چون برگزیده‌ای بی‌گناه که محکوم رنج و عذاب است، <br>سر اطاعت بر پای سرنوشت خواهم سود، <br>تا شور و حرارت آن آتش اندوه‌ام را تیزتر کند. </p>\n\n\n\n<p>نپانتس* و شوکران را در انتهای زیبای گلوی‌ات <br>که هرگز دلی را به دام نیفکنده، <br>خواهم مکید تا <br>بغض و کینه‌ام را به دست فراموشی سپارم. </p>\n\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/french-poets/charles-baudelaire/\">\n\t\tشارل بودلر          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=مرتضی+شمس\">\n\t\tمرتضی شمس          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4><p>*نپانتس: نوعی گیاه گرمسیری و گوشت‌خوار  </p>\n</h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>بر روی قلب من بیا، ای روح ستم‌گر و بی‌رحم ای ببر محبوب، ای دیو بی‌اعتنا می‌خواهم انگشتان لرزان‌ام را درون یال‌های سنگی‌ات فرو برم می‌خواهم سر دردآلودم را در دامن عطرآگین تو بگذارم و رطوبت عشق مرده‌ام را چون گل پژمرده‌ای ببویم. می‌خواهم بخوابم، می‌خواهم در خوابی راحت چون آرامش مرگ غرق شوم. می‌خواهم [&hellip;]</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 11244,
+      "date": "2021-08-18T21:44:44",
+      "modified": "2021-08-19T21:56:31",
+      "slug": "the-dream-of-this-lonely-garden",
+      "link": "https://echolalia.ir/the-dream-of-this-lonely-garden/",
+      "title": "رخوت این باغ تنهایى",
+      "content": "\n<p>بر کشیدن چنین بارى سترگ <br>شهامت را لخته‌لخته از گرده‌هایت خواهد مکید <br>اى سیزیف! <br>گرچه قلب‌ات سخت در جوشش و کار است <br>لیک راه هنر بى‌پایان است و آدمى را مجال اندک </p>\n\n\n\n<p>سر به سوى مزارستانى متروک <br>دور از مقابر نام‌داران <br>قلب من تپنده <br>چو فرو مرده نعره‌ى طبل‌ها <br>مى‌نوازد آشوبِ آهنگ عزا </p>\n\n\n\n<p>چه‌بسا گوهران یک‌دانه که خفته در دل خاک <br>گم‌گشته‌ى تاریکى و نسیان‌اند <br>و چه دورند ز یافته شدن <br>پرداخته شدن </p>\n\n\n\n<!--more-->\n\n\n\n<p>چه‌بسا گل‌ها، حسرتا! <br>که ریخته‌اند نرماى عطر خویش <br>چو رازى <br>بر رخوت این باغ تنهایى.</p>\n\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/french-poets/charles-baudelaire/\">\n\t\tشارل بودلر          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=نیما+زاغیان\">\n\t\tنیما زاغیان          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>بر کشیدن چنین بارى سترگ شهامت را لخته‌لخته از گرده‌هایت خواهد مکید اى سیزیف! گرچه قلب‌ات سخت در جوشش و کار است لیک راه هنر بى‌پایان است و آدمى را مجال اندک سر به سوى مزارستانى متروک دور از مقابر نام‌داران قلب من تپنده چو فرو مرده نعره‌ى طبل‌ها مى‌نوازد آشوبِ آهنگ عزا چه‌بسا گوهران [&hellip;]</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 11363,
+      "date": "2021-10-11T21:54:16",
+      "modified": "2021-10-11T21:54:19",
+      "slug": "skein-of-time",
+      "link": "https://echolalia.ir/skein-of-time/",
+      "title": "کلافِ زمان",
+      "content": "\n<p>من ترحمِ تو را می‌طلبم، ای یکتا زنی که <br>از ژرفِ گودالِ تیره‌ای که دلم در آن افتاده است دوستت می‌دارم. </p>\n\n\n\n<p>این‌جا جهانی تیره با افقی سُربی‌ست <br>که شبانگاه، در آن هراس و ناسزا شناور است. </p>\n\n\n\n<p>خورشیدی بی‌گرما شش ماه بر فرازش بال می‌گسترد <br>و شش ماهِ دیگر، تیرگی زمین را می‌پوشاند <br>سرزمینی‌ست برهنه‌تر از سرزمینِ قطبی؛ <br>نه جانوری، نه رودی، نه سبزه‌ای، نه بیشه‌ای! </p>\n\n\n\n<p>وحشتی در جهان نیست <br>که از خشونتِ سردِ این خورشیدِ یخ‌زده  <br>و این شبِ پهناورِ هم‌سانِ نخستین روزهای جهان، افزون‌تر باشد. </p>\n\n\n\n<!--more-->\n\n\n\n<p>من بر سرنوشتِ پلیدترین حیوانات رشک می‌برم <br>که می‌توانند <br>تا آن‌جا که کلافِ زمان به‌ آهستگی وا می‌شود <br>در خوابی ابلهانه فرو روند…</p>\n\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/french-poets/charles-baudelaire/\">\n\t\tشارل بودلر          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=حسن+هنرمندی\">\n\t\tحسن هنرمندی          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>من ترحمِ تو را می‌طلبم، ای یکتا زنی که از ژرفِ گودالِ تیره‌ای که دلم در آن افتاده است دوستت می‌دارم. این‌جا جهانی تیره با افقی سُربی‌ست که شبانگاه، در آن هراس و ناسزا شناور است. خورشیدی بی‌گرما شش ماه بر فرازش بال می‌گسترد و شش ماهِ دیگر، تیرگی زمین را می‌پوشاند سرزمینی‌ست برهنه‌تر از [&hellip;]</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    },
+    {
+      "id": 11716,
+      "date": "2022-04-25T20:12:44",
+      "modified": "2022-04-25T01:28:50",
+      "slug": "i-turn-your-love-into-a-cry",
+      "link": "https://echolalia.ir/i-turn-your-love-into-a-cry/",
+      "title": "عشق تو را بدل به فریادى مى‌کنم",
+      "content": "\n<p>عشق تو را بدل به فریادى مى‌کنم <br>اى که تنها تو را دوست مى‌دارم ــ <br>از ژرفاى تاریکْ مغاکى که در آن <br>دل‌ام در افتاده است؛ <br>این‌جا غمین دنیایى‌ست، <br>افق‌اش از جنس سُرب و ملال <br>و بر خیزاب‌هاى شب‌هایش <br>کفر و خوف <br>دستادست <br>غوطه مى‌خورند. <br>خورشیدى یخین بر فراز شش ماه پرسه مى‌زند <br>و شش ماه دگر <br>همه شولاى تاریکى‌ست گسترده <br>بر سردى خاک </p>\n\n\n\n<!--more-->\n\n\n\n<p>بارى <br>دیارى‌ست سخت غمین‌تر از سرزمین‌هاى سترونِ قطب؛ <br>نه جانورى، نه نهرى <br>نه جوانه‌اى، نه جنگلى! <br>هر آینه هیچ وحشتى هرگز سهمگین‌تر نبوده است <br>از سنگ‌دلىِ سردِ این آفتاب بلورین <br>و این شبِ سترگ که به آشوبِ ازل مى‌ماند <br>بسى رشک مى‌برم بر آن پست‌ترینِ جانوران <br>که مى‌توانند در آغوش خوابى ابلهانه غرقه شوند <br>و به آهستگى <br>کلافِ رشته‌هاى زمان را <br>پنبه کنند. </p>\n\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/french-poets/charles-baudelaire/\">\n\t\tشارل بودلر          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=نیما+زاغیان\">\n\t\tنیما زاغیان          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>عشق تو را بدل به فریادى مى‌کنم اى که تنها تو را دوست مى‌دارم ــ از ژرفاى تاریکْ مغاکى که در آن دل‌ام در افتاده است؛ این‌جا غمین دنیایى‌ست، افق‌اش از جنس سُرب و ملال و بر خیزاب‌هاى شب‌هایش کفر و خوف دستادست غوطه مى‌خورند. خورشیدى یخین بر فراز شش ماه پرسه مى‌زند و شش [&hellip;]</p>\n",
+      "categories": [
+        602
+      ],
+      "featuredMedia": 2559
+    }
+  ]
+}

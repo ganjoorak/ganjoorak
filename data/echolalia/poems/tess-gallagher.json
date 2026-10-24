@@ -1,0 +1,23 @@
+{
+  "poet": {
+    "id": 3306,
+    "slug": "tess-gallagher",
+    "name": "تس گالاگر"
+  },
+  "poems": [
+    {
+      "id": 9032,
+      "date": "2020-03-09T18:29:24",
+      "modified": "2020-03-22T23:58:41",
+      "slug": "a-brief-invitation-with-a-calm-tone",
+      "link": "https://echolalia.ir/a-brief-invitation-with-a-calm-tone/",
+      "title": "مختصر دعوتی با لحنی آرام",
+      "content": "<p>حتا پرندگان نیز ، یکدگر رایاری می رسانند&#8230;<br>بیا نزدیک تر،<br>نزدیک تر&#8230;<br>یاریم کن تا بوسه ات برچینم.</p>\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/poets-america/tess-gallagher/\">\n\t\tتس گلاگر          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=رضا+رضوانی+بروجنی\">\n\t\tرضا رضوانی بروجنی          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre></pre>\t\n\n</div>\n\t\n\n\n<p></p>\n",
+      "excerpt": "<p>حتا پرندگان نیز ، یکدگر رایاری می رسانند&#8230;بیا نزدیک تر،نزدیک تر&#8230;یاریم کن تا بوسه ات برچینم.</p>\n",
+      "categories": [
+        3306
+      ],
+      "featuredMedia": 9107
+    }
+  ]
+}

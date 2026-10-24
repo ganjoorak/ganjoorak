@@ -1,0 +1,23 @@
+{
+  "poet": {
+    "id": 1401,
+    "slug": "jane-hirshfield",
+    "name": "جین هیرشفیلد"
+  },
+  "poems": [
+    {
+      "id": 1349,
+      "date": "2017-06-19T18:06:47",
+      "modified": "2019-01-29T21:36:53",
+      "slug": "%d8%ae%d9%88%d8%a7%d8%b3%d8%aa%d9%86-%d8%aa%d9%88",
+      "link": "https://echolalia.ir/%d8%ae%d9%88%d8%a7%d8%b3%d8%aa%d9%86-%d8%aa%d9%88/",
+      "title": "خواستن تو",
+      "content": "<p>خواب و بیدار<br />تنم به سوی تو کشیده می شود</p>\n<p>خواستن تو پارویی بلند است<br />که دوباره و دوباره<br />در باران سیاه شب فرو می رود.</p>\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/poets-america/jane-hirshfield/\">\n\t\tجین هیرشفیلد          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=آزاده+کامیار\">\n\t\tآزاده کامیار          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>خواب و بیدارتنم به سوی تو کشیده می شود خواستن تو پارویی بلند استکه دوباره و دوبارهدر باران سیاه شب فرو می رود.</p>\n",
+      "categories": [
+        1401
+      ],
+      "featuredMedia": 8158
+    }
+  ]
+}

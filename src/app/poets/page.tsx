@@ -1,7 +1,8 @@
 import { Century, Poet } from '@/types/poet';
 import ganjoorApi from '@/api/GanjoorApi';
 import customApi from '@/api/CustomApi';
-import echolaliaApi from '@/api/EcholaliaApi';
+import { categoriesToPoets } from '@/api/EcholaliaApi';
+import { getCategories as getEcholaliaCategories } from '@/lib/echolaliaStore';
 import PoetsContent from '@/components/PoetsContent';
 import { logger } from '@/utils/logger';
 import { getStaticGanjoorCenturies, getStaticPoetsBySource } from '@/data/static-poets';
@@ -33,7 +34,9 @@ async function getCustomPoets(): Promise<Poet[]> {
 async function getModernPoets(): Promise<Poet[]> {
     try {
         logger.log("Fetching Echolalia poets...");
-        const poets = await echolaliaApi.getPoets();
+        // Server-side: read the local Echolalia mirror directly rather than fetching our own API route.
+        const [root] = await getEcholaliaCategories({ slug: 'sher' });
+        const poets = root ? categoriesToPoets(await getEcholaliaCategories(), root.id) : [];
         logger.log(`Found ${poets.length} Echolalia poets`);
         return poets.length > 0 ? poets : getStaticPoetsBySource('echolalia');
     } catch (error) {

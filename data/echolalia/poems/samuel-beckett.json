@@ -1,0 +1,37 @@
+{
+  "poet": {
+    "id": 3305,
+    "slug": "samuel-beckett",
+    "name": "ساموئل بکت"
+  },
+  "poems": [
+    {
+      "id": 9052,
+      "date": "2020-03-09T03:09:29",
+      "modified": "2020-03-08T23:33:52",
+      "slug": "borrow-the-hereafter",
+      "link": "https://echolalia.ir/borrow-the-hereafter/",
+      "title": "حساب آخرت",
+      "content": "\n<p>کی می‌تواند بگوید <br>پیرمرد چه می‌داند <br>غیبت را <br>با ترازو وزن کردن؟ <br>فقدان را <br>با خط کش اندازه گرفتن؟ <br>عذاب جهان را <br>شمردن؟ <br>تهی را با کلمات <br>انباشتن؟ </p>\n\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/irish-poets/samuel-beckett/\">\n\t\tساموئل بکت          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=محمود+داوودی\">\n\t\tمحمود داوودی          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>کی می‌تواند بگوید پیرمرد چه می‌داند غیبت را با ترازو وزن کردن؟ فقدان را با خط کش اندازه گرفتن؟ عذاب جهان را شمردن؟ تهی را با کلمات انباشتن؟</p>\n",
+      "categories": [
+        3305
+      ],
+      "featuredMedia": 9101
+    },
+    {
+      "id": 9159,
+      "date": "2020-03-25T03:11:04",
+      "modified": "2020-03-25T03:11:06",
+      "slug": "dance-ring",
+      "link": "https://echolalia.ir/dance-ring/",
+      "title": "حلقه ی رقص",
+      "content": "<p>در امتداد ساحل <br />در پایان روز <br />گام تنها صدا <br />مدتی فقط صدا <br />تا به میل خود ایستادن <br />بعد هیچ صدا <br />در امتداد ساحل <br />مدتی هیچ صدا <br />بعد به میل خود رفتن </p>\n<p><!--more-->گام تنها صدا<br />مدتی فقط صدا<br />در امتداد ساحل<br />در پایان روز</p>\n\n<div class=\"sing-block\">\n\t\t\t<a class=\"square\">■</a>\n  <div style=\"display: block; margin-bottom: -10px;background:none !important;\">\n\t          <h6><a href=\"http://www.echolalia.ir/\" style=\"color:#999\">اکولالیا</a></h6><a> / </a>\n\n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/category/sher/irish-poets/samuel-beckett/\">\n\t\tساموئل بکت          </a>\n   </h2>\n\t  \n   <h2>\n     \n\t             <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h2>\t  \n  </div>\n\t\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <span style=\"background:none !important;\">ترجمه از </span>\n                  <a href=\"https://echolalia.ir/?s=محمود+داوودی\">\n\t\tمحمود داوودی          </a>\n   </h3>\n\t\n   <h3>\n               <a href=\"https://echolalia.ir/?s=\">\n\t\t          </a>\n   </h3>\n  </div>\n<div style=\"margin-bottom: -10px;background:none !important;\">\n   <h3>\n               <a href=\"https://echolalia.ir/tag//\">\n\t\t          </a>\n   </h3>\n  </div>\t\n  <h4></h4>\n  <pre></pre>\t\n\n</div>\n\t",
+      "excerpt": "<p>در امتداد ساحل در پایان روز گام تنها صدا مدتی فقط صدا تا به میل خود ایستادن بعد هیچ صدا در امتداد ساحل مدتی هیچ صدا بعد به میل خود رفتن </p>\n",
+      "categories": [
+        3305
+      ],
+      "featuredMedia": 9101
+    }
+  ]
+}
