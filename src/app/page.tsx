@@ -25,6 +25,7 @@ import { Toggle } from '@/components/ui/toggle';
 import type { FeedMode } from '@/context/SettingsContext';
 import poetSourceIndex from '@/data/poet-source-index.json';
 import { fetchSimilarPoem } from '@/utils/interestFeed';
+import { fetchRandomGanjoorPoem, fetchRandomPoemByPoetId } from '@/utils/poemIndex';
 
 const INITIAL_POEMS_COUNT = 12;
 const PREFETCH_THRESHOLD = 5;
@@ -138,10 +139,6 @@ const getIndexedGanjoorPoetId = (slug: string) => {
     return entry?.source === 'ganjoor' && typeof entry.id === 'number'
         ? entry.id
         : null;
-};
-
-const loadFullGanjoorPoem = async (poem: Poem) => {
-    return ganjoorApi.getPoemById(poem.id);
 };
 
 const sampleKeys = (keys: string[], count: number) => {
@@ -549,14 +546,9 @@ export default function Home() {
             return echolaliaApi.getRandomPoemByPoetSlug(poet.slug);
         }
 
-        const poetId = getIndexedGanjoorPoetId(poet.slug);
-        if (poetId) {
-            const randomPoem = await ganjoorApi.getRandomPoemByPoetId(poetId);
-            return loadFullGanjoorPoem(randomPoem);
-        }
-
-        const randomPoem = await ganjoorApi.getRandomPoemByPoet(poet.slug);
-        return loadFullGanjoorPoem(randomPoem);
+        const poetId = getIndexedGanjoorPoetId(poet.slug)
+            ?? (await ganjoorApi.getPoetBySlug(poet.slug)).id;
+        return fetchRandomPoemByPoetId(poetId);
     }, [settings.followedPoetKeys]);
 
     // «همه»: the open feed across every poet, with some poems similar to the saved favorites.
@@ -572,8 +564,7 @@ export default function Home() {
             }
         }
 
-        const randomPoem = await ganjoorApi.getRandomPoem();
-        return loadFullGanjoorPoem(randomPoem);
+        return fetchRandomGanjoorPoem();
     }, []);
 
     const fetchRandomPoemFromFollowedPoet = isFollowingMode
