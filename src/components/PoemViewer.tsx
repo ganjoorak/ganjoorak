@@ -73,6 +73,7 @@ interface PoemViewerProps {
 
 type PoemSegment =
   | { type: "prose"; line: string; index: number }
+  | { type: "centered"; line: string; index: number }
   | {
       type: "pair";
       lines: Array<{ line: string; index: number }>;
@@ -85,12 +86,14 @@ const PROSE_LINE_MIN_CHARS = 120;
 
 const buildPoemSegments = (
   lines: string[],
-  kinds?: Array<"verse" | "prose">,
+  kinds?: Array<"verse" | "prose" | "centered">,
 ): PoemSegment[] | null => {
   const useKinds = Boolean(kinds && kinds.length === lines.length);
   const isProse = (line: string, i: number) =>
     useKinds ? kinds![i] === "prose" : line.length >= PROSE_LINE_MIN_CHARS;
-  if (!lines.some((line, i) => isProse(line, i))) return null;
+  // A centred line (Ganjoor b2) stands alone and must not shift the pairing.
+  const isCentered = (i: number) => useKinds && kinds![i] === "centered";
+  if (!lines.some((line, i) => isProse(line, i) || isCentered(i))) return null;
 
   const segments: PoemSegment[] = [];
   let run: Array<{ line: string; index: number }> = [];
@@ -106,6 +109,9 @@ const buildPoemSegments = (
     if (isProse(line, index)) {
       flush();
       segments.push({ type: "prose", line, index });
+    } else if (isCentered(index)) {
+      flush();
+      segments.push({ type: "centered", line, index });
     } else {
       run.push({ line, index });
     }
@@ -1251,6 +1257,21 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
                 <p className={`${verseClass(segment.index)} prose-paragraph`}>
                   <span className="verse-text">{segment.line}</span>
                 </p>
+              </motion.div>
+            ) : segment.type === "centered" ? (
+              <motion.div
+                key={`c-${segment.index}`}
+                className="verse-centered"
+                initial={from({ opacity: 0, y: 20 })}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.3,
+                  delay: Math.min(segmentIndex, 6) * 0.1,
+                }}
+              >
+                <div className={verseClass(segment.index)}>
+                  <span className="verse-text">{segment.line}</span>
+                </div>
               </motion.div>
             ) : (
               <motion.div

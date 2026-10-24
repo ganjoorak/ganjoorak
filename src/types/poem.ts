@@ -38,9 +38,10 @@ export interface Poem {
   htmlText: string;
   /**
    * Per non-empty line of plainText: "prose" for Ganjoor paragraph blocks
-   * (class n), "verse" for mesras. Missing on older cached payloads.
+   * (class n), "centered" for single centred lines (class b2, e.g. «***»),
+   * "verse" for mesras. Missing on older cached payloads.
    */
-  lineKinds?: Array<"verse" | "prose">;
+  lineKinds?: Array<"verse" | "prose" | "centered">;
   recitations: PoemRecitation[];
   isCustom?: boolean;
   source?: "ganjoor" | "custom" | "echolalia";

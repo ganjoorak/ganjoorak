@@ -1040,10 +1040,11 @@ const ganjoorApi = {
         .replace(/<\/p>/g, "\n")
         .trim() || "";
 
-    // Ganjoor marks prose paragraphs with <div class="n">; mesras live in
-    // b/b2/m1/m2 blocks. Record one kind per <p> so the viewer can render
-    // paragraphs as wrapping text instead of pairing them as couplets.
-    const lineKinds: Array<"verse" | "prose"> = [];
+    // Ganjoor marks prose paragraphs with <div class="n">, single centred
+    // lines (stanza breaks like «***», tarjiband/tasnif band lines) with
+    // <div class="b2">, and couplets with b + m1/m2. Record one kind per <p>
+    // so the viewer pairs only real mesras.
+    const lineKinds: Array<"verse" | "prose" | "centered"> = [];
     if (data.htmlText) {
       let block = "";
       const tokenRe = /<div[^>]*class="([^"]*)"[^>]*>|<p[^>]*>([\s\S]*?)<\/p>/g;
@@ -1053,7 +1054,7 @@ const ganjoorApi = {
           const cls = m[1].split(/\s+/);
           if (!cls.includes("m1") && !cls.includes("m2")) block = cls[0] || "";
         } else if ((m[2] ?? "").trim()) {
-          lineKinds.push(block === "n" ? "prose" : "verse");
+          lineKinds.push(block === "n" ? "prose" : block === "b2" ? "centered" : "verse");
         }
       }
     }
@@ -1068,7 +1069,7 @@ const ganjoorApi = {
       fullUrl: data.fullUrl || "",
       plainText: cleanHtml || data.plainText,
       htmlText: cleanHtml || "",
-      ...(lineKinds.includes("prose") ? { lineKinds } : {}),
+      ...(lineKinds.some((kind) => kind !== "verse") ? { lineKinds } : {}),
       recitations: recitations,
       poet: helpers.getPoetName(data.fullTitle),
       poetSlug: helpers.getPoetSlug(data.fullUrl),

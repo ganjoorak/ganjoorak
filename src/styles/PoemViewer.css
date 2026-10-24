@@ -469,6 +469,22 @@ a.poem-eyebrow-chip:focus-visible {
     text-shadow: 0 0 8px rgb(var(--foreground) / 0.3);
 }
 
+/* A single centred line between couplets (Ganjoor b2): stanza breaks such as
+   «***» and the band lines of tarjiband / tasnif poems. */
+.verse-centered {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 0.75rem;
+    direction: rtl;
+}
+
+.verse-centered .verse-line {
+    flex: none;
+    max-width: 100%;
+    white-space: normal;
+}
+
 /* Set by PoemViewer when the widest couplet can't fit side by side (tablet widths):
    the phone layout, one mesra per line, at the desktop verse size. */
 .poem-text--stacked .verse-pair {
