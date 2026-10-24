@@ -20,6 +20,20 @@ type User struct {
 	Username    string `json:"username"`
 	DisplayName string `json:"displayName"`
 	CreatedAt   int64  `json:"createdAt"`
+	// Whether /@username is visible to others. On by default; the owner can
+	// turn it off from their profile.
+	IsPublic bool `json:"isPublic"`
+	// Profile picture motif; "" picks one from the username.
+	Avatar string `json:"avatar"`
+	// Whether a recovery code is set; accounts made before codes existed have none.
+	HasRecoveryCode bool `json:"hasRecoveryCode"`
+}
+
+// userColumns are the User fields every query below selects, in scan order.
+const userColumns = `u.id, u.username, u.display_name, u.created_at, u.is_public, u.avatar, u.recovery_hash != ''`
+
+func (u *User) scanTargets() []any {
+	return []any{&u.ID, &u.Username, &u.DisplayName, &u.CreatedAt, &u.IsPublic, &u.Avatar, &u.HasRecoveryCode}
 }
 
 var errUsernameTaken = errors.New("username taken")
@@ -41,6 +55,46 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
 `
 
+// Columns added after the first release, applied once to older databases.
+var migrations = []struct{ column, ddl string }{
+	{"is_public", `ALTER TABLE users ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1`},
+	// Server time (ms) of the last push that changed the history head; drives
+	// "now reading" on the public profile.
+	{"reading_at", `ALTER TABLE users ADD COLUMN reading_at INTEGER NOT NULL DEFAULT 0`},
+	// argon2id hash of the account's recovery code; '' when none is set.
+	{"recovery_hash", `ALTER TABLE users ADD COLUMN recovery_hash TEXT NOT NULL DEFAULT ''`},
+	{"avatar", `ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''`},
+}
+
+func migrate(db *sql.DB) error {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info('users')`)
+	if err != nil {
+		return err
+	}
+	have := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			rows.Close()
+			return err
+		}
+		have[name] = true
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, m := range migrations {
+		if have[m.column] {
+			continue
+		}
+		if _, err := db.Exec(m.ddl); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func openStore(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
@@ -56,14 +110,18 @@ func openStore(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := migrate(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return &Store{db: db}, nil
 }
 
-func (s *Store) createUser(ctx context.Context, in SignupInput, passwordHash string) (User, error) {
+func (s *Store) createUser(ctx context.Context, in SignupInput, passwordHash, recoveryHash string) (User, error) {
 	now := time.Now().UnixMilli()
 	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO users (username, display_name, password_hash, created_at) VALUES (?, ?, ?, ?)`,
-		in.Username, in.DisplayName, passwordHash, now)
+		`INSERT INTO users (username, display_name, password_hash, recovery_hash, created_at) VALUES (?, ?, ?, ?, ?)`,
+		in.Username, in.DisplayName, passwordHash, recoveryHash, now)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return User{}, errUsernameTaken
@@ -71,7 +129,7 @@ func (s *Store) createUser(ctx context.Context, in SignupInput, passwordHash str
 		return User{}, err
 	}
 	id, err := res.LastInsertId()
-	return User{ID: id, Username: in.Username, DisplayName: in.DisplayName, CreatedAt: now}, err
+	return User{ID: id, Username: in.Username, DisplayName: in.DisplayName, CreatedAt: now, IsPublic: true, HasRecoveryCode: recoveryHash != ""}, err
 }
 
 // userForLogin returns sql.ErrNoRows for unknown usernames.
@@ -79,9 +137,60 @@ func (s *Store) userForLogin(ctx context.Context, username string) (User, string
 	var u User
 	var hash string
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, username, display_name, created_at, password_hash FROM users WHERE username = ?`, username).
-		Scan(&u.ID, &u.Username, &u.DisplayName, &u.CreatedAt, &hash)
+		`SELECT `+userColumns+`, u.password_hash FROM users u WHERE u.username = ?`, username).
+		Scan(append(u.scanTargets(), &hash)...)
 	return u, hash, err
+}
+
+// userForRecovery returns the recovery-code hash (” when none is set), or
+// sql.ErrNoRows for unknown usernames.
+func (s *Store) userForRecovery(ctx context.Context, username string) (User, string, error) {
+	var u User
+	var hash string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT `+userColumns+`, u.recovery_hash FROM users u WHERE u.username = ?`, username).
+		Scan(append(u.scanTargets(), &hash)...)
+	return u, hash, err
+}
+
+func (s *Store) passwordHash(ctx context.Context, userID int64) (string, error) {
+	var hash string
+	err := s.db.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = ?`, userID).Scan(&hash)
+	return hash, err
+}
+
+// setCredentials replaces the password and/or recovery code ("" leaves one as
+// it is). A new password signs out every session; the caller starts a fresh one.
+func (s *Store) setCredentials(ctx context.Context, userID int64, passwordHash, recoveryHash string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if passwordHash != "" {
+		if _, err := tx.ExecContext(ctx, `UPDATE users SET password_hash = ? WHERE id = ?`, passwordHash, userID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID); err != nil {
+			return err
+		}
+	}
+	if recoveryHash != "" {
+		if _, err := tx.ExecContext(ctx, `UPDATE users SET recovery_hash = ? WHERE id = ?`, recoveryHash, userID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) updateProfile(ctx context.Context, userID int64, in ProfileInput) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE users SET username = ?, display_name = ?, avatar = ? WHERE id = ?`,
+		in.Username, in.DisplayName, in.Avatar, userID)
+	if err != nil && strings.Contains(err.Error(), "UNIQUE") {
+		return errUsernameTaken
+	}
+	return err
 }
 
 func (s *Store) createSession(ctx context.Context, userID int64, tokenHash string, expires time.Time) error {
@@ -103,10 +212,10 @@ func (s *Store) deleteSession(ctx context.Context, tokenHash string) error {
 func (s *Store) userForSession(ctx context.Context, tokenHash string) (User, error) {
 	var u User
 	err := s.db.QueryRowContext(ctx, `
-		SELECT u.id, u.username, u.display_name, u.created_at
+		SELECT `+userColumns+`
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = ? AND s.expires_at > ?`, tokenHash, time.Now().UnixMilli()).
-		Scan(&u.ID, &u.Username, &u.DisplayName, &u.CreatedAt)
+		Scan(u.scanTargets()...)
 	return u, err
 }
 
@@ -130,23 +239,57 @@ func (s *Store) saveData(ctx context.Context, userID int64, data AccountData, me
 	}
 	defer tx.Rollback()
 	data = sanitizeAccountData(data)
+	var raw string
+	if err := tx.QueryRowContext(ctx, `SELECT data FROM users WHERE id = ?`, userID).Scan(&raw); err != nil {
+		return AccountData{}, err
+	}
+	var stored AccountData
+	if err := json.Unmarshal([]byte(raw), &stored); err != nil {
+		return AccountData{}, err
+	}
+	stored = sanitizeAccountData(stored)
 	if merge {
-		var raw string
-		if err := tx.QueryRowContext(ctx, `SELECT data FROM users WHERE id = ?`, userID).Scan(&raw); err != nil {
-			return AccountData{}, err
-		}
-		var stored AccountData
-		if err := json.Unmarshal([]byte(raw), &stored); err != nil {
-			return AccountData{}, err
-		}
 		data = mergeAccountData(stored, data)
 	}
 	encoded, err := json.Marshal(data)
 	if err != nil {
 		return AccountData{}, err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE users SET data = ? WHERE id = ?`, string(encoded), userID); err != nil {
+	// Opening a poem pushes a new history head within seconds (AccountSync),
+	// so this stamp is "last seen reading".
+	query := `UPDATE users SET data = ? WHERE id = ?`
+	args := []any{string(encoded), userID}
+	if historyHeadChanged(stored.History, data.History) {
+		query = `UPDATE users SET data = ?, reading_at = ? WHERE id = ?`
+		args = []any{string(encoded), time.Now().UnixMilli(), userID}
+	}
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return AccountData{}, err
 	}
 	return data, tx.Commit()
+}
+
+func (s *Store) setPublic(ctx context.Context, userID int64, public bool) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET is_public = ? WHERE id = ?`, public, userID)
+	return err
+}
+
+// publicProfile returns sql.ErrNoRows for unknown usernames and for accounts
+// that turned their profile off, so the two look the same from outside.
+func (s *Store) publicProfile(ctx context.Context, username string) (PublicProfile, error) {
+	var u User
+	var raw string
+	var readingAt int64
+	err := s.db.QueryRowContext(ctx, `
+		SELECT username, display_name, avatar, created_at, data, reading_at
+		FROM users WHERE username = ? AND is_public = 1`, username).
+		Scan(&u.Username, &u.DisplayName, &u.Avatar, &u.CreatedAt, &raw, &readingAt)
+	if err != nil {
+		return PublicProfile{}, err
+	}
+	var data AccountData
+	if err := json.Unmarshal([]byte(raw), &data); err != nil {
+		return PublicProfile{}, err
+	}
+	return buildPublicProfile(u, sanitizeAccountData(data), readingAt, time.Now().UnixMilli()), nil
 }

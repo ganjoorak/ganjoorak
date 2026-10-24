@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "حساب کاربری | گنجورک",
-  description: "شعرهای در حال خواندن، پسندیده‌ها و شاعران دنبال‌شده.",
+  description: "شعر در حال خواندن، آخرین شعر و پسندیده‌ها.",
   robots: { index: false },
 };
 

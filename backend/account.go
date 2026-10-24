@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -64,9 +65,21 @@ type SignupInput struct {
 	DisplayName string `json:"displayName"`
 }
 
+// ProfileInput is what the owner can edit in account settings.
+type ProfileInput struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+	Avatar      string `json:"avatar"`
+}
+
+// Profile picture motifs, matching src/components/ProfileAvatar.tsx; "" means
+// one picked from the username.
+var validAvatars = map[string]bool{"": true, "cypress": true, "candle": true, "quill": true, "tulip": true, "cup": true}
+
 var (
 	errBadUsername = errors.New("نام کاربری باید ۳ تا ۳۲ نویسهٔ لاتین کوچک، رقم یا _ باشد.")
 	errBadPassword = fmt.Errorf("گذرواژه باید %d تا %d نویسه باشد.", minPasswordLen, maxPasswordLen)
+	errBadAvatar   = errors.New("تصویر نمایه معتبر نیست.")
 )
 
 func normalizeUsername(value string) string {
@@ -79,7 +92,7 @@ func validateSignup(in SignupInput) (SignupInput, error) {
 	if !usernamePattern.MatchString(username) {
 		return in, errBadUsername
 	}
-	if n := utf8.RuneCountInString(in.Password); n < minPasswordLen || n > maxPasswordLen {
+	if !validPassword(in.Password) {
 		return in, errBadPassword
 	}
 	displayName := cleanText(in.DisplayName, maxDisplayName)
@@ -87,6 +100,27 @@ func validateSignup(in SignupInput) (SignupInput, error) {
 		displayName = username
 	}
 	return SignupInput{Username: username, Password: in.Password, DisplayName: displayName}, nil
+}
+
+func validPassword(password string) bool {
+	n := utf8.RuneCountInString(password)
+	return n >= minPasswordLen && n <= maxPasswordLen
+}
+
+// validateProfile returns the cleaned input or a Persian, user-facing error.
+func validateProfile(in ProfileInput) (ProfileInput, error) {
+	username := normalizeUsername(in.Username)
+	if !usernamePattern.MatchString(username) {
+		return in, errBadUsername
+	}
+	if !validAvatars[in.Avatar] {
+		return in, errBadAvatar
+	}
+	displayName := cleanText(in.DisplayName, maxDisplayName)
+	if displayName == "" {
+		displayName = username
+	}
+	return ProfileInput{Username: username, DisplayName: displayName, Avatar: in.Avatar}, nil
 }
 
 func cleanText(value string, max int) string {
@@ -163,6 +197,63 @@ var dummyHash = sync.OnceValue(func() string {
 	}
 	return hash
 })
+
+// --- recovery codes ----------------------------------------------------------
+
+// A recovery code stands in for "forgot password" without email: shown once at
+// sign-up (or when regenerated), stored only as an argon2id hash like the
+// password, and consumed by a reset, which issues a new one.
+const recoveryCodeLen = 16
+
+// Crockford base32: no I, L, O or U, so a hand-copied code is hard to misread.
+// 32 divides 256, so mapping random bytes onto it stays uniform (80 bits).
+const recoveryAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+func newRecoveryCode() (string, error) {
+	buf := make([]byte, recoveryCodeLen)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	for i, v := range buf {
+		if i > 0 && i%4 == 0 {
+			b.WriteByte('-')
+		}
+		b.WriteByte(recoveryAlphabet[int(v)%len(recoveryAlphabet)])
+	}
+	return b.String(), nil
+}
+
+// normalizeRecoveryCode forgives case, spaces, dashes and Crockford look-alikes.
+func normalizeRecoveryCode(code string) string {
+	var b strings.Builder
+	for _, r := range strings.ToUpper(code) {
+		switch r {
+		case '-', ' ', '\t':
+		case 'O':
+			b.WriteByte('0')
+		case 'I', 'L':
+			b.WriteByte('1')
+		default:
+			if r < unicode.MaxASCII {
+				b.WriteRune(r)
+			}
+		}
+	}
+	return b.String()
+}
+
+func hashRecoveryCode(code string) (string, error) {
+	return hashPassword(normalizeRecoveryCode(code))
+}
+
+func verifyRecoveryCode(code, encoded string) bool {
+	normalized := normalizeRecoveryCode(code)
+	if len(normalized) != recoveryCodeLen {
+		normalized = ""
+	}
+	return verifyPassword(normalized, encoded)
+}
 
 // --- sessions ----------------------------------------------------------------
 
@@ -262,4 +353,65 @@ func mergeAccountData(a, b AccountData) AccountData {
 		FollowedPoetKeys: append(append([]string{}, a.FollowedPoetKeys...), b.FollowedPoetKeys...),
 		InterestKeys:     append(append([]string{}, a.InterestKeys...), b.InterestKeys...),
 	})
+}
+
+// --- public profile ------------------------------------------------------------
+
+// The newest history entry counts as "now reading" while the account pushed
+// a new history head within this window. The time is stamped by the server
+// (Store.saveData), so a device with a wrong clock cannot fake it.
+const (
+	readingWindow      = 20 * time.Minute
+	maxPublicFavorites = 50
+)
+
+// PublicProfile is everything /@username shows to anyone. It is built from an
+// allow-list of fields: no followed poets, no full history, no session data.
+type PublicProfile struct {
+	Username      string  `json:"username"`
+	DisplayName   string  `json:"displayName"`
+	Avatar        string  `json:"avatar"`
+	CreatedAt     int64   `json:"createdAt"`
+	NowReading    *Entry  `json:"nowReading"`
+	LastPoem      *Entry  `json:"lastPoem"`
+	Favorites     []Entry `json:"favorites"`
+	FavoriteCount int     `json:"favoriteCount"`
+}
+
+func buildPublicProfile(u User, d AccountData, readingAt, now int64) PublicProfile {
+	p := PublicProfile{
+		Username:      u.Username,
+		DisplayName:   u.DisplayName,
+		Avatar:        u.Avatar,
+		CreatedAt:     u.CreatedAt,
+		Favorites:     d.Favorites,
+		FavoriteCount: len(d.Favorites),
+	}
+	if len(p.Favorites) > maxPublicFavorites {
+		p.Favorites = p.Favorites[:maxPublicFavorites]
+	}
+	if p.Favorites == nil {
+		p.Favorites = []Entry{}
+	}
+	history := d.History
+	if len(history) > 0 && readingAt > 0 && now-readingAt < readingWindow.Milliseconds() {
+		p.NowReading = &history[0]
+		history = history[1:]
+	}
+	if len(history) > 0 {
+		p.LastPoem = &history[0]
+	}
+	return p
+}
+
+// historyHeadChanged reports whether the newest history entry is a new read
+// (another poem, or the same poem opened again).
+func historyHeadChanged(before, after []Entry) bool {
+	if len(after) == 0 {
+		return false
+	}
+	if len(before) == 0 {
+		return true
+	}
+	return before[0].Key != after[0].Key || after[0].SavedAt > before[0].SavedAt
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { FaBookmark, FaChevronLeft, FaHistory, FaRegBookmark, FaTimes } from "react-icons/fa";
+import { FaBookmark, FaChevronLeft, FaHeart, FaHistory, FaRegBookmark, FaRegHeart, FaTimes } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -39,13 +39,13 @@ export const PoemLibraryList = ({
   entries: PoemLibraryEntry[];
   emptyMessage: string;
   emptyAction?: ReactNode;
-  icon?: "bookmark" | "history";
+  icon?: "bookmark" | "heart" | "history";
   onRemove?: (key: string) => void;
 }) => {
   if (entries.length === 0) {
     return (
       <Empty>
-        <EmptyIcon>{icon === "history" ? <FaHistory /> : <FaRegBookmark />}</EmptyIcon>
+        <EmptyIcon>{icon === "history" ? <FaHistory /> : icon === "heart" ? <FaRegHeart /> : <FaRegBookmark />}</EmptyIcon>
         <EmptyDescription>{emptyMessage}</EmptyDescription>
         {emptyAction}
       </Empty>
@@ -58,7 +58,7 @@ export const PoemLibraryList = ({
         <li key={entry.key} className="library-item">
           <Link href={entry.href} className="app-row library-link" prefetch={false}>
             <span className="app-row-icon" aria-hidden="true">
-              {icon === "history" ? <FaHistory /> : <FaBookmark />}
+              {icon === "history" ? <FaHistory /> : icon === "heart" ? <FaHeart /> : <FaBookmark />}
             </span>
             <span className="app-row-body">
               <span className="app-row-title library-title">{entry.title}</span>
@@ -66,7 +66,8 @@ export const PoemLibraryList = ({
               <span className="app-row-meta">
                 {entry.poetName}
                 {" · "}
-                <time dateTime={new Date(entry.savedAt).toISOString()}>
+                {/* Server-rendered profiles format in the server's time zone. */}
+                <time dateTime={new Date(entry.savedAt).toISOString()} suppressHydrationWarning>
                   {formatSavedAt(entry.savedAt)}
                 </time>
               </span>

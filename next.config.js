@@ -33,6 +33,13 @@ const nextConfig = {
         const ganjoorApiBaseUrl = GANJOOR_API_BASE_URL.replace(/\/+$/, '');
 
         return [
+            // Shareable profiles live at /@username. A segment starting with @
+            // is parallel-route syntax in the App Router, so the page is /u/[username].
+            // afterFiles rewrites run before dynamic routes, so [poet] never sees it.
+            {
+                source: '/@:username',
+                destination: '/u/:username',
+            },
             {
                 source: '/api/account/:path*',
                 destination: `${ACCOUNTS_API_URL}/api/account/:path*`,

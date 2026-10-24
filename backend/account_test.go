@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -186,6 +187,34 @@ func TestHTTPFlow(t *testing.T) {
 		t.Fatal("password hash leaked")
 	}
 
+	// Public profile: no cookie, allow-listed fields only, "now reading" after a new history head.
+	do("PUT", "/api/account/data", `{"merge":false,"data":{"favorites":[{"key":"ganjoor:hafez:1","id":1,"href":"/poem/1","savedAt":10}],"history":[{"key":"ganjoor:hafez:2","id":2,"href":"/poem/2","savedAt":20}],"followedPoetKeys":["ganjoor:saadi"]}}`, cookie)
+	public := do("GET", "/api/account/users/Hafez", "", "")
+	var pub struct{ Profile PublicProfile }
+	if err := json.Unmarshal(public.Body.Bytes(), &pub); err != nil || public.Code != http.StatusOK {
+		t.Fatalf("public profile: %d %s", public.Code, public.Body)
+	}
+	if pub.Profile.NowReading == nil || pub.Profile.NowReading.ID != 2 || pub.Profile.FavoriteCount != 1 {
+		t.Fatalf("unexpected public profile %+v", pub.Profile)
+	}
+	for _, private := range []string{"saadi", "followedPoetKeys", "history", "interest", "isPublic"} {
+		if strings.Contains(public.Body.String(), private) {
+			t.Fatalf("public profile leaks %q: %s", private, public.Body)
+		}
+	}
+	if res := do("GET", "/api/account/users/nobody", "", ""); res.Code != http.StatusNotFound {
+		t.Fatalf("unknown profile: %d", res.Code)
+	}
+	if res := do("PUT", "/api/account/visibility", `{"isPublic":false}`, cookie); res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"isPublic":false`) {
+		t.Fatalf("visibility: %d %s", res.Code, res.Body)
+	}
+	if res := do("GET", "/api/account/users/hafez", "", ""); res.Code != http.StatusNotFound || res.Body.String() != do("GET", "/api/account/users/nobody", "", "").Body.String() {
+		t.Fatalf("private profile must look like an unknown one: %d %s", res.Code, res.Body)
+	}
+	if res := do("PUT", "/api/account/visibility", `{"isPublic":true}`, ""); res.Code != http.StatusUnauthorized {
+		t.Fatalf("visibility without session: %d", res.Code)
+	}
+
 	if res := do("POST", "/api/account/logout", "", cookie); res.Code != http.StatusNoContent {
 		t.Fatalf("logout: %d", res.Code)
 	}
@@ -194,9 +223,195 @@ func TestHTTPFlow(t *testing.T) {
 	}
 }
 
+func TestPublicProfile(t *testing.T) {
+	u := User{Username: "hafez", DisplayName: "حافظ"}
+	d := AccountData{
+		Favorites:        []Entry{entry("f", 1)},
+		History:          []Entry{entry("new", 9), entry("old", 5)},
+		FollowedPoetKeys: []string{"ganjoor:saadi"},
+	}
+	now := int64(100 * 60_000)
+	live := buildPublicProfile(u, d, now-60_000, now)
+	if live.NowReading == nil || live.NowReading.Key != "new" || live.LastPoem == nil || live.LastPoem.Key != "old" {
+		t.Fatalf("recent push should show now reading + previous poem: %+v", live)
+	}
+	idle := buildPublicProfile(u, d, now-readingWindow.Milliseconds()-1, now)
+	if idle.NowReading != nil || idle.LastPoem == nil || idle.LastPoem.Key != "new" {
+		t.Fatalf("stale push should only show the last poem: %+v", idle)
+	}
+	empty := buildPublicProfile(u, AccountData{}, 0, now)
+	if empty.NowReading != nil || empty.LastPoem != nil || empty.Favorites == nil {
+		t.Fatalf("empty account: %+v", empty)
+	}
+	if !historyHeadChanged(nil, d.History) || historyHeadChanged(d.History, d.History) ||
+		!historyHeadChanged(d.History, []Entry{entry("new", 10)}) || historyHeadChanged(d.History, nil) {
+		t.Fatal("historyHeadChanged")
+	}
+}
+
 func TestRateLimiter(t *testing.T) {
 	l := newRateLimiter(2, 60_000_000_000)
 	if !l.allow("ip") || !l.allow("ip") || l.allow("ip") || !l.allow("other") {
 		t.Fatal("limiter should allow 2 per key")
+	}
+}
+
+func TestMigrateOldDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "old.db")
+	db, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
+		password_hash TEXT NOT NULL, created_at INTEGER NOT NULL, data TEXT NOT NULL DEFAULT '{}');
+		INSERT INTO users (username, display_name, password_hash, created_at) VALUES ('saadi', 'سعدی', 'x', 1)`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	for range 2 { // the second open must be a no-op
+		store, err := openStore(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.publicProfile(t.Context(), "saadi"); err != nil {
+			t.Fatalf("existing users should default to public: %v", err)
+		}
+		store.db.Close()
+	}
+}
+
+func TestRecoveryCodes(t *testing.T) {
+	code, err := newRecoveryCode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(code) != 19 || strings.Count(code, "-") != 3 || strings.ContainsAny(code, "ILOU") {
+		t.Fatalf("unexpected code format %q", code)
+	}
+	hash, err := hashRecoveryCode(code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	typed := strings.ToLower(strings.ReplaceAll(code, "-", " "))
+	if !verifyRecoveryCode(code, hash) || !verifyRecoveryCode(typed, hash) {
+		t.Fatal("a code should verify however it is typed")
+	}
+	if normalizeRecoveryCode("o1l-i") != "0111" {
+		t.Fatalf("Crockford look-alikes: %q", normalizeRecoveryCode("o1l-i"))
+	}
+	if verifyRecoveryCode("", hash) || verifyRecoveryCode(code[:18], hash) {
+		t.Fatal("empty or short codes must not verify")
+	}
+}
+
+func TestValidateProfile(t *testing.T) {
+	in, err := validateProfile(ProfileInput{Username: " Saadi ", DisplayName: "", Avatar: "tulip"})
+	if err != nil || in.Username != "saadi" || in.DisplayName != "saadi" || in.Avatar != "tulip" {
+		t.Fatalf("valid profile rejected or not cleaned: %+v %v", in, err)
+	}
+	for _, bad := range []ProfileInput{{Username: "ab"}, {Username: "saadi", Avatar: "moon"}} {
+		if _, err := validateProfile(bad); err == nil {
+			t.Errorf("expected rejection for %+v", bad)
+		}
+	}
+}
+
+func TestCredentialsFlow(t *testing.T) {
+	store, err := openStore(filepath.Join(t.TempDir(), "accounts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.db.Close()
+	handler := newServer(store).routes()
+	do := func(method, path, body, cookie string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		if cookie != "" {
+			req.Header.Set("Cookie", cookie)
+		}
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+	cookieOf := func(res *httptest.ResponseRecorder) string {
+		return strings.SplitN(res.Header().Get("Set-Cookie"), ";", 2)[0]
+	}
+	var withCode struct {
+		User         User   `json:"user"`
+		RecoveryCode string `json:"recoveryCode"`
+	}
+
+	res := do("POST", "/api/account/signup", `{"username":"rumi","password":"masnavi-123"}`, "")
+	if err := json.Unmarshal(res.Body.Bytes(), &withCode); err != nil || res.Code != http.StatusCreated || withCode.RecoveryCode == "" || !withCode.User.HasRecoveryCode {
+		t.Fatalf("signup should return a recovery code: %d %s", res.Code, res.Body)
+	}
+	firstCode, cookie := withCode.RecoveryCode, cookieOf(res)
+
+	// Forgot password: unknown user and wrong code fail identically.
+	unknown := do("POST", "/api/account/reset", `{"username":"nobody","recoveryCode":"`+firstCode+`","newPassword":"new-password-1"}`, "")
+	wrong := do("POST", "/api/account/reset", `{"username":"rumi","recoveryCode":"0000-0000-0000-0000","newPassword":"new-password-1"}`, "")
+	if unknown.Code != http.StatusUnauthorized || wrong.Code != http.StatusUnauthorized || unknown.Body.String() != wrong.Body.String() {
+		t.Fatalf("reset failures must be identical 401s: %d %s / %d %s", unknown.Code, unknown.Body, wrong.Code, wrong.Body)
+	}
+	res = do("POST", "/api/account/reset", `{"username":"RUMI","recoveryCode":"`+strings.ToLower(firstCode)+`","newPassword":"new-password-1"}`, "")
+	if err := json.Unmarshal(res.Body.Bytes(), &withCode); err != nil || res.Code != http.StatusOK || withCode.RecoveryCode == firstCode {
+		t.Fatalf("reset with the code: %d %s", res.Code, res.Body)
+	}
+	secondCode, resetCookie := withCode.RecoveryCode, cookieOf(res)
+	if do("GET", "/api/account/me", "", cookie).Code != http.StatusUnauthorized {
+		t.Fatal("a reset must sign out existing sessions")
+	}
+	if do("GET", "/api/account/me", "", resetCookie).Code != http.StatusOK {
+		t.Fatal("the reset should leave the user signed in")
+	}
+	if do("POST", "/api/account/reset", `{"username":"rumi","recoveryCode":"`+firstCode+`","newPassword":"new-password-2"}`, "").Code != http.StatusUnauthorized {
+		t.Fatal("a used recovery code must not work twice")
+	}
+	if do("POST", "/api/account/login", `{"username":"rumi","password":"new-password-1"}`, "").Code != http.StatusOK {
+		t.Fatal("login with the new password")
+	}
+
+	// Change password: needs the current one.
+	if res := do("PUT", "/api/account/password", `{"currentPassword":"masnavi-123","newPassword":"third-password"}`, resetCookie); res.Code != http.StatusForbidden {
+		t.Fatalf("wrong current password: %d", res.Code)
+	}
+	res = do("PUT", "/api/account/password", `{"currentPassword":"new-password-1","newPassword":"third-password"}`, resetCookie)
+	if res.Code != http.StatusOK {
+		t.Fatalf("change password: %d %s", res.Code, res.Body)
+	}
+	cookie = cookieOf(res)
+	if do("GET", "/api/account/me", "", resetCookie).Code != http.StatusUnauthorized || do("GET", "/api/account/me", "", cookie).Code != http.StatusOK {
+		t.Fatal("changing the password should replace the session")
+	}
+
+	// New recovery code: needs the password; the previous code stops working.
+	if res := do("POST", "/api/account/recovery-code", `{"password":"wrong"}`, cookie); res.Code != http.StatusForbidden {
+		t.Fatalf("recovery code without the password: %d", res.Code)
+	}
+	res = do("POST", "/api/account/recovery-code", `{"password":"third-password"}`, cookie)
+	if err := json.Unmarshal(res.Body.Bytes(), &withCode); err != nil || res.Code != http.StatusOK || withCode.RecoveryCode == secondCode {
+		t.Fatalf("new recovery code: %d %s", res.Code, res.Body)
+	}
+	if do("POST", "/api/account/reset", `{"username":"rumi","recoveryCode":"`+secondCode+`","newPassword":"new-password-2"}`, "").Code != http.StatusUnauthorized {
+		t.Fatal("a replaced recovery code must not work")
+	}
+
+	// Profile: rename, avatar, conflicts.
+	do("POST", "/api/account/signup", `{"username":"saadi","password":"golestan-12"}`, "")
+	if res := do("PUT", "/api/account/profile", `{"username":"saadi","displayName":"x","avatar":""}`, cookie); res.Code != http.StatusConflict {
+		t.Fatalf("taken username: %d", res.Code)
+	}
+	if res := do("PUT", "/api/account/profile", `{"username":"rumi","displayName":"x","avatar":"moon"}`, cookie); res.Code != http.StatusBadRequest {
+		t.Fatalf("unknown avatar: %d", res.Code)
+	}
+	if res := do("PUT", "/api/account/profile", `{"username":"Molana","displayName":"مولانا","avatar":"candle"}`, cookie); res.Code != http.StatusOK {
+		t.Fatalf("update profile: %d %s", res.Code, res.Body)
+	}
+	me := do("GET", "/api/account/me", "", cookie).Body.String()
+	if !strings.Contains(me, `"username":"molana"`) || !strings.Contains(me, `"avatar":"candle"`) {
+		t.Fatalf("profile not updated: %s", me)
+	}
+	if public := do("GET", "/api/account/users/molana", "", "").Body.String(); !strings.Contains(public, `"avatar":"candle"`) || strings.Contains(public, "recovery") {
+		t.Fatalf("public profile: %s", public)
 	}
 }

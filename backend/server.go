@@ -19,6 +19,12 @@ const (
 	maxBodyBytes  = 256 << 10
 	// One message for every login failure so it never says which part was wrong.
 	loginFailedMessage = "نام کاربری یا گذرواژه درست نیست."
+	// Same answer for unknown and private profiles.
+	profileNotFoundMessage = "این نمایه پیدا نشد."
+	// Same answer for an unknown username, a wrong code and an account without one.
+	resetFailedMessage   = "نام کاربری یا کد بازیابی درست نیست."
+	tooManyMessage       = "تلاش‌ها بیش از حد بود. کمی بعد دوباره امتحان کنید."
+	wrongPasswordMessage = "گذرواژهٔ فعلی درست نیست."
 )
 
 type server struct {
@@ -45,6 +51,12 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/account/logout", s.handleLogout)
 	mux.HandleFunc("GET /api/account/me", s.handleMe)
 	mux.HandleFunc("PUT /api/account/data", s.handleData)
+	mux.HandleFunc("PUT /api/account/visibility", s.handleVisibility)
+	mux.HandleFunc("PUT /api/account/profile", s.handleProfile)
+	mux.HandleFunc("PUT /api/account/password", s.handlePassword)
+	mux.HandleFunc("POST /api/account/recovery-code", s.handleRecoveryCode)
+	mux.HandleFunc("POST /api/account/reset", s.handleReset)
+	mux.HandleFunc("GET /api/account/users/{username}", s.handlePublicProfile)
 	return mux
 }
 
@@ -52,7 +64,7 @@ func (s *server) routes() http.Handler {
 
 func (s *server) handleSignup(w http.ResponseWriter, r *http.Request) {
 	if !s.limiter.allow(clientIP(r)) {
-		writeError(w, http.StatusTooManyRequests, "تلاش‌ها بیش از حد بود. کمی بعد دوباره امتحان کنید.")
+		writeError(w, http.StatusTooManyRequests, tooManyMessage)
 		return
 	}
 	var in SignupInput
@@ -64,12 +76,17 @@ func (s *server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	hash, err := withHashSlot(s, func() (string, error) { return hashPassword(in.Password) })
+	recoveryCode, err := newRecoveryCode()
 	if err != nil {
 		internalError(w, err)
 		return
 	}
-	user, err := s.store.createUser(r.Context(), in, hash)
+	hash, recoveryHash, err := hashPair(s, in.Password, recoveryCode)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	user, err := s.store.createUser(r.Context(), in, hash, recoveryHash)
 	if errors.Is(err, errUsernameTaken) {
 		// shortcut: sign-up has to say a name is taken, which reveals that the
 		// account exists; the rate limit above keeps bulk probing slow.
@@ -83,12 +100,13 @@ func (s *server) handleSignup(w http.ResponseWriter, r *http.Request) {
 	if !s.startSession(w, r, user) {
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"user": user})
+	// The only time this code is shown; the client asks the user to keep it.
+	writeJSON(w, http.StatusCreated, map[string]any{"user": user, "recoveryCode": recoveryCode})
 }
 
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if !s.limiter.allow(clientIP(r)) {
-		writeError(w, http.StatusTooManyRequests, "تلاش‌ها بیش از حد بود. کمی بعد دوباره امتحان کنید.")
+		writeError(w, http.StatusTooManyRequests, tooManyMessage)
 		return
 	}
 	var in struct {
@@ -167,6 +185,204 @@ func (s *server) handleData(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"data": data})
 }
 
+func (s *server) handleVisibility(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.currentUser(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		IsPublic bool `json:"isPublic"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	if err := s.store.setPublic(r.Context(), user.ID, in.IsPublic); err != nil {
+		internalError(w, err)
+		return
+	}
+	user.IsPublic = in.IsPublic
+	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+}
+
+func (s *server) handleProfile(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.currentUser(w, r)
+	if !ok {
+		return
+	}
+	var in ProfileInput
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	in, err := validateProfile(in)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.store.updateProfile(r.Context(), user.ID, in); errors.Is(err, errUsernameTaken) {
+		writeError(w, http.StatusConflict, "این نام کاربری قبلاً گرفته شده است.")
+		return
+	} else if err != nil {
+		internalError(w, err)
+		return
+	}
+	user.Username, user.DisplayName, user.Avatar = in.Username, in.DisplayName, in.Avatar
+	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+}
+
+// handlePassword changes the password given the current one. Every other
+// session is signed out; this one continues on a fresh session.
+func (s *server) handlePassword(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.currentUser(w, r)
+	if !ok {
+		return
+	}
+	if !s.limiter.allow(clientIP(r)) {
+		writeError(w, http.StatusTooManyRequests, tooManyMessage)
+		return
+	}
+	var in struct {
+		CurrentPassword string `json:"currentPassword"`
+		NewPassword     string `json:"newPassword"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	if !validPassword(in.NewPassword) {
+		writeError(w, http.StatusBadRequest, errBadPassword.Error())
+		return
+	}
+	if !s.checkPassword(w, r, user, in.CurrentPassword) {
+		return
+	}
+	hash, err := withHashSlot(s, func() (string, error) { return hashPassword(in.NewPassword) })
+	if err == nil {
+		err = s.store.setCredentials(r.Context(), user.ID, hash, "")
+	}
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	if !s.startSession(w, r, user) {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+}
+
+// handleRecoveryCode replaces the recovery code. It asks for the password so a
+// stolen session alone cannot take over the account's way back in.
+func (s *server) handleRecoveryCode(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.currentUser(w, r)
+	if !ok {
+		return
+	}
+	if !s.limiter.allow(clientIP(r)) {
+		writeError(w, http.StatusTooManyRequests, tooManyMessage)
+		return
+	}
+	var in struct {
+		Password string `json:"password"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	if !s.checkPassword(w, r, user, in.Password) {
+		return
+	}
+	code, err := newRecoveryCode()
+	var hash string
+	if err == nil {
+		hash, err = withHashSlot(s, func() (string, error) { return hashRecoveryCode(code) })
+	}
+	if err == nil {
+		err = s.store.setCredentials(r.Context(), user.ID, "", hash)
+	}
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	user.HasRecoveryCode = true
+	writeJSON(w, http.StatusOK, map[string]any{"user": user, "recoveryCode": code})
+}
+
+// handleReset is "forgot password": username + recovery code sets a new
+// password. The code is used up and replaced, every session is signed out,
+// and the user continues signed in with the new code to keep.
+func (s *server) handleReset(w http.ResponseWriter, r *http.Request) {
+	if !s.limiter.allow(clientIP(r)) {
+		writeError(w, http.StatusTooManyRequests, tooManyMessage)
+		return
+	}
+	var in struct {
+		Username     string `json:"username"`
+		RecoveryCode string `json:"recoveryCode"`
+		NewPassword  string `json:"newPassword"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	if !validPassword(in.NewPassword) {
+		writeError(w, http.StatusBadRequest, errBadPassword.Error())
+		return
+	}
+	user, recoveryHash, err := s.store.userForRecovery(r.Context(), normalizeUsername(in.Username))
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		internalError(w, err)
+		return
+	}
+	// Unknown users and accounts without a code still pay for a hash check, so
+	// timing does not reveal either.
+	usable := err == nil && recoveryHash != ""
+	if !usable {
+		recoveryHash = dummyHash()
+	}
+	code := in.RecoveryCode
+	if len(code) > 64 {
+		code = ""
+	}
+	valid, _ := withHashSlot(s, func() (bool, error) { return verifyRecoveryCode(code, recoveryHash), nil })
+	if !usable || !valid {
+		writeError(w, http.StatusUnauthorized, resetFailedMessage)
+		return
+	}
+	newCode, err := newRecoveryCode()
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	hash, newRecoveryHash, err := hashPair(s, in.NewPassword, newCode)
+	if err == nil {
+		err = s.store.setCredentials(r.Context(), user.ID, hash, newRecoveryHash)
+	}
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	if !s.startSession(w, r, user) {
+		return
+	}
+	user.HasRecoveryCode = true
+	writeJSON(w, http.StatusOK, map[string]any{"user": user, "recoveryCode": newCode})
+}
+
+// handlePublicProfile serves /@username: read-only, no session needed.
+func (s *server) handlePublicProfile(w http.ResponseWriter, r *http.Request) {
+	username := normalizeUsername(r.PathValue("username"))
+	if !usernamePattern.MatchString(username) {
+		writeError(w, http.StatusNotFound, profileNotFoundMessage)
+		return
+	}
+	profile, err := s.store.publicProfile(r.Context(), username)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusNotFound, profileNotFoundMessage)
+		return
+	}
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"profile": profile})
+}
+
 // --- sessions ------------------------------------------------------------------
 
 func (s *server) startSession(w http.ResponseWriter, r *http.Request, user User) bool {
@@ -212,6 +428,33 @@ func setSessionCookie(w http.ResponseWriter, value string, maxAge int) {
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+// checkPassword verifies the signed-in user's current password, answering 403 when it is wrong.
+func (s *server) checkPassword(w http.ResponseWriter, r *http.Request, user User, password string) bool {
+	hash, err := s.store.passwordHash(r.Context(), user.ID)
+	if err != nil {
+		internalError(w, err)
+		return false
+	}
+	if len(password) > maxPasswordLen*4 {
+		password = ""
+	}
+	ok, _ := withHashSlot(s, func() (bool, error) { return verifyPassword(password, hash), nil })
+	if !ok {
+		writeError(w, http.StatusForbidden, wrongPasswordMessage)
+	}
+	return ok
+}
+
+// hashPair hashes a new password and recovery code together.
+func hashPair(s *server, password, recoveryCode string) (string, string, error) {
+	hash, err := withHashSlot(s, func() (string, error) { return hashPassword(password) })
+	if err != nil {
+		return "", "", err
+	}
+	recoveryHash, err := withHashSlot(s, func() (string, error) { return hashRecoveryCode(recoveryCode) })
+	return hash, recoveryHash, err
 }
 
 func withHashSlot[T any](s *server, fn func() (T, error)) (T, error) {

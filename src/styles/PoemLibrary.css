@@ -362,41 +362,79 @@
   padding: 1rem;
   margin-bottom: 1.75rem;
 }
-.account-hero-avatar {
+/* Default profile picture (ProfileAvatar): a poetry motif in ink on the same quiet
+   muted gradient as the login verse panel, so it follows every theme. */
+.profile-avatar {
   display: inline-grid;
   place-items: center;
+  flex-shrink: 0;
   width: 3.5rem;
   height: 3.5rem;
   border-radius: 999px;
-  background: rgb(var(--primary));
-  color: rgb(var(--primary-foreground));
-  font-size: 1.4rem;
-  font-weight: 800;
+  background: linear-gradient(145deg, rgb(var(--muted)), rgb(var(--background)));
+  box-shadow: inset 0 0 0 1px rgb(var(--border));
+  color: rgb(var(--foreground) / 0.78);
 }
+.profile-avatar svg { width: 58%; height: 58%; }
+.account-hero-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
+
+/* Recovery code (sign-up, forgot password, settings). */
+.recovery-panel { display: flex; flex-direction: column; gap: 1rem; }
+.recovery-panel-text { margin: 0; font-size: 0.85rem; line-height: 1.9; color: rgb(var(--muted-foreground)); }
+.recovery-code-row { display: flex; align-items: center; gap: 0.6rem; }
+.recovery-code {
+  flex: 1;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.75rem;
+  background: rgb(var(--muted));
+  box-shadow: inset 0 0 0 1px rgb(var(--border));
+  font-family: ui-monospace, "Vazir Code", monospace;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  user-select: all;
+}
+.recovery-confirm { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer; }
+.recovery-confirm input { width: 1.05rem; height: 1.05rem; accent-color: rgb(var(--primary)); }
+.auth-text-button {
+  align-self: center;
+  border: 0;
+  background: none;
+  padding: 0.2rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: rgb(var(--muted-foreground));
+  cursor: pointer;
+}
+.auth-text-button:hover { color: rgb(var(--foreground)); text-decoration: underline; }
+
+/* Account settings. */
+.settings-card { padding: 1rem; }
+.settings-description { margin: 0 0 1rem; font-size: 0.82rem; line-height: 1.9; color: rgb(var(--muted-foreground)); }
+.settings-submit { align-self: flex-start; border-radius: 999px !important; }
+.settings-done { margin: 0; font-size: 0.82rem; color: rgb(var(--foreground) / 0.8); }
+.avatar-picker { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.avatar-picker-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 0.9rem;
+  background: none;
+  font: inherit;
+  font-size: 0.72rem;
+  color: rgb(var(--muted-foreground));
+  cursor: pointer;
+}
+.avatar-picker-option .profile-avatar { width: 3rem; height: 3rem; transition: box-shadow 0.15s ease; }
+.avatar-picker-option[aria-checked="true"] { color: rgb(var(--foreground)); }
+.avatar-picker-option[aria-checked="true"] .profile-avatar { box-shadow: inset 0 0 0 1px rgb(var(--border)), 0 0 0 2px rgb(var(--foreground) / 0.8); }
+.avatar-picker-option:focus-visible { outline: 2px solid rgb(var(--ring) / 0.7); outline-offset: 2px; }
 .account-hero-text { display: grid; gap: 0.15rem; min-width: 0; }
 .account-hero-text strong { font-size: 1.15rem; font-weight: 800; }
 .account-hero-text > span { font-size: 0.78rem; color: rgb(var(--muted-foreground)); }
-.account-logout { border-radius: 999px !important; }
-.account-stats {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid rgb(var(--border));
-}
-.account-stat {
-  display: grid;
-  justify-items: center;
-  gap: 0.1rem;
-  padding: 0.4rem;
-  border-radius: var(--radius);
-  color: inherit;
-  text-decoration: none;
-}
-.account-stat:hover { background: rgb(var(--muted)); }
-.account-stat strong { font-size: 1.15rem; font-weight: 800; }
-.account-stat span { font-size: 0.75rem; color: rgb(var(--muted-foreground)); }
 .account-section-link {
   display: inline-flex;
   align-items: center;
@@ -406,3 +444,57 @@
   text-decoration: none;
 }
 .account-section-link svg { width: 0.6rem; height: 0.6rem; }
+.account-pill { border-radius: 999px !important; }
+
+/* Profile: now reading / last poem, public-profile settings. */
+.profile-count { font-weight: 500; color: rgb(var(--muted-foreground)); }
+.profile-poem--live .app-row-icon { background: rgb(var(--primary) / 0.12); }
+.profile-live-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgb(var(--primary));
+  box-shadow: 0 0 0 0 rgb(var(--primary) / 0.5);
+  animation: profile-live-pulse 1.8s ease-out infinite;
+}
+@keyframes profile-live-pulse {
+  70% { box-shadow: 0 0 0 0.5rem rgb(var(--primary) / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(var(--primary) / 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-live-dot { animation: none; }
+}
+.profile-more {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  text-align: center;
+  color: rgb(var(--muted-foreground));
+}
+.profile-public {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1.75rem;
+}
+.profile-public-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+.profile-public-row + .profile-public-row {
+  padding-top: 0.75rem;
+  border-top: 1px solid rgb(var(--border));
+}
+.profile-public-text { display: grid; gap: 0.15rem; min-width: 0; }
+.profile-public-text strong { font-size: 0.95rem; font-weight: 800; }
+.profile-public-text span { font-size: 0.78rem; line-height: 1.7; color: rgb(var(--muted-foreground)); }
+.profile-public-link {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgb(var(--foreground) / 0.85);
+}

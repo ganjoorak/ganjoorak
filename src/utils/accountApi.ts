@@ -1,3 +1,4 @@
+import type { AvatarKey } from "@/components/ProfileAvatar";
 import type { PoemLibraryEntry } from "@/utils/poemLibrary";
 
 // Thin client for the Go accounts service (backend/), reached same-origin
@@ -7,6 +8,29 @@ export interface AccountUser {
   username: string;
   displayName: string;
   createdAt: number;
+  /** Whether /@username is visible to others. */
+  isPublic: boolean;
+  /** Chosen profile picture motif; "" picks one from the username. */
+  avatar: AvatarKey | "";
+  /** False for accounts made before recovery codes existed. */
+  hasRecoveryCode: boolean;
+}
+
+/**
+ * What anyone sees at /@username (GET /api/account/users/:username). The
+ * service builds it from an allow-list: no followed poets, no full history.
+ */
+export interface PublicProfile {
+  username: string;
+  displayName: string;
+  avatar: AvatarKey | "";
+  createdAt: number;
+  /** Set while the owner opened this poem in the last ~20 minutes. */
+  nowReading: PoemLibraryEntry | null;
+  lastPoem: PoemLibraryEntry | null;
+  /** Newest liked poems, capped by the service; see favoriteCount. */
+  favorites: PoemLibraryEntry[];
+  favoriteCount: number;
 }
 
 export interface AccountData {
@@ -59,8 +83,9 @@ const request = async <T>(
 export const fetchAccount = () =>
   request<{ user: AccountUser; data: AccountData }>("me");
 
+/** The recovery code in the answer is shown to the user once and never again. */
 export const signUp = (username: string, password: string, displayName: string) =>
-  request<{ user: AccountUser }>("signup", {
+  request<{ user: AccountUser; recoveryCode: string }>("signup", {
     method: "POST",
     json: { username, password, displayName },
   });
@@ -83,3 +108,34 @@ export const saveAccountData = (
     json: { data, merge },
     keepalive,
   });
+
+export const setProfileVisibility = (isPublic: boolean) =>
+  request<{ user: AccountUser }>("visibility", {
+    method: "PUT",
+    json: { isPublic },
+  });
+
+/** Forgot password: the code is used up and a new one comes back to show once. */
+export const resetPassword = (username: string, recoveryCode: string, newPassword: string) =>
+  request<{ user: AccountUser; recoveryCode: string }>("reset", {
+    method: "POST",
+    json: { username, recoveryCode, newPassword },
+  });
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  request<{ user: AccountUser }>("password", {
+    method: "PUT",
+    json: { currentPassword, newPassword },
+  });
+
+export const createRecoveryCode = (password: string) =>
+  request<{ user: AccountUser; recoveryCode: string }>("recovery-code", {
+    method: "POST",
+    json: { password },
+  });
+
+export const updateProfile = (profile: { username: string; displayName: string; avatar: AvatarKey | "" }) =>
+  request<{ user: AccountUser }>("profile", { method: "PUT", json: profile });
+
+/** The shareable address of a profile, e.g. /@hadi (rewritten to /u/hadi). */
+export const publicProfilePath = (username: string) => `/@${username}`;
