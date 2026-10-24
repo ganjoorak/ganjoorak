@@ -156,6 +156,32 @@
   padding: 0;
 }
 .app-segmented.poets-view-toggle > button svg { width: 0.85rem; height: 0.85rem; }
+/* The active background is one thumb that slides between the two buttons
+   (RTL: «list» sits left of «grid», one button + gap away). */
+.poets-view-toggle { position: relative; isolation: isolate; }
+.app-segmented.poets-view-toggle > button[aria-pressed="true"] { background: transparent; box-shadow: none; }
+.poets-view-thumb {
+  position: absolute;
+  z-index: -1;
+  inset-block: 0.25rem;
+  inset-inline-start: 0.25rem;
+  width: 2.25rem;
+  border-radius: 999px;
+  background: rgb(var(--background));
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 0 0 1px rgb(var(--border));
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.poets-view-toggle[data-view="list"] .poets-view-thumb { transform: translateX(-2.5rem); }
+
+/* Switching tab, filter or view fades the new list in. */
+.poets-collection { animation: poets-collection-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) both; }
+@keyframes poets-collection-in {
+  from { opacity: 0; transform: translateY(0.4rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .poets-view-thumb { transition: none; }
+  .poets-collection { animation: none; }
+}
 
 @media (min-width: 900px) {
   .poets-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 36rem); align-items: center; }

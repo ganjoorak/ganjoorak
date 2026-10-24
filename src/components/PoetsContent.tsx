@@ -11,7 +11,7 @@ import { buildPoetFollowKey, useFollowPoet } from "@/hooks/useFollowPoet";
 import { useSettings } from "@/context/SettingsContext";
 import "@/styles/Poets.css";
 import { Empty, EmptyDescription, EmptyIcon } from "@/components/ui/empty";
-import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs";
+import { Tabs, TabsIndicator, TabsList, TabsTab } from "@/components/ui/tabs";
 
 const persianNumber = new Intl.NumberFormat("fa-IR");
 const OTHER_MODERN_GROUP = "دیگر شاعران";
@@ -292,7 +292,8 @@ export default function PoetsContent({
   };
 
   const viewToggle = (
-    <div className="app-segmented poets-view-toggle" role="group" aria-label="شیوه نمایش">
+    <div className="app-segmented poets-view-toggle" role="group" aria-label="شیوه نمایش" data-view={view}>
+      <span className="poets-view-thumb" aria-hidden="true" />
       <button
         type="button"
         aria-pressed={view === "grid"}
@@ -353,9 +354,14 @@ export default function PoetsContent({
               }}
               className="min-w-0 flex-1"
             >
-              <TabsList className="poets-tabs" aria-label="دسته‌های شاعران" onWheel={handleChipWheel}>
+              <TabsList className="poets-tabs relative" aria-label="دسته‌های شاعران" onWheel={handleChipWheel}>
+              <TabsIndicator />
               {tabs.map((item) => (
-                <TabsTab key={item.id} value={item.id}>
+                <TabsTab
+                  key={item.id}
+                  value={item.id}
+                  className="relative data-active:bg-transparent data-active:shadow-none"
+                >
                   {item.label}
                   {item.id === "following" && item.count > 0 && (
                     <span className="poets-tab-count">{persianNumber.format(item.count)}</span>
@@ -403,7 +409,10 @@ export default function PoetsContent({
       </div>
 
       {visible.length > 0 ? (
-        <PoetCollection entries={visible} view={view} />
+        // Re-keyed per tab, filter and view so the new list fades in; typing a search keeps it.
+        <div key={normalizedQuery ? "search" : `${tab}:${activeFilter}:${view}`} className="poets-collection">
+          <PoetCollection entries={visible} view={view} />
+        </div>
       ) : (
         <Empty>
           <EmptyIcon>{normalizedQuery ? <FaSearch /> : <FaPlus />}</EmptyIcon>
