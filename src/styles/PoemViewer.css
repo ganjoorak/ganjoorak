@@ -469,6 +469,52 @@ a.poem-eyebrow-chip:focus-visible {
     text-shadow: 0 0 8px rgb(var(--foreground) / 0.3);
 }
 
+/* Set by PoemViewer when the widest couplet can't fit side by side (tablet widths):
+   the phone layout, one mesra per line, at the desktop verse size. */
+.poem-text--stacked .verse-pair {
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 1.5rem;
+    padding: 0;
+}
+
+.poem-text--stacked .verse-line {
+    max-width: 100%;
+    padding: 0 0.5rem;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.poem-text--stacked .verse-pair .verse-line:first-child {
+    padding-inline-start: 0.5rem;
+}
+
+.poem-text--stacked .verse-pair .verse-line:first-child::after {
+    display: none;
+}
+
+.poem-text--stacked .verse-pair:not(.verse-pair-numbered):not(:last-child)::after {
+    content: "•";
+    position: absolute;
+    right: 50%;
+    bottom: -1rem;
+    transform: translateX(50%);
+    font-size: 0.75rem;
+    opacity: 0.4;
+    line-height: 1;
+}
+
+.poem-text--stacked .verse-pair-numbered {
+    padding-right: 0;
+    padding-top: 1.9rem;
+}
+
+.poem-text--stacked .verse-pair-numbered::before {
+    top: 0.8rem;
+    right: 50%;
+    transform: translate(50%, -50%);
+}
+
 .poem-navigation-frame {
     display: flex;
     flex-direction: column;

@@ -2,7 +2,7 @@
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaShare,
@@ -893,6 +893,38 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
   useHideOnScroll(poemTextRef, poem.id);
 
+  // Mesras sit side by side and never wrap; on tablet-width screens a long couplet can be wider than the
+  // poem column. Stack the mesras (as on phones) only for poems whose widest couplet doesn't fit.
+  const [isStacked, setIsStacked] = useState(false);
+  useLayoutEffect(() => {
+    const poemText = poemTextRef.current;
+    if (!poemText) return;
+
+    const measure = () => {
+      // Test the side-by-side layout without painting it: drop the class, read, restore.
+      const wasStacked = poemText.classList.contains("poem-text--stacked");
+      poemText.classList.remove("poem-text--stacked");
+      const overflows = poemText.scrollWidth > poemText.clientWidth + 1;
+      if (wasStacked) poemText.classList.add("poem-text--stacked");
+      setIsStacked(overflows);
+    };
+
+    measure();
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(poemText);
+    // Font and verse-size settings change mesra widths without resizing the column.
+    const settingsObserver = new MutationObserver(measure);
+    settingsObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-font", "data-poem-font-size", "style"],
+    });
+    document.fonts?.ready.then(measure).catch(() => undefined);
+    return () => {
+      resizeObserver.disconnect();
+      settingsObserver.disconnect();
+    };
+  }, [poem.id]);
+
   const pullSheetRef = useRef<HTMLDivElement>(null);
   // Once a pull commits, the sheet keeps showing the poem it committed to while it fades out, even though
   // the page has already computed a new "next" for the poem that just landed.
@@ -1069,6 +1101,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     !isAudioPlayerVisible ? "poem-text--no-audio" : "",
     isMinimalPoemView ? "poem-text--minimal" : "",
     showTitleSection ? "poem-text--title-in-flow" : "",
+    isStacked ? "poem-text--stacked" : "",
   ]
     .filter(Boolean)
     .join(" ");
