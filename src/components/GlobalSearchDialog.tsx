@@ -558,7 +558,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
         initialFocus={inputRef}
         className="h-[min(88dvh,46rem)] text-right sm:max-w-3xl"
       >
-              <DialogHeader className="gap-3 border-b pb-4">
+              <DialogHeader className="gap-3 border-b border-border pb-4">
                 <div className="flex items-center justify-between gap-4">
                   <DialogTitle>جست‌وجو</DialogTitle>
                   <Button variant="ghost" size="icon" className="size-11" onClick={onClose} aria-label="بستن">
