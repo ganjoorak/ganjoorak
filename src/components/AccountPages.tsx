@@ -14,7 +14,14 @@ import {
 } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
 import { PoemLibraryList, useLibraryVersion } from "@/components/PoemLibraryPage";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { FieldHint, Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs";
 import { useSettings } from "@/context/SettingsContext";
 import { getInterestByKey } from "@/data/interests";
 import {
@@ -76,28 +83,27 @@ export const LoginPage = () => {
       width="narrow"
       hideSearch
     >
-      <div className="app-card account-card">
-        <div className="app-segmented" role="tablist" aria-label="ورود یا ثبت‌نام">
-          {(["login", "signup"] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={mode === value}
-              onClick={() => {
-                setMode(value);
-                setError("");
-              }}
-            >
-              {value === "login" ? "ورود" : "ثبت‌نام"}
-            </button>
-          ))}
-        </div>
+      <Card className="account-card">
+        <Tabs
+          value={mode}
+          onValueChange={(value) => {
+            setMode(value as typeof mode);
+            setError("");
+          }}
+        >
+          <TabsList aria-label="ورود یا ثبت‌نام">
+            {(["login", "signup"] as const).map((value) => (
+              <TabsTab key={value} value={value}>
+                {value === "login" ? "ورود" : "ثبت‌نام"}
+              </TabsTab>
+            ))}
+          </TabsList>
+        </Tabs>
 
         <form className="account-form" onSubmit={handleSubmit}>
-          <label className="account-field">
+          <Label>
             <span>نام کاربری</span>
-            <input
+            <Input
               name="username"
               dir="ltr"
               autoComplete="username"
@@ -110,25 +116,25 @@ export const LoginPage = () => {
               value={username}
               onChange={(event) => setUsername(event.target.value)}
             />
-            {isSignup && <small>حروف لاتین، رقم یا _ (۳ تا ۳۲ نویسه)</small>}
-          </label>
+            {isSignup && <FieldHint>حروف لاتین، رقم یا _ (۳ تا ۳۲ نویسه)</FieldHint>}
+          </Label>
 
           {isSignup && (
-            <label className="account-field">
+            <Label>
               <span>نام نمایشی (اختیاری)</span>
-              <input
+              <Input
                 name="displayName"
                 autoComplete="nickname"
                 maxLength={50}
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
               />
-            </label>
+            </Label>
           )}
 
-          <label className="account-field">
+          <Label>
             <span>گذرواژه</span>
-            <input
+            <Input
               name="password"
               type="password"
               dir="ltr"
@@ -139,20 +145,18 @@ export const LoginPage = () => {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
-            {isSignup && <small>دست‌کم ۸ نویسه</small>}
-          </label>
+            {isSignup && <FieldHint>دست‌کم ۸ نویسه</FieldHint>}
+          </Label>
 
           {error && (
-            <p className="account-error" role="alert" aria-live="assertive">
-              {error}
-            </p>
+            <FormError>{error}</FormError>
           )}
 
           <Button type="submit" size="lg" className="account-submit" disabled={isSubmitting}>
             {isSubmitting ? "صبر کنید…" : isSignup ? "ساخت حساب" : "ورود"}
           </Button>
         </form>
-      </div>
+      </Card>
 
       <section className="app-section account-benefits">
         <h2 className="app-section-title">با حساب چه می‌ماند</h2>
@@ -211,9 +215,9 @@ export const ProfilePage = () => {
   if (!user) {
     return (
       <AppPage title="حساب من" width="narrow">
-        <div className="app-empty" role={error ? "alert" : "status"}>
-          <p>{error || "در حال بارگذاری حساب…"}</p>
-        </div>
+        <Empty role={error ? "alert" : "status"}>
+          <EmptyDescription>{error || "در حال بارگذاری حساب…"}</EmptyDescription>
+        </Empty>
       </AppPage>
     );
   }
@@ -233,7 +237,7 @@ export const ProfilePage = () => {
 
   return (
     <AppPage title="حساب من" width="narrow">
-      <div className="app-card account-hero">
+      <Card className="account-hero">
         <span className="account-hero-avatar" aria-hidden="true">
           {user.displayName.trim().slice(0, 1) || "؟"}
         </span>
@@ -266,7 +270,7 @@ export const ProfilePage = () => {
             </Link>
           ))}
         </div>
-      </div>
+      </Card>
 
       <section className="app-section" aria-labelledby="profile-history">
         <h2 id="profile-history" className="app-section-title">
@@ -303,17 +307,17 @@ export const ProfilePage = () => {
             <FaChevronLeft aria-hidden="true" />
           </Link>
         </h2>
-        <div className="app-card app-card-pad">
+        <Card size="sm" className="px-4">
           {settings.followedPoetKeys.length > 0 ? (
             <ul className="account-chips">
               {settings.followedPoetKeys.map((key) => (
-                <li key={key}>{poetNameForKey(key)}</li>
+                <li key={key}><Badge variant="secondary">{poetNameForKey(key)}</Badge></li>
               ))}
             </ul>
           ) : (
             <p className="app-row-meta">هنوز شاعری را دنبال نمی‌کنید.</p>
           )}
-        </div>
+        </Card>
       </section>
 
       <section className="app-section" aria-labelledby="profile-interests">
@@ -324,17 +328,17 @@ export const ProfilePage = () => {
             <FaChevronLeft aria-hidden="true" />
           </Link>
         </h2>
-        <div className="app-card app-card-pad">
+        <Card size="sm" className="px-4">
           {interests.length > 0 ? (
             <ul className="account-chips">
               {interests.map((label) => (
-                <li key={label}>{label}</li>
+                <li key={label}><Badge variant="secondary">{label}</Badge></li>
               ))}
             </ul>
           ) : (
             <p className="app-row-meta">هنوز علاقه‌مندی‌ای انتخاب نکرده‌اید.</p>
           )}
-        </div>
+        </Card>
       </section>
     </AppPage>
   );

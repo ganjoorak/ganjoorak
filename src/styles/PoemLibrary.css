@@ -218,32 +218,6 @@
 .account-card { display: grid; gap: 1.25rem; padding: 1rem; margin-bottom: 1.75rem; }
 @media (min-width: 768px) { .account-card { padding: 1.5rem; } }
 .account-form { display: grid; gap: 1rem; }
-.account-field { display: grid; gap: 0.4rem; font-size: 0.85rem; font-weight: 700; }
-.account-field small { font-weight: 400; font-size: 0.75rem; color: rgb(var(--muted-foreground)); }
-.account-field input {
-  height: 2.85rem;
-  padding-inline: 0.9rem;
-  border: 1px solid rgb(var(--border));
-  border-radius: calc(var(--radius) + 2px);
-  background: rgb(var(--background));
-  color: inherit;
-  font: inherit;
-  font-weight: 400;
-  font-size: 0.95rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.account-field input:focus-visible {
-  outline: none;
-  border-color: rgb(var(--ring));
-  box-shadow: 0 0 0 3px rgb(var(--ring) / 0.2);
-}
-.account-error {
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius);
-  background: rgb(220 38 38 / 0.1);
-  color: rgb(220 38 38);
-  font-size: 0.85rem;
-}
 .account-submit { width: 100%; border-radius: 999px !important; }
 
 .account-hero {
@@ -299,9 +273,3 @@
 }
 .account-section-link svg { width: 0.6rem; height: 0.6rem; }
 .account-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; margin: 0; padding: 0; }
-.account-chips li {
-  padding: 0.3rem 0.75rem;
-  border-radius: 999px;
-  background: rgb(var(--muted));
-  font-size: 0.82rem;
-}
