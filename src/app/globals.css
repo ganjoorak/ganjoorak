@@ -1115,7 +1115,38 @@ body:has(.menu-drawer) .global-search-button {
     gap: 2rem;
     width: min(100%, 32rem);
     margin: 0 auto;
-    padding: calc(5rem + env(safe-area-inset-top)) 1.25rem 3rem;
+    /* Same top offset as the switch above the poem title (.title-section), so
+       swapping between the poem view and this state doesn't move the switch. */
+    padding: calc(2rem + env(safe-area-inset-top)) 1.25rem 3rem;
+}
+
+@media (max-width: 768px) {
+    .feed-mode-empty-shell {
+        padding-top: calc(1rem + env(safe-area-inset-top));
+    }
+}
+
+@media (max-width: 480px) {
+    .feed-mode-empty-shell {
+        padding-top: calc(10px + 0.85rem + env(safe-area-inset-top));
+    }
+}
+
+.feed-mode-empty-card {
+    animation: feed-mode-empty-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes feed-mode-empty-in {
+    from {
+        opacity: 0;
+        transform: translateY(0.5rem);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .feed-mode-empty-card {
+        animation: none;
+    }
 }
 
 .interest-picker-grid {
