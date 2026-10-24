@@ -4,13 +4,11 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  FaBookmark,
+  FaArrowRight,
   FaChevronLeft,
-  FaHeart,
-  FaHistory,
-  FaMobileAlt,
+  FaEye,
+  FaEyeSlash,
   FaSignOutAlt,
-  FaUsers,
 } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
 import { PoemLibraryList, useLibraryVersion } from "@/components/PoemLibraryPage";
@@ -35,6 +33,14 @@ import "../styles/PoemLibrary.css";
 
 type AuthMode = "login" | "signup";
 
+const AUTH_VERSES = [
+  { poet: "حافظ", lines: ["هرگز نمیرد آن که دلش زنده شد به عشق", "ثبت است بر جریدهٔ عالم دوام ما"] },
+  { poet: "مولانا", lines: ["بشنو این نی چون شکایت می‌کند", "از جدایی‌ها حکایت می‌کند"] },
+  { poet: "سعدی", lines: ["بنی‌آدم اعضای یک پیکرند", "که در آفرینش ز یک گوهرند"] },
+  { poet: "باباطاهر", lines: ["ز دست دیده و دل هر دو فریاد", "که هر چه دیده بیند دل کند یاد"] },
+  { poet: "فردوسی", lines: ["توانا بود هر که دانا بود", "ز دانش دل پیر برنا بود"] },
+];
+
 export const LoginPage = () => {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("login");
@@ -43,8 +49,13 @@ export const LoginPage = () => {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  // Null until mount: picking a verse during render would differ between the
+  // server HTML and the first client render.
+  const [verseIndex, setVerseIndex] = useState<number | null>(null);
 
   useEffect(() => {
+    setVerseIndex(Math.floor(Math.random() * AUTH_VERSES.length));
     fetchAccount()
       .then(() => router.replace("/profile"))
       .catch(() => undefined);
@@ -68,110 +79,165 @@ export const LoginPage = () => {
     }
   };
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/");
+    }
+  };
+
   const isSignup = mode === "signup";
 
   return (
-    <AppPage
-      title={isSignup ? "ساخت حساب" : "ورود به حساب"}
-      subtitle="گنجورک بدون حساب هم کامل کار می‌کند. با حساب، همه‌چیز روی همهٔ دستگاه‌هایتان می‌ماند."
-      width="narrow"
-      hideSearch
-    >
-      <Card className="account-card">
-        <Tabs
-          value={mode}
-          onValueChange={(value) => {
-            setMode(value as typeof mode);
-            setError("");
-          }}
+    <div className="auth-page" dir="rtl">
+      <main className="auth-main">
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          className="auth-back"
+          onClick={handleBack}
+          aria-label="بازگشت"
         >
-          <TabsList aria-label="ورود یا ثبت‌نام">
-            {(["login", "signup"] as const).map((value) => (
-              <TabsTab key={value} value={value}>
-                {value === "login" ? "ورود" : "ثبت‌نام"}
-              </TabsTab>
-            ))}
-          </TabsList>
-        </Tabs>
+          <FaArrowRight />
+        </Button>
+        <div className="auth-main-inner">
+          <header className="auth-header">
+            <h1>{isSignup ? "ساخت حساب" : "ورود به حساب"}</h1>
+            <p>
+              گنجورک بدون حساب هم کامل کار می‌کند. با حساب، همه‌چیز روی همهٔ دستگاه‌هایتان
+              می‌ماند.
+            </p>
+          </header>
 
-        <form className="account-form" onSubmit={handleSubmit}>
-          <Label>
-            <span>نام کاربری</span>
-            <Input
-              name="username"
-              dir="ltr"
-              autoComplete="username"
-              autoCapitalize="none"
-              spellCheck={false}
-              required
-              minLength={3}
-              maxLength={32}
-              pattern="[A-Za-z0-9_]+"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-            />
-            {isSignup && <FieldHint>حروف لاتین، رقم یا _ (۳ تا ۳۲ نویسه)</FieldHint>}
-          </Label>
+          <Card className="auth-card">
+            <Tabs
+              value={mode}
+              onValueChange={(value) => {
+                setMode(value as typeof mode);
+                setError("");
+              }}
+            >
+              <TabsList aria-label="ورود یا ثبت‌نام">
+                {(["login", "signup"] as const).map((value) => (
+                  <TabsTab key={value} value={value}>
+                    {value === "login" ? "ورود" : "ثبت‌نام"}
+                  </TabsTab>
+                ))}
+              </TabsList>
+            </Tabs>
 
-          {isSignup && (
-            <Label>
-              <span>نام نمایشی (اختیاری)</span>
-              <Input
-                name="displayName"
-                autoComplete="nickname"
-                maxLength={50}
-                value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
-              />
-            </Label>
-          )}
+            <form className="account-form" onSubmit={handleSubmit}>
+              <Label>
+                <span>نام کاربری</span>
+                <Input
+                  name="username"
+                  dir="ltr"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  required
+                  minLength={3}
+                  maxLength={32}
+                  pattern="[A-Za-z0-9_]+"
+                  value={username}
+                  onChange={(event) => {
+                    setError("");
+                    setUsername(event.target.value);
+                  }}
+                />
+                {isSignup && <FieldHint>حروف لاتین، رقم یا _ (۳ تا ۳۲ نویسه)</FieldHint>}
+              </Label>
 
-          <Label>
-            <span>گذرواژه</span>
-            <Input
-              name="password"
-              type="password"
-              dir="ltr"
-              autoComplete={isSignup ? "new-password" : "current-password"}
-              required
-              minLength={isSignup ? 8 : undefined}
-              maxLength={128}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-            {isSignup && <FieldHint>دست‌کم ۸ نویسه</FieldHint>}
-          </Label>
+              {isSignup && (
+                <Label>
+                  <span>نام نمایشی (اختیاری)</span>
+                  <Input
+                    name="displayName"
+                    autoComplete="nickname"
+                    maxLength={50}
+                    value={displayName}
+                    onChange={(event) => {
+                      setError("");
+                      setDisplayName(event.target.value);
+                    }}
+                  />
+                </Label>
+              )}
 
-          {error && (
-            <FormError>{error}</FormError>
-          )}
+              <Label>
+                <span>گذرواژه</span>
+                <div className="auth-password">
+                  <Input
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    dir="ltr"
+                    autoComplete={isSignup ? "new-password" : "current-password"}
+                    required
+                    minLength={isSignup ? 8 : undefined}
+                    maxLength={128}
+                    value={password}
+                    className="auth-password-input"
+                    onChange={(event) => {
+                      setError("");
+                      setPassword(event.target.value);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="auth-password-toggle"
+                    onClick={() => setShowPassword((value) => !value)}
+                    aria-label={showPassword ? "پنهان‌کردن گذرواژه" : "نمایش گذرواژه"}
+                    aria-pressed={showPassword}
+                  >
+                    {showPassword ? <FaEyeSlash aria-hidden="true" /> : <FaEye aria-hidden="true" />}
+                  </Button>
+                </div>
+                {isSignup && <FieldHint>دست‌کم ۸ نویسه</FieldHint>}
+              </Label>
 
-          <Button type="submit" size="lg" className="account-submit" disabled={isSubmitting}>
-            {isSubmitting ? "صبر کنید…" : isSignup ? "ساخت حساب" : "ورود"}
-          </Button>
-        </form>
-      </Card>
+              {error && (
+                <FormError>{error}</FormError>
+              )}
 
-      <section className="app-section account-benefits">
-        <h2 className="app-section-title">با حساب چه می‌ماند</h2>
-        <ul className="app-list">
-          {[
-            { icon: <FaBookmark />, title: "نشان‌شده‌ها", meta: "شعرهای ذخیره‌شده" },
-            { icon: <FaUsers />, title: "شاعران دنبال‌شده", meta: "و فید «دنبال‌شده‌ها»" },
-            { icon: <FaHeart />, title: "علاقه‌مندی‌ها", meta: "موضوع‌های فید" },
-            { icon: <FaMobileAlt />, title: "همهٔ دستگاه‌ها", meta: "تاریخچهٔ خواندن همگام می‌شود" },
-          ].map((item) => (
-            <li key={item.title} className="app-row">
-              <span className="app-row-icon" aria-hidden="true">{item.icon}</span>
-              <span className="app-row-body">
-                <span className="app-row-title">{item.title}</span>
-                <span className="app-row-meta">{item.meta}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </AppPage>
+              <Button
+                type="submit"
+                size="lg"
+                className="auth-submit"
+                loading={isSubmitting}
+              >
+                {isSignup ? "ساخت حساب" : "ورود"}
+              </Button>
+            </form>
+          </Card>
+
+          <p className="auth-benefits">
+            نشان‌شده‌ها، شاعران دنبال‌شده و تاریخچهٔ خواندن، روی همهٔ دستگاه‌هایتان
+            می‌ماند.
+          </p>
+        </div>
+      </main>
+
+      <aside className="auth-hero">
+        {verseIndex !== null && (
+          <figure className="auth-hero-verse" key={verseIndex}>
+            <blockquote>
+              {AUTH_VERSES[verseIndex].lines.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </blockquote>
+            <figcaption className="auth-hero-poet">{AUTH_VERSES[verseIndex].poet}</figcaption>
+          </figure>
+        )}
+        <div className="auth-hero-brand">
+          <span className="auth-hero-logo">گنجورک</span>
+          <p className="auth-hero-tagline">راحت‌تر شعر بخوانیم و شعر گوش دهیم.</p>
+          <span className="auth-hero-domain" dir="ltr">ganjoorak.ir</span>
+        </div>
+      </aside>
+    </div>
   );
 };
 
