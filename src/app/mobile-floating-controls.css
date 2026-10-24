@@ -105,7 +105,10 @@
   body:has(.menu-drawer) .poem-feed-lock-button,
   body:has(.settings-backdrop) .menu-button:not(.poem-feed-lock-button),
   body:has(.settings-backdrop) .global-search-button,
-  body:has(.settings-backdrop) .poem-feed-lock-button {
+  body:has(.settings-backdrop) .poem-feed-lock-button,
+  body:has([data-slot="dialog-popup"]) .menu-button:not(.poem-feed-lock-button),
+  body:has([data-slot="dialog-popup"]) .global-search-button,
+  body:has([data-slot="dialog-popup"]) .poem-feed-lock-button {
     opacity: 0 !important;
     pointer-events: none !important;
     transform: translateX(0.4rem) scale(0.96) !important;

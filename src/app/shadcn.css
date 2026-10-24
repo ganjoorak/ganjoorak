@@ -144,9 +144,6 @@ html[data-theme="paper"] { --radius: 0.625rem; }
 :root .audio-progress-bar { background: rgb(var(--primary)); border-radius: 999px; }
 :root .audio-time { color: rgb(var(--muted-foreground)); }
 
-:root .settings-action-button { border-radius: var(--radius); min-height: 44px; font-weight: 500; }
-:root .settings-action-button.primary { background: rgb(var(--primary)); color: rgb(var(--primary-foreground)); border: 1px solid transparent; }
-:root .settings-action-button.secondary { background: rgb(var(--background)); color: rgb(var(--foreground)); border: 1px solid rgb(var(--border)); }
 
 /* Dialogs (PersianLabs Dialog). Hide floating controls behind an open dialog, like the old backdrop rules. */
 :root .lyrics-share-panel[data-slot="dialog-popup"] {

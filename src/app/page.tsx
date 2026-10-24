@@ -15,7 +15,13 @@ import { FaRandom, FaSearch, FaTimes, FaUserPlus, FaUsers } from 'react-icons/fa
 import Link from 'next/link';
 import FeedModeSwitch from '@/components/FeedModeSwitch';
 import FeedModeEmpty from '@/components/FeedModeEmpty';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog';
+import { Empty, EmptyDescription } from '@/components/ui/empty';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs';
+import { Toggle } from '@/components/ui/toggle';
 import type { FeedMode } from '@/context/SettingsContext';
 import poetSourceIndex from '@/data/poet-source-index.json';
 import InterestChipsRail from '@/components/InterestChipsRail';
@@ -273,152 +279,119 @@ function FeedPoetDialog({
     };
 
     return (
-        <div className="settings-backdrop" dir="rtl">
-            <div className="settings-dialog">
-                <section
-                    className="settings-panel max-w-3xl text-right"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="feed-poets-title"
-                >
-                    <header className="settings-header">
-                        <h2 id="feed-poets-title" className="settings-title">
-                            شاعران دنبال‌شده
-                        </h2>
-                        <button
-                            type="button"
-                            className="settings-close"
-                            onClick={onClose}
-                            aria-label="بستن"
-                        >
+        <Dialog
+            open
+            disablePointerDismissal
+            onOpenChange={(open) => {
+                if (!open) onClose();
+            }}
+        >
+            <DialogPopup dir="rtl" showCloseButton={false} className="text-right sm:max-w-3xl">
+                <DialogHeader>
+                    <div className="flex items-center justify-between gap-4">
+                        <DialogTitle>شاعران دنبال‌شده</DialogTitle>
+                        <Button variant="ghost" size="icon" className="size-11" onClick={onClose} aria-label="بستن">
                             <FaTimes />
-                        </button>
-                    </header>
-                    <div className="settings-body">
-                        <div className="settings-form">
-                            <section className="settings-section">
-                                <div className="feed-poet-summary">
-                                    <span><strong>{pendingKeys.length}</strong> شاعر انتخاب شده</span>
-                                    <span><strong>{visiblePoets.length}</strong> شاعر در این دسته</span>
-                                </div>
-                                <form
-                                    className="feed-poet-toolbar"
-                                    onSubmit={(event) => {
-                                        event.preventDefault();
-                                        setSearchTerm(searchInput);
-                                    }}
-                                >
-                                    <label className="feed-poet-search">
-                                        <input
-                                            value={searchInput}
-                                            onChange={(event) =>
-                                                setSearchInput(event.target.value)
-                                            }
-                                            placeholder="جست‌وجوی شاعر"
-                                        />
-                                        <button type="submit" aria-label="جست‌وجو">
-                                            <FaSearch />
-                                        </button>
-                                    </label>
-                                    <button
-                                        type="button"
-                                        className="feed-poet-random"
-                                        onClick={applyRandomSelection}
-                                        aria-label="انتخاب تصادفی"
-                                        title="انتخاب تصادفی"
-                                    >
-                                        <FaRandom />
-                                    </button>
-                                </form>
-                                <div className="feed-poet-tabs" role="tablist">
-                                    {groupNames.map((groupName) => (
-                                        <button
-                                            type="button"
-                                            key={groupName}
-                                            className={`feed-poet-tab${activeGroupName === groupName ? ' active' : ''}`}
-                                            onClick={() => setActiveGroupName(groupName)}
-                                            role="tab"
-                                            aria-selected={activeGroupName === groupName}
-                                        >
-                                            {groupName}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="feed-poet-category-cards">
-                                    {categoryGroups.map((group) => (
-                                        <section key={group.name} className="feed-poet-category-card">
-                                            <header>
-                                                <div>
-                                                    <h3>{group.name}</h3>
-                                                    <span>{group.selectedCount} از {group.poets.length}</span>
-                                                </div>
-                                            </header>
-                                            <div className="feed-poet-category-actions">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => selectGroup(group.poets)}
-                                                >
-                                                    انتخاب همه
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => clearGroup(group.poets)}
-                                                >
-                                                    پاک کردن
-                                                </button>
-                                            </div>
-                                        </section>
-                                    ))}
-                                </div>
-                                <div className="feed-poet-grid">
-                                    {visiblePoets.map((poet) => {
-                                        const key = getPoetKey(poet);
-                                        const isSelected = pendingKeySet.has(key);
-                                        return (
-                                            <button
-                                                type="button"
-                                                key={key}
-                                                className={`feed-poet-option${isSelected ? ' active' : ''}`}
-                                                onClick={() => togglePoet(key)}
-                                                aria-pressed={isSelected}
-                                            >
-                                                {getPoetDisplayName(poet)}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                {visiblePoets.length === 0 && (
-                                    <p className="feed-poet-empty">شاعری با این جست‌وجو پیدا نشد.</p>
-                                )}
-                            </section>
-                        </div>
+                        </Button>
                     </div>
-                    <footer className="settings-actions">
-                        <button
+                </DialogHeader>
+                <DialogPanel className="grid gap-4">
+                    <div className="feed-poet-summary">
+                        <span><strong>{pendingKeys.length}</strong> شاعر انتخاب شده</span>
+                        <span><strong>{visiblePoets.length}</strong> شاعر در این دسته</span>
+                    </div>
+                    <form
+                        className="flex items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            setSearchTerm(searchInput);
+                        }}
+                    >
+                        <div className="relative flex-1">
+                            <Input
+                                value={searchInput}
+                                onChange={(event) => setSearchInput(event.target.value)}
+                                placeholder="جست‌وجوی شاعر"
+                                className="pe-11"
+                            />
+                            <Button type="submit" variant="ghost" size="icon" className="absolute inset-y-0 end-0 h-11 w-11" aria-label="جست‌وجو">
+                                <FaSearch />
+                            </Button>
+                        </div>
+                        <Button
                             type="button"
-                            className="settings-action-button secondary"
-                            onClick={() => setPendingKeys(poets.map(getPoetKey))}
+                            variant="outline"
+                            size="icon"
+                            className="size-11"
+                            onClick={applyRandomSelection}
+                            aria-label="انتخاب تصادفی"
+                            title="انتخاب تصادفی"
                         >
-                            انتخاب همه
-                        </button>
-                        <button
-                            type="button"
-                            className="settings-action-button secondary"
-                            onClick={() => setPendingKeys([])}
-                        >
-                            پاک کردن
-                        </button>
-                        <button
-                            type="button"
-                            className="settings-action-button primary"
-                            onClick={() => onSave(pendingKeys)}
-                        >
-                            ذخیره
-                        </button>
-                    </footer>
-                </section>
-            </div>
-        </div>
+                            <FaRandom />
+                        </Button>
+                    </form>
+                    <Tabs value={activeGroupName} onValueChange={(value) => setActiveGroupName(value as string)}>
+                        <TabsList className="flex overflow-x-auto [scrollbar-width:none]">
+                            {groupNames.map((groupName) => (
+                                <TabsTab key={groupName} value={groupName} className="flex-none">
+                                    {groupName}
+                                </TabsTab>
+                            ))}
+                        </TabsList>
+                    </Tabs>
+                    <div className="feed-poet-category-cards">
+                        {categoryGroups.map((group) => (
+                            <Card key={group.name} size="sm" className="flex-row items-center justify-between gap-2 px-3">
+                                <div className="grid gap-0.5">
+                                    <h3 className="text-sm font-bold">{group.name}</h3>
+                                    <span className="text-xs text-muted-foreground">{group.selectedCount} از {group.poets.length}</span>
+                                </div>
+                                <div className="flex gap-1.5">
+                                    <Button variant="outline" size="sm" onClick={() => selectGroup(group.poets)}>
+                                        انتخاب همه
+                                    </Button>
+                                    <Button variant="ghost" size="sm" onClick={() => clearGroup(group.poets)}>
+                                        پاک کردن
+                                    </Button>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                    <div className="interest-picker-grid">
+                        {visiblePoets.map((poet) => {
+                            const key = getPoetKey(poet);
+                            return (
+                                <Toggle
+                                    key={key}
+                                    variant="outline"
+                                    className="h-auto min-h-11 justify-start whitespace-normal px-3 py-2 text-start data-pressed:border-primary"
+                                    pressed={pendingKeySet.has(key)}
+                                    onPressedChange={() => togglePoet(key)}
+                                >
+                                    {getPoetDisplayName(poet)}
+                                </Toggle>
+                            );
+                        })}
+                    </div>
+                    {visiblePoets.length === 0 && (
+                        <Empty className="py-6">
+                            <EmptyDescription>شاعری با این جست‌وجو پیدا نشد.</EmptyDescription>
+                        </Empty>
+                    )}
+                </DialogPanel>
+                <DialogFooter>
+                    <Button variant="outline" className="h-11" onClick={() => setPendingKeys(poets.map(getPoetKey))}>
+                        انتخاب همه
+                    </Button>
+                    <Button variant="outline" className="h-11" onClick={() => setPendingKeys([])}>
+                        پاک کردن
+                    </Button>
+                    <Button className="h-11" onClick={() => onSave(pendingKeys)}>
+                        ذخیره
+                    </Button>
+                </DialogFooter>
+            </DialogPopup>
+        </Dialog>
     );
 }
 

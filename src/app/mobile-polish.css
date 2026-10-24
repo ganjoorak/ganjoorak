@@ -12,22 +12,4 @@
     justify-content: center !important;
     padding: 0 0.75rem calc(0.75rem + env(safe-area-inset-bottom)) !important;
   }
-
-  .settings-panel {
-    width: min(100%, 42rem) !important;
-    max-height: min(86dvh, 42rem) !important;
-    border-radius: 1.5rem !important;
-    padding: 1rem !important;
-  }
-
-  .settings-panel::before {
-    content: "";
-    display: block;
-    width: 2.75rem;
-    height: 0.25rem;
-    flex: 0 0 auto;
-    border-radius: 999px;
-    background: rgb(var(--foreground) / 0.22);
-    margin: 0 auto 0.85rem;
-  }
 }
