@@ -1,0 +1,190 @@
+/* Explore: dense masonry of poem and poet cards. shadcn tokens. */
+.explore-page .app-page-main--wide { max-width: 100rem; }
+
+.explore-grid {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.explore-column {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.explore-card {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: calc(var(--radius) + 4px);
+  background: rgb(var(--card));
+  color: rgb(var(--card-foreground));
+  border: 1px solid rgb(var(--border));
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+a.explore-card:hover {
+  border-color: rgb(var(--ring) / 0.55);
+  box-shadow: 0 6px 20px -12px rgb(var(--foreground) / 0.35);
+}
+a.explore-card:active { transform: scale(0.985); }
+a.explore-card:focus-visible { outline: 2px solid rgb(var(--ring)); outline-offset: 2px; }
+
+/* Corner chip, like the duration badge on a video thumbnail. */
+.explore-badge {
+  position: absolute;
+  top: 0.45rem;
+  inset-inline-end: 0.45rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.6;
+  color: rgb(var(--background));
+  background: rgb(var(--foreground) / 0.78);
+}
+.explore-badge svg { width: 0.62rem; height: 0.62rem; }
+
+/* Hover preview: the card lights up and the badge turns into a little equalizer. */
+.explore-poem.is-preview-playing { border-color: rgb(var(--ring)); }
+.explore-poem[class*="is-preview-"] .explore-badge {
+  color: rgb(var(--primary-foreground));
+  background: rgb(var(--primary));
+}
+.explore-eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  width: 0.62rem;
+  height: 0.62rem;
+}
+.explore-eq i {
+  flex: 1;
+  height: 35%;
+  border-radius: 1px;
+  background: currentColor;
+}
+.is-preview-loading .explore-eq { animation: explore-pulse 0.9s ease-in-out infinite; }
+.is-preview-playing .explore-eq i { animation: explore-eq 0.9s ease-in-out infinite; }
+.is-preview-playing .explore-eq i:nth-child(2) { animation-delay: -0.3s; }
+.is-preview-playing .explore-eq i:nth-child(3) { animation-delay: -0.6s; }
+@keyframes explore-eq {
+  0%, 100% { height: 30%; }
+  50% { height: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .explore-eq, .explore-eq i { animation: none !important; height: 70%; }
+}
+
+/* Poem card */
+.explore-poem-text {
+  padding: 1.6rem 0.75rem 0.95rem;
+  text-align: center;
+  font-size: 0.86rem;
+  line-height: 2;
+  font-weight: 500;
+}
+.explore-poem-text p { margin: 0; overflow-wrap: anywhere; }
+.explore-poem-text p:nth-child(2n):not(:last-child) { margin-bottom: 0.55rem; }
+.explore-poem-text.is-prose {
+  text-align: justify;
+  line-height: 1.95;
+  font-size: 0.85rem;
+}
+.explore-poem-text.is-prose p {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.explore-poem-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border-top: 1px solid rgb(var(--border));
+  background: rgb(var(--muted) / 0.45);
+}
+.explore-avatar {
+  flex-shrink: 0;
+  width: 1.85rem;
+  height: 1.85rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--muted));
+}
+.explore-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.explore-poem-meta { min-width: 0; display: grid; line-height: 1.55; }
+.explore-poem-poet,
+.explore-poem-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.explore-poem-poet { font-size: 0.78rem; font-weight: 700; }
+.explore-poem-title { font-size: 0.7rem; color: rgb(var(--muted-foreground)); }
+
+/* Poet card: portrait with the name over a fade. */
+.explore-poet { aspect-ratio: 4 / 5; background: rgb(var(--muted)); }
+.explore-poet.is-tall { aspect-ratio: 3 / 4.4; }
+.explore-poet-image { object-fit: cover; }
+.explore-poet::after {
+  content: "";
+  position: absolute;
+  inset: 45% 0 0;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0), rgb(0 0 0 / 0.78));
+  pointer-events: none;
+}
+.explore-poet .explore-badge { color: #fff; background: rgb(0 0 0 / 0.6); }
+.explore-poet-meta {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1;
+  display: grid;
+  gap: 0.05rem;
+  padding: 0.7rem 0.75rem;
+  color: #fff;
+}
+.explore-poet-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.5;
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.5);
+}
+.explore-poet-caption { font-size: 0.72rem; opacity: 0.85; }
+
+/* Loading placeholders */
+.explore-skeleton {
+  background: rgb(var(--muted));
+  animation: explore-pulse 1.4s ease-in-out infinite;
+}
+@keyframes explore-pulse {
+  50% { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .explore-skeleton { animation: none; }
+}
+
+.explore-status {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: rgb(var(--muted-foreground));
+}
+.explore-sentinel { height: 1px; }
+
+@media (min-width: 768px) {
+  .explore-grid, .explore-column { gap: 0.65rem; }
+  .explore-poem-text { font-size: 0.95rem; }
+}

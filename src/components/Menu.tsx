@@ -12,6 +12,7 @@ import {
   FaBookmark,
   FaChevronLeft,
   FaChevronRight,
+  FaCompass,
   FaEllipsisH,
   FaHome,
   FaMinus,
@@ -126,6 +127,7 @@ const Menu: React.FC<MenuProps> = ({
   const discoverItems = useMemo<MenuLinkItem[]>(
     () => [
       { kind: "link", href: "/", icon: <FaHome />, label: "صفحه اصلی" },
+      { kind: "link", href: "/explore", icon: <FaCompass />, label: "کاوش" },
       { kind: "link", href: "/poets", icon: <FaUsers />, label: "شاعران" },
     ],
     [],
