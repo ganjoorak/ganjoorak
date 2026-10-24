@@ -2,6 +2,8 @@
 
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import PoetPlaceholder from '@/components/PoetPlaceholder';
+import { isPlaceholderPoetImage } from '@/utils/poetImages';
 
 interface PoetImageProps {
     imgUrl: string;
@@ -17,7 +19,7 @@ export default function PoetImage({ imgUrl, alt, poetSlug, width = 60, height = 
     const isApiBackedImage = imgSrc.startsWith('/api/');
 
     useEffect(() => {
-        setImgSrc(imgUrl || '/images/default-poet.png');
+        setImgSrc(imgUrl);
         setError(false);
     }, [imgUrl]);
 
@@ -27,9 +29,18 @@ export default function PoetImage({ imgUrl, alt, poetSlug, width = 60, height = 
         }
 
         setError(true);
-        // Fallback to a default image if loading fails
-        setImgSrc('/images/default-poet.png');
     };
+
+    // No portrait (or Ganjoor's silhouette placeholder, or a failed load): draw our own.
+    if (error || isPlaceholderPoetImage(imgSrc)) {
+        return (
+            <PoetPlaceholder
+                seed={poetSlug || alt || imgUrl}
+                className="poet-image"
+                style={{ width, height }}
+            />
+        );
+    }
 
     return (
         <Image

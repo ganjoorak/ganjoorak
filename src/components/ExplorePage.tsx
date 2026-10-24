@@ -18,7 +18,8 @@ import {
 } from "@/utils/poetDirectory";
 import { logger } from "@/utils/logger";
 import { fetchRandomGanjoorPoem } from "@/utils/poemIndex";
-import { getIndexedPoetImageUrl } from "@/utils/poetImages";
+import { getIndexedPoetImageUrl, isPlaceholderPoetImage } from "@/utils/poetImages";
+import PoetPlaceholder from "@/components/PoetPlaceholder";
 import "../styles/Explore.css";
 
 type ExploreItem =
@@ -292,13 +293,17 @@ function PoetCard({
       prefetch={false}
       className={`explore-card explore-poet${isTall ? " is-tall" : ""}`}
     >
-      <Image
-        src={poet.imageUrl || "/images/default-poet.png"}
-        alt=""
-        fill
-        sizes="(max-width: 600px) 50vw, (max-width: 1120px) 25vw, 16vw"
-        className="explore-poet-image"
-      />
+      {!poet.imageUrl || isPlaceholderPoetImage(poet.imageUrl) ? (
+        <PoetPlaceholder seed={poet.urlSlug} className="explore-poet-placeholder" />
+      ) : (
+        <Image
+          src={poet.imageUrl}
+          alt=""
+          fill
+          sizes="(max-width: 600px) 50vw, (max-width: 1120px) 25vw, 16vw"
+          className="explore-poet-image"
+        />
+      )}
       <span className="explore-badge">
         <FaFeatherAlt aria-hidden="true" />
         شاعر

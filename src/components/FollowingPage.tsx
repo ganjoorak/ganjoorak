@@ -15,6 +15,8 @@ import {
 } from "@/utils/poetDirectory";
 import "../styles/PoemLibrary.css";
 import { Empty, EmptyDescription, EmptyIcon } from "@/components/ui/empty";
+import PoetPlaceholder from "@/components/PoetPlaceholder";
+import { isPlaceholderPoetImage } from "@/utils/poetImages";
 
 const SOURCE_LABELS: Record<string, string> = {
   ganjoor: "گنجور",
@@ -93,11 +95,11 @@ const FollowingPage = () => {
                 <li key={poet.key} className="following-item">
                   <Link href={poet.href} className="app-row following-link" prefetch={false}>
                     <span className="app-avatar" aria-hidden="true">
-                      {poet.imageUrl ? (
+                      {!poet.imageUrl || isPlaceholderPoetImage(poet.imageUrl) ? (
+                        <PoetPlaceholder seed={poet.key} />
+                      ) : (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={poet.imageUrl} alt="" loading="lazy" />
-                      ) : (
-                        <span>{poet.name.slice(0, 1)}</span>
                       )}
                     </span>
                     <span className="app-row-body">

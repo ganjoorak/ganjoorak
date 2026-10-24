@@ -35,7 +35,7 @@ import type {
   GanjoorSemanticVerse,
 } from "@/types/ganjoor";
 import { getPoemHref, type PoemLibrarySource } from "@/utils/poemLibrary";
-import { getIndexedPoetImageUrl } from "@/utils/poetImages";
+import { getIndexedPoetImageUrl, isPlaceholderPoetImage } from "@/utils/poetImages";
 import {
   findDirectoryPoet,
   findDirectoryPoetByEcholaliaCategory,
@@ -68,6 +68,7 @@ import {
   type VerseSnippet,
 } from "@/utils/searchText";
 import { logger } from "@/utils/logger";
+import PoetPlaceholder from "@/components/PoetPlaceholder";
 import "@/styles/SearchPage.css";
 
 type SourceFilter = "all" | PoemLibrarySource;
@@ -488,18 +489,9 @@ const PoetAvatar = memo(function PoetAvatar({
   size?: number;
 }) {
   const [failed, setFailed] = useState(false);
-  const initial = name.trim().charAt(0) || "؟";
 
-  if (!src || failed) {
-    return (
-      <span
-        className="search-avatar search-avatar-fallback"
-        style={{ width: size, height: size }}
-        aria-hidden="true"
-      >
-        {initial}
-      </span>
-    );
+  if (!src || failed || isPlaceholderPoetImage(src)) {
+    return <PoetPlaceholder seed={name} className="search-avatar" style={{ width: size, height: size }} />;
   }
 
   return (
