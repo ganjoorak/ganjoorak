@@ -556,9 +556,9 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
         dir="rtl"
         showCloseButton={false}
         initialFocus={inputRef}
-        className="h-[min(88dvh,46rem)] text-right sm:max-w-3xl"
+        className="h-[min(88dvh,46rem)] text-right max-sm:h-[calc(100dvh-1rem-env(safe-area-inset-top))] sm:max-w-3xl"
       >
-              <DialogHeader className="gap-3 border-b border-border pb-4">
+              <DialogHeader className="gap-3 border-b border-border pb-4 max-sm:pt-1">
                 <div className="flex items-center justify-between gap-4">
                   <DialogTitle>جست‌وجو</DialogTitle>
                   <Button variant="ghost" size="icon" className="size-11" onClick={onClose} aria-label="بستن">

@@ -100,11 +100,57 @@ function DialogViewport({
       dir={dir}
       data-slot="dialog-viewport"
       className={cn(
-        "fixed inset-0 z-50 grid grid-rows-[1fr_auto_3fr] justify-items-center p-4",
+        "fixed inset-0 z-50 grid grid-rows-[1fr_auto_3fr] justify-items-center p-4 max-sm:grid-rows-[1fr_auto] max-sm:p-0 max-sm:pt-[env(safe-area-inset-top)]",
         className
       )}
       {...props}
     />
+  )
+}
+
+// Phones get a bottom sheet: the grabber drags the popup down and a pull past
+// the threshold closes it through a hidden Close, so Base UI owns the state.
+function SheetGrabber({ closeRef }: { closeRef: React.RefObject<HTMLButtonElement | null> }) {
+  const start = React.useRef<number | null>(null)
+  const popup = (el: EventTarget) =>
+    (el as HTMLElement).closest<HTMLElement>("[data-slot=dialog-popup]")
+  const reset = (el: HTMLElement | null) => {
+    if (!el) return
+    el.style.transform = ""
+    el.style.transition = ""
+  }
+  return (
+    <div
+      aria-hidden="true"
+      data-slot="dialog-grabber"
+      className="flex h-6 shrink-0 cursor-grab touch-none items-center justify-center sm:hidden"
+      onPointerDown={(e) => {
+        start.current = e.clientY
+        e.currentTarget.setPointerCapture(e.pointerId)
+        const el = popup(e.currentTarget)
+        if (el) el.style.transition = "none"
+      }}
+      onPointerMove={(e) => {
+        if (start.current === null) return
+        const dy = Math.max(0, e.clientY - start.current)
+        const el = popup(e.currentTarget)
+        if (el) el.style.transform = `translateY(${dy}px)`
+      }}
+      onPointerUp={(e) => {
+        if (start.current === null) return
+        const dy = e.clientY - start.current
+        start.current = null
+        const el = popup(e.currentTarget)
+        reset(el)
+        if (dy > 80) closeRef.current?.click()
+      }}
+      onPointerCancel={(e) => {
+        start.current = null
+        reset(popup(e.currentTarget))
+      }}
+    >
+      <span className="h-1.5 w-10 rounded-full bg-muted-foreground/35" />
+    </div>
   )
 }
 
@@ -116,6 +162,7 @@ function DialogPopup({
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
 }) {
+  const closeRef = React.useRef<HTMLButtonElement>(null)
   return (
     <DialogPortal>
       <DialogBackdrop />
@@ -123,11 +170,13 @@ function DialogPopup({
         <DialogPrimitive.Popup
           data-slot="dialog-popup"
           className={cn(
-            "relative row-start-2 flex max-h-[calc(100dvh-2rem)] min-h-0 w-full max-w-lg min-w-0 flex-col rounded-2xl border border-border bg-popover text-popover-foreground shadow-lg duration-150 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "relative row-start-2 flex max-h-[calc(100dvh-2rem)] min-h-0 w-full max-w-lg min-w-0 flex-col rounded-2xl border border-border bg-popover text-popover-foreground shadow-lg duration-150 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 max-sm:max-h-[calc(100dvh-1rem-env(safe-area-inset-top))] max-sm:max-w-none max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[env(safe-area-inset-bottom)] max-sm:duration-300 max-sm:ease-[cubic-bezier(0.32,0.72,0,1)] max-sm:data-open:zoom-in-100 max-sm:data-open:slide-in-from-bottom max-sm:data-closed:zoom-out-100 max-sm:data-closed:slide-out-to-bottom",
             className
           )}
           {...props}
         >
+          <SheetGrabber closeRef={closeRef} />
+          <DialogPrimitive.Close ref={closeRef} hidden tabIndex={-1} aria-hidden="true" />
           {children}
           {showCloseButton && (
             <DialogPrimitive.Close

@@ -3,13 +3,14 @@
 
 .settings-sheet[data-slot="dialog-popup"] {
   max-width: 34rem;
-  border-radius: calc(var(--radius) + 12px);
   background: rgb(var(--background));
   overflow: hidden;
 }
 
-.settings-sheet-grabber {
-  display: none;
+@media (min-width: 640px) {
+  .settings-sheet[data-slot="dialog-popup"] {
+    border-radius: calc(var(--radius) + 12px);
+  }
 }
 
 .settings-sheet-header[data-slot="dialog-header"] {
@@ -164,41 +165,8 @@
   backdrop-filter: blur(12px);
 }
 
-/* Phones: dock to the bottom edge and slide up. */
+/* Phones: the shared Dialog renders this as a bottom sheet. */
 @media (max-width: 639px) {
-  [data-slot="dialog-viewport"]:has(> .settings-sheet) {
-    padding: 0;
-    grid-template-rows: 1fr auto;
-    align-items: end;
-  }
-
-  .settings-sheet[data-slot="dialog-popup"] {
-    grid-row-start: 2;
-    max-width: none;
-    max-height: calc(100dvh - 2.5rem - env(safe-area-inset-top));
-    border-width: 1px 0 0;
-    border-radius: 1.5rem 1.5rem 0 0;
-    --tw-enter-scale: 1;
-    --tw-exit-scale: 1;
-    --tw-enter-translate-y: 100%;
-    --tw-exit-translate-y: 100%;
-    animation-duration: 0.28s;
-    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  .settings-sheet-grabber {
-    display: block;
-    width: 2.5rem;
-    height: 0.3rem;
-    margin: 0.5rem auto 0;
-    border-radius: 999px;
-    background: rgb(var(--muted-foreground) / 0.35);
-  }
-
-  .settings-sheet-header[data-slot="dialog-header"] {
-    padding-top: 0.35rem;
-  }
-
   .settings-font-tiles {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }

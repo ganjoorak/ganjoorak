@@ -269,7 +269,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
       }}
     >
       <DialogPopup dir="rtl" showCloseButton={false} className="settings-sheet">
-        <span className="settings-sheet-grabber" aria-hidden="true" />
         <DialogHeader className="settings-sheet-header">
           <DialogTitle>تنظیمات</DialogTitle>
           <Button
