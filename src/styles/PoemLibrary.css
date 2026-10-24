@@ -223,7 +223,33 @@
   color: rgb(var(--muted-foreground));
 }
 .auth-card { display: grid; gap: 1.25rem; padding: 1.25rem; }
-.account-form { display: grid; gap: 1rem; }
+/* Flex, not grid: a collapsed .auth-reveal cancels the gap with a negative margin, which grid tracks ignore. */
+.account-form { display: flex; flex-direction: column; gap: 1rem; }
+/* Login ⇄ signup: signup-only rows expand/fade instead of popping in; labels crossfade. */
+.auth-reveal {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    margin-top 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.24s ease;
+}
+.auth-reveal[data-open="false"] {
+  grid-template-rows: 0fr;
+  margin-top: calc(-1 * var(--auth-reveal-gap, 0px));
+  opacity: 0;
+}
+/* Room for the input focus ring, which overflow would otherwise clip. */
+.auth-reveal-inner { min-height: 0; overflow: hidden; padding: 4px; margin: -4px; }
+.auth-swap { animation: auth-swap-in 0.28s ease both; }
+@keyframes auth-swap-in {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-reveal { transition: none; }
+  .auth-swap { animation: none; }
+}
 .auth-password { position: relative; }
 /* Physical sides: the input is dir="ltr" inside an RTL page, so logical
    padding and inset would land on opposite edges. */

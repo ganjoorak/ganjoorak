@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -18,7 +18,7 @@ import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { FieldHint, Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs";
+import { Tabs, TabsIndicator, TabsList, TabsTab } from "@/components/ui/tabs";
 import { useSettings } from "@/context/SettingsContext";
 import {
   AccountError,
@@ -32,6 +32,22 @@ import { readFavorites, readHistory } from "@/utils/poemLibrary";
 import "../styles/PoemLibrary.css";
 
 type AuthMode = "login" | "signup";
+
+/**
+ * Signup-only content that expands and fades in instead of popping in. It stays mounted so the height can
+ * animate; while closed it is hidden from assistive tech and its inputs are disabled by the caller.
+ * `gap` is the parent's gap, pulled back while closed so the collapsed row takes no space.
+ */
+const AuthReveal = ({ open, gap, children }: { open: boolean; gap: string; children: ReactNode }) => (
+  <div
+    className="auth-reveal"
+    data-open={open}
+    aria-hidden={!open}
+    style={{ "--auth-reveal-gap": gap } as CSSProperties}
+  >
+    <div className="auth-reveal-inner">{children}</div>
+  </div>
+);
 
 const AUTH_VERSES = [
   { poet: "حافظ", lines: ["هرگز نمیرد آن که دلش زنده شد به عشق", "ثبت است بر جریدهٔ عالم دوام ما"] },
@@ -103,7 +119,7 @@ export const LoginPage = () => {
         </Button>
         <div className="auth-main-inner">
           <header className="auth-header">
-            <h1>{isSignup ? "ساخت حساب" : "ورود به حساب"}</h1>
+            <h1 key={mode} className="auth-swap">{isSignup ? "ساخت حساب" : "ورود به حساب"}</h1>
             <p>
               گنجورک بدون حساب هم کامل کار می‌کند. با حساب، همه‌چیز روی همهٔ دستگاه‌هایتان
               می‌ماند.
@@ -118,9 +134,14 @@ export const LoginPage = () => {
                 setError("");
               }}
             >
-              <TabsList aria-label="ورود یا ثبت‌نام">
+              <TabsList aria-label="ورود یا ثبت‌نام" className="relative">
+                <TabsIndicator />
                 {(["login", "signup"] as const).map((value) => (
-                  <TabsTab key={value} value={value}>
+                  <TabsTab
+                    key={value}
+                    value={value}
+                    className="relative data-active:bg-transparent data-active:shadow-none"
+                  >
                     {value === "login" ? "ورود" : "ثبت‌نام"}
                   </TabsTab>
                 ))}
@@ -128,7 +149,7 @@ export const LoginPage = () => {
             </Tabs>
 
             <form className="account-form" onSubmit={handleSubmit}>
-              <Label>
+              <Label className="flex flex-col">
                 <span>نام کاربری</span>
                 <Input
                   name="username"
@@ -146,16 +167,19 @@ export const LoginPage = () => {
                     setUsername(event.target.value);
                   }}
                 />
-                {isSignup && <FieldHint>حروف لاتین، رقم یا _ (۳ تا ۳۲ نویسه)</FieldHint>}
+                <AuthReveal open={isSignup} gap="0.375rem">
+                  <FieldHint>حروف لاتین، رقم یا _ (۳ تا ۳۲ نویسه)</FieldHint>
+                </AuthReveal>
               </Label>
 
-              {isSignup && (
+              <AuthReveal open={isSignup} gap="1rem">
                 <Label>
                   <span>نام نمایشی (اختیاری)</span>
                   <Input
                     name="displayName"
                     autoComplete="nickname"
                     maxLength={50}
+                    disabled={!isSignup}
                     value={displayName}
                     onChange={(event) => {
                       setError("");
@@ -163,9 +187,9 @@ export const LoginPage = () => {
                     }}
                   />
                 </Label>
-              )}
+              </AuthReveal>
 
-              <Label>
+              <Label className="flex flex-col">
                 <span>گذرواژه</span>
                 <div className="auth-password">
                   <Input
@@ -195,7 +219,9 @@ export const LoginPage = () => {
                     {showPassword ? <FaEyeSlash aria-hidden="true" /> : <FaEye aria-hidden="true" />}
                   </Button>
                 </div>
-                {isSignup && <FieldHint>دست‌کم ۸ نویسه</FieldHint>}
+                <AuthReveal open={isSignup} gap="0.375rem">
+                  <FieldHint>دست‌کم ۸ نویسه</FieldHint>
+                </AuthReveal>
               </Label>
 
               {error && (
@@ -208,7 +234,7 @@ export const LoginPage = () => {
                 className="auth-submit"
                 loading={isSubmitting}
               >
-                {isSignup ? "ساخت حساب" : "ورود"}
+                <span key={mode} className="auth-swap">{isSignup ? "ساخت حساب" : "ورود"}</span>
               </Button>
             </form>
           </Card>

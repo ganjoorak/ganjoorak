@@ -42,6 +42,23 @@ function TabsTab({ className, ...props }: TabsPrimitive.Tab.Props) {
   )
 }
 
+/**
+ * Sliding pill behind the active tab. Render it inside a `relative` TabsList and
+ * give the tabs `data-active:bg-transparent data-active:shadow-none`.
+ */
+function TabsIndicator({ className, ...props }: TabsPrimitive.Indicator.Props) {
+  return (
+    <TabsPrimitive.Indicator
+      data-slot="tabs-indicator"
+      className={cn(
+        "absolute top-(--active-tab-top) left-(--active-tab-left) h-(--active-tab-height) w-(--active-tab-width) rounded-full bg-background shadow-sm transition-[left,width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
 function TabsPanel({ className, ...props }: TabsPrimitive.Panel.Props) {
   return (
     <TabsPrimitive.Panel
@@ -52,4 +69,4 @@ function TabsPanel({ className, ...props }: TabsPrimitive.Panel.Props) {
   )
 }
 
-export { Tabs, TabsList, TabsTab, TabsPanel }
+export { Tabs, TabsList, TabsTab, TabsIndicator, TabsPanel }
