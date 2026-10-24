@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { buildPoetFollowKey, useFollowPoet } from "@/hooks/useFollowPoet";
 import { useSettings } from "@/context/SettingsContext";
 import "@/styles/Poets.css";
+import { Empty, EmptyDescription, EmptyIcon } from "@/components/ui/empty";
+import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs";
 
 const persianNumber = new Intl.NumberFormat("fa-IR");
 const OTHER_MODERN_GROUP = "دیگر شاعران";
@@ -152,7 +154,7 @@ function PoetCollection({ entries, view }: { entries: PoetEntry[]; view: PoetsVi
   return (
     <ul className="poets-grid">
       {entries.map((entry) => (
-        <li key={entry.key} className="app-card poets-tile">
+        <li key={entry.key} data-slot="card" className="poets-tile rounded-xl bg-card text-card-foreground ring-1 ring-foreground/10">
           <PoetLink entry={entry} className="poets-tile-link">
             <span className="poets-tile-avatar" aria-hidden="true">
               <PoetImage
@@ -343,30 +345,25 @@ export default function PoetsContent({
           </label>
           <div className="poets-tabs-row">
           {!normalizedQuery && (
-            <div
-              className="app-segmented poets-tabs"
-              role="tablist"
-              aria-label="دسته‌های شاعران"
-              onWheel={handleChipWheel}
+            <Tabs
+              value={tab}
+              onValueChange={(value) => {
+                setTab(value as typeof tab);
+                setFilter(ALL_FILTER_ID);
+              }}
+              className="min-w-0 flex-1"
             >
+              <TabsList className="poets-tabs" aria-label="دسته‌های شاعران" onWheel={handleChipWheel}>
               {tabs.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === item.id}
-                  onClick={() => {
-                    setTab(item.id);
-                    setFilter(ALL_FILTER_ID);
-                  }}
-                >
+                <TabsTab key={item.id} value={item.id}>
                   {item.label}
                   {item.id === "following" && item.count > 0 && (
                     <span className="poets-tab-count">{persianNumber.format(item.count)}</span>
                   )}
-                </button>
+                </TabsTab>
               ))}
-            </div>
+              </TabsList>
+            </Tabs>
           )}
             {viewToggle}
           </div>
@@ -408,23 +405,21 @@ export default function PoetsContent({
       {visible.length > 0 ? (
         <PoetCollection entries={visible} view={view} />
       ) : (
-        <div className="app-empty">
-          <span className="app-empty-icon" aria-hidden="true">
-            {normalizedQuery ? <FaSearch /> : <FaPlus />}
-          </span>
-          <p>
+        <Empty>
+          <EmptyIcon>{normalizedQuery ? <FaSearch /> : <FaPlus />}</EmptyIcon>
+          <EmptyDescription>
             {normalizedQuery
               ? "شاعری با این نام پیدا نشد."
               : tab === "following"
                 ? "هنوز شاعری را دنبال نمی‌کنید. روی «دنبال کردن» هر شاعر بزنید."
                 : "فهرست این بخش دریافت نشد. کمی بعد دوباره سر بزنید."}
-          </p>
+          </EmptyDescription>
           {tab === "following" && !normalizedQuery && (
             <Button variant="secondary" onClick={() => setTab("featured")}>
               دیدن شاعران محبوب
             </Button>
           )}
-        </div>
+        </Empty>
       )}
     </AppPage>
   );

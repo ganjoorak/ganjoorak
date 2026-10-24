@@ -14,6 +14,8 @@ import {
   type PoemLibraryEntry,
 } from "@/utils/poemLibrary";
 import "../styles/PoemLibrary.css";
+import { Empty, EmptyDescription, EmptyIcon } from "@/components/ui/empty";
+import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs";
 
 type LibraryTab = "favorites" | "history";
 
@@ -42,13 +44,11 @@ export const PoemLibraryList = ({
 }) => {
   if (entries.length === 0) {
     return (
-      <div className="app-empty">
-        <span className="app-empty-icon" aria-hidden="true">
-          {icon === "history" ? <FaHistory /> : <FaRegBookmark />}
-        </span>
-        <p>{emptyMessage}</p>
+      <Empty>
+        <EmptyIcon>{icon === "history" ? <FaHistory /> : <FaRegBookmark />}</EmptyIcon>
+        <EmptyDescription>{emptyMessage}</EmptyDescription>
         {emptyAction}
-      </div>
+      </Empty>
     );
   }
 
@@ -129,23 +129,19 @@ const PoemLibraryPage = () => {
       subtitle="شعرهایی که ذخیره کرده‌اید و آن‌هایی که اخیراً خوانده‌اید."
       width="narrow"
       headerExtra={
-        <div className="app-segmented" role="tablist" aria-label="نشان‌شده‌ها">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
+          <TabsList aria-label="نشان‌شده‌ها">
           {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
-            >
+            <TabsTab key={tab.id} value={tab.id}>
               {tab.icon}
               {tab.label}
               {isReady && tab.count > 0 && (
                 <span className="library-tab-count">{persianNumber.format(tab.count)}</span>
               )}
-            </button>
+            </TabsTab>
           ))}
-        </div>
+          </TabsList>
+        </Tabs>
       }
     >
       {!isReady ? (

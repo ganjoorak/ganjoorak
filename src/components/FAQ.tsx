@@ -5,6 +5,7 @@ import '../styles/FAQ.css';
 import AppPage from '@/components/AppPage';
 import AccordionItem from '@/components/AccordionItem';
 import { buttonVariants } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 const FAQ = () => {
     const faqs = [
@@ -78,7 +79,7 @@ const FAQ = () => {
                 ))}
             </ul>
 
-            <section className="app-card app-card-pad faq-contact">
+            <Card className="faq-contact px-4">
                 <h2>جواب‌تان را پیدا نکردید؟</h2>
                 <p>مشکل، پیشنهاد یا ایده‌ای دارید، خوشحال می‌شوم بشنوم.</p>
                 <div className="app-actions">
@@ -96,7 +97,7 @@ const FAQ = () => {
                         تلگرام
                     </a>
                 </div>
-            </section>
+            </Card>
         </AppPage>
     );
 };

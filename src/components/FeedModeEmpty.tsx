@@ -5,6 +5,7 @@ import Menu, { MenuButton, SearchButton } from "@/components/Menu";
 import SettingsDialog from "@/components/SettingsDialog";
 import GlobalSearchDialog from "@/components/GlobalSearchDialog";
 import { useUpdateNotification } from "@/hooks/useUpdateNotification";
+import { Empty, EmptyActions, EmptyDescription, EmptyIcon } from "@/components/ui/empty";
 
 interface FeedModeEmptyProps {
   switcher: ReactNode;
@@ -40,14 +41,12 @@ const FeedModeEmpty = ({ switcher, icon, title, description, actions }: FeedMode
 
       <main className="feed-mode-empty-shell">
         <div className="feed-mode-empty-switch">{switcher}</div>
-        <section className="feed-mode-empty-card" aria-live="polite">
-          <span className="feed-mode-empty-icon" aria-hidden="true">
-            {icon}
-          </span>
-          <h1>{title}</h1>
-          <p>{description}</p>
-          <div className="feed-mode-empty-actions">{actions}</div>
-        </section>
+        <Empty className="feed-mode-empty-card" aria-live="polite">
+          <EmptyIcon>{icon}</EmptyIcon>
+          <h1 className="m-0 text-lg font-extrabold">{title}</h1>
+          <EmptyDescription>{description}</EmptyDescription>
+          <EmptyActions>{actions}</EmptyActions>
+        </Empty>
       </main>
     </div>
   );

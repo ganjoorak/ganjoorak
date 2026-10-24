@@ -83,13 +83,6 @@
   color: rgb(var(--muted-foreground));
 }
 
-.app-card {
-  border: 1px solid rgb(var(--border));
-  border-radius: calc(var(--radius) + 6px);
-  background: rgb(var(--card));
-  color: rgb(var(--card-foreground));
-}
-.app-card-pad { padding: 1rem; }
 
 .app-list {
   list-style: none;
@@ -213,27 +206,6 @@ a.app-row:hover, button.app-row:hover { background: rgb(var(--muted) / 0.6); }
   box-shadow: 0 0 0 3px rgb(var(--ring) / 0.2);
 }
 
-.app-empty {
-  display: grid;
-  justify-items: center;
-  gap: 0.75rem;
-  padding: 2.5rem 1.25rem;
-  border: 1px dashed rgb(var(--border));
-  border-radius: calc(var(--radius) + 6px);
-  background: rgb(var(--card) / 0.6);
-  text-align: center;
-}
-.app-empty p { max-width: 26rem; font-size: 0.9rem; line-height: 2; color: rgb(var(--muted-foreground)); }
-.app-empty-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 3.25rem;
-  height: 3.25rem;
-  border-radius: 999px;
-  background: rgb(var(--muted));
-  color: rgb(var(--foreground) / 0.75);
-  font-size: 1.3rem;
-}
 
 .app-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 

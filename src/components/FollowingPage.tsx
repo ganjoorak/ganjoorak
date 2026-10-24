@@ -14,6 +14,7 @@ import {
   subscribePoetDirectory,
 } from "@/utils/poetDirectory";
 import "../styles/PoemLibrary.css";
+import { Empty, EmptyDescription, EmptyIcon } from "@/components/ui/empty";
 
 const SOURCE_LABELS: Record<string, string> = {
   ganjoor: "گنجور",
@@ -149,16 +150,16 @@ const FollowingPage = () => {
           </section>
         </>
       ) : (
-        <div className="app-empty">
-          <span className="app-empty-icon" aria-hidden="true">
+        <Empty>
+          <EmptyIcon>
             <FaUsers />
-          </span>
-          <p>هنوز شاعری را دنبال نمی‌کنید. در فهرست شاعران یا صفحهٔ هر شاعر «دنبال کردن» را بزنید.</p>
+          </EmptyIcon>
+          <EmptyDescription>هنوز شاعری را دنبال نمی‌کنید. در فهرست شاعران یا صفحهٔ هر شاعر «دنبال کردن» را بزنید.</EmptyDescription>
           <Link href="/poets" className={buttonVariants({ size: "lg" })}>
             <FaUserPlus aria-hidden="true" />
             دیدن شاعران
           </Link>
-        </div>
+        </Empty>
       )}
     </AppPage>
   );

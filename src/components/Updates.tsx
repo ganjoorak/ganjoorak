@@ -7,6 +7,7 @@ import AppPage from "@/components/AppPage";
 import AccordionItem from "@/components/AccordionItem";
 import { updates, type Update } from "@/data/updates";
 import { useUpdateNotification } from "@/hooks/useUpdateNotification";
+import { Card } from "@/components/ui/card";
 
 const UpdateBody = ({ update }: { update: Update }) => (
   <div className="update-details">
@@ -47,7 +48,7 @@ const Updates = () => {
       width="narrow"
     >
       {latest && (
-        <article className="app-card update-latest">
+        <Card role="article" className="update-latest">
           <header className="update-latest-head">
             <span className="update-badge">
               <FaStar aria-hidden="true" />
@@ -57,7 +58,7 @@ const Updates = () => {
             <span className="update-date">{latest.date}</span>
           </header>
           <UpdateBody update={latest} />
-        </article>
+        </Card>
       )}
 
       {older.length > 0 && (

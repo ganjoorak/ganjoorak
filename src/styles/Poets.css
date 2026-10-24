@@ -132,7 +132,7 @@
 .poets-list-link { flex: 1 1 auto; min-width: 0; text-decoration: none; }
 .poets-list-item .poets-follow { flex-shrink: 0; border-radius: 999px; }
 
-.poets-tabs > button { white-space: nowrap; padding-inline: 0.5rem; }
+.poets-tabs > [role="tab"] { padding-inline: 0.5rem; }
 
 /* r16: tabs scroll on their own; the grid/list toggle stays pinned at the row's end. */
 .poets-tabs-row {
