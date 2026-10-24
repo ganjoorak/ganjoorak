@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { FaBackward, FaEye, FaEyeSlash, FaForward, FaPause, FaPlay, FaSpinner, FaListUl } from "react-icons/fa";
+import { FaBackward, FaEye, FaEyeSlash, FaForward, FaPause, FaPlay, FaSpinner } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from "@/components/ui/drawer";
 import { Slider } from "@/components/ui/slider";
@@ -105,33 +105,10 @@ export default function MobileAudioControl({
 
   const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
   const shownTime = dragTime ?? currentTime;
-  const currentRecitation = recitations[currentRecitationIndex] ?? recitations[0];
-  const reciterName =
-    currentRecitation?.audioArtist?.trim() ||
-    (currentRecitation ? `خوانش ${toPersianDigits(String(currentRecitationIndex + 1))}` : "");
   const playIcon = isLoading ? <FaSpinner className="animate-spin" /> : isPlaying ? <FaPause /> : <FaPlay />;
 
   return (
-    <div className={`mobile-audio-control${reciterName ? " has-reciter" : ""}`}>
-      {/* Pill behind the play button: the current reciter, tap to switch. */}
-      {reciterName && (
-        <button
-          type="button"
-          className="mobile-audio-reciter"
-          onClick={() => {
-            dismissHint();
-            setIsSheetOpen(true);
-          }}
-          aria-label={`خوانش ${reciterName}، انتخاب خوانش دیگر`}
-        >
-          <span className="mobile-audio-reciter-label" aria-hidden="true">
-            {isPlaying ? "در حال پخش" : "خوانش"}
-          </span>
-          <span className="mobile-audio-reciter-name" key={reciterName}>
-            {reciterName}
-          </span>
-        </button>
-      )}
+    <div className="mobile-audio-control">
       {showHint && (
         <div
           className={`mobile-audio-hint${isHintLeaving ? " is-leaving" : ""}`}
@@ -161,20 +138,6 @@ export default function MobileAudioControl({
         {...pressHandlers}
       >
         {playIcon}
-      </Button>
-      {/* Right of the play button: opens the sheet with the reciters list. */}
-      <Button
-        variant="outline"
-        size="icon"
-        className="mobile-audio-list-button rounded-full"
-        onClick={() => {
-          dismissHint();
-          setIsSheetOpen(true);
-        }}
-        aria-label="خوانش‌ها"
-        title="خوانش‌ها"
-      >
-        <FaListUl aria-hidden="true" />
       </Button>
 
       <Drawer open={isSheetOpen} onOpenChange={setIsSheetOpen}>

@@ -160,30 +160,33 @@ export default function PoetProfile({
           <header
             className={`poet-profile-bar${isScrolled ? " is-scrolled" : ""}`}
           >
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              className="poet-profile-bar-icon"
-              onClick={handleBack}
-              aria-label="بازگشت"
-            >
-              <FaArrowRight />
-            </Button>
+            {/* With a poem underneath, the only way back is to that poem; the arrow (leave the page) is for
+                a profile that is the page itself. */}
+            {onResume ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="poet-profile-resume"
+                onClick={onResume}
+              >
+                ادامهٔ خواندن
+                <FaChevronLeft />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                className="poet-profile-bar-icon"
+                onClick={handleBack}
+                aria-label="بازگشت"
+              >
+                <FaArrowRight />
+              </Button>
+            )}
             <span className="poet-profile-bar-title" aria-hidden={!isScrolled}>
               {displayName}
             </span>
             <div className="poet-profile-bar-actions">
-              {onResume && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="poet-profile-resume"
-                  onClick={onResume}
-                >
-                  ادامهٔ خواندن
-                  <FaChevronLeft />
-                </Button>
-              )}
               <Button
                 variant="ghost"
                 size="icon-lg"

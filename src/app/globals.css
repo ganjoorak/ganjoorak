@@ -1201,26 +1201,16 @@ body:has(.menu-drawer) .global-search-button {
     outline-offset: 2px;
 }
 
-.interest-picker-hint {
-    margin: 0 0 1rem;
-    color: rgb(var(--foreground) / 0.7);
-    font-size: 0.92rem;
-    line-height: 1.9;
+/* Icon-only chip (edit interests) at the end of the rail. */
+.interest-chip--icon {
+    justify-content: center;
+    width: 2rem;
+    padding: 0;
 }
 
-.interest-picker-summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.85rem;
-    color: rgb(var(--foreground) / 0.68);
-    font-size: 0.9rem;
-}
-
-.interest-picker-summary strong {
-    color: rgb(var(--foreground) / 0.9);
-    font-weight: 700;
+.interest-chip--icon svg {
+    width: 0.95rem;
+    height: 0.95rem;
 }
 
 .interest-picker-grid {
@@ -1229,44 +1219,16 @@ body:has(.menu-drawer) .global-search-button {
     gap: 0.5rem;
 }
 
-.interest-picker-option {
-    display: flex;
-    align-items: center;
-    min-height: 2.9rem;
-    padding: 0.45rem 0.75rem;
-    border: 1px solid rgb(var(--foreground) / 0.12);
-    border-radius: 10px;
-    background: rgb(var(--foreground) / 0.05);
-    color: rgb(var(--foreground) / 0.8);
-    font: inherit;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    text-align: right;
-    cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.interest-picker-option:hover {
-    background: rgb(var(--foreground) / 0.09);
-    border-color: rgb(var(--foreground) / 0.22);
-}
-
-.interest-picker-option.is-active {
-    background: rgb(var(--accent) / 0.72);
-    border-color: rgb(var(--accent) / 0.9);
-    color: rgb(var(--accent-foreground));
-}
-
-.interest-picker-option-label {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
 @media (max-width: 640px) {
     .interest-chip {
         font-size: 0.78rem;
         min-height: 1.9rem;
         padding: 0.24rem 0.7rem;
+    }
+
+    .interest-chip--icon {
+        width: 1.9rem;
+        padding: 0;
     }
 }
 
