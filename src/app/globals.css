@@ -2177,3 +2177,10 @@ body:has(.menu-drawer) .sidebar-toggle-button {
         gap: 0.32rem;
     }
 }
+
+/* One clear control per search field: hide the native WebKit cancel X. */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}

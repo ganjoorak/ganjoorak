@@ -8,6 +8,7 @@ import {
   FaFeatherAlt,
   FaSearch,
   FaTimes,
+  FaTimesCircle,
   FaUser,
 } from "react-icons/fa";
 import ganjoorApi from "@/api/GanjoorApi";
@@ -557,7 +558,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
         initialFocus={inputRef}
         className="h-[min(88dvh,46rem)] text-right sm:max-w-3xl"
       >
-              <DialogHeader className="gap-4 pb-3">
+              <DialogHeader className="gap-3 border-b pb-4">
                 <div className="flex items-center justify-between gap-4">
                   <DialogTitle>جست‌وجو</DialogTitle>
                   <Button variant="ghost" size="icon" className="size-11" onClick={onClose} aria-label="بستن">
@@ -580,7 +581,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="نام شاعر، شعر یا دفتر..."
                   aria-label="جست‌وجوی سراسری"
-                  className="h-12 ps-10 pe-11 [&::-webkit-search-cancel-button]:hidden"
+                  className="h-12 ps-10 pe-11"
                 />
                 {query && (
                   <Button
@@ -594,7 +595,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
                     }}
                     aria-label="پاک کردن جست‌وجو"
                   >
-                    <FaTimes />
+                    <FaTimesCircle aria-hidden="true" className="text-muted-foreground" />
                   </Button>
                 )}
               </form>

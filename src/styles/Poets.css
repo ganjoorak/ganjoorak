@@ -15,7 +15,6 @@
   cursor: pointer;
 }
 .poets-search-clear svg { position: static; width: 0.7rem; height: 0.7rem; }
-.poets-search input::-webkit-search-cancel-button { display: none; }
 
 .poets-tab-count {
   display: inline-grid;
