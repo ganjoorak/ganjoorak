@@ -8,6 +8,10 @@ const isDesktopBuild = process.env.DESKTOP_BUILD === '1';
 
 const isVercel = Boolean(process.env.VERCEL);
 
+// Versions the service worker: each deploy registers a new /sw.js?v=… with its
+// own cache, and activation drops the previous deploy's cache.
+const BUILD_ID = process.env.VERCEL_GIT_COMMIT_SHA || String(Date.now());
+
 // Go accounts service (backend/). Proxied same-origin so the session cookie
 // stays first-party. Rewrites are resolved at `next build`, so set this at
 // build time, not only when the server starts.
@@ -17,6 +21,7 @@ const ACCOUNTS_API_URL = (process.env.ACCOUNTS_API_URL || 'http://127.0.0.1:8787
 const nextConfig = {
 
     reactStrictMode: true,
+    env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },
     ...(isVercel ? {} : { output: 'standalone' }),
 
     async rewrites() {

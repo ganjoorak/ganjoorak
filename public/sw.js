@@ -1,4 +1,7 @@
-const CACHE_VERSION = "ganjoorak-v1";
+// Registered as /sw.js?v=<build id>, so every deploy installs a new worker
+// with its own cache and activation drops the previous deploy's cache.
+const BUILD_ID = new URL(self.location.href).searchParams.get("v") || "dev";
+const CACHE_VERSION = `ganjoorak-${BUILD_ID}`;
 const APP_SHELL = [
   "/",
   "/saved",
@@ -32,6 +35,12 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+const isCacheable = (request, pathname) =>
+  request.mode === "navigate" ||
+  pathname.endsWith(".css") ||
+  pathname.endsWith(".js") ||
+  APP_SHELL.includes(pathname);
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") {
     return;
@@ -46,24 +55,25 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const networkFetch = fetch(event.request)
-        .then((response) => {
-          if (
-            response.ok &&
-            (requestUrl.pathname.endsWith(".css") ||
-              requestUrl.pathname.endsWith(".js") ||
-              APP_SHELL.includes(requestUrl.pathname))
-          ) {
-            const cloned = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, cloned));
-          }
-          return response;
-        })
-        .catch(() => cachedResponse);
+  if (!isCacheable(event.request, requestUrl.pathname)) {
+    return;
+  }
 
-      return cachedResponse || networkFetch;
-    }),
+  // Network first: always serve the current deploy; the cache is only the
+  // offline fallback.
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
+          const cloned = response.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, cloned));
+        }
+        return response;
+      })
+      .catch(() =>
+        caches
+          .match(event.request)
+          .then((cachedResponse) => cachedResponse || Response.error()),
+      ),
   );
 });
