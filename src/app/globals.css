@@ -1507,7 +1507,6 @@ body:has(.menu-drawer) .sidebar-toggle-button {
     box-shadow: -24px 0 60px rgba(120, 90, 50, 0.22);
 }
 
-.global-search-dialog,
 .lyrics-share-dialog,
 .poet-info-dialog {
     position: fixed;
@@ -1530,7 +1529,6 @@ body:has(.menu-drawer) .sidebar-toggle-button {
     z-index: 1090;
 }
 
-.global-search-panel,
 .lyrics-share-panel,
 .poet-info-panel {
     width: min(100%, 760px);
@@ -1553,7 +1551,6 @@ body:has(.menu-drawer) .sidebar-toggle-button {
     border-radius: 1.1rem;
 }
 
-.global-search-header,
 .lyrics-share-header,
 .poet-info-header {
     position: relative;
@@ -1567,7 +1564,6 @@ body:has(.menu-drawer) .sidebar-toggle-button {
     text-align: center;
 }
 
-.global-search-header h2,
 .lyrics-share-header h2,
 .poet-info-header h2 {
     margin: 0;
@@ -1593,7 +1589,6 @@ body:has(.menu-drawer) .sidebar-toggle-button {
     text-align: right;
 }
 
-.global-search-header button,
 .lyrics-share-header button,
 .poet-info-header button {
     position: absolute;
@@ -1615,99 +1610,19 @@ body:has(.menu-drawer) .sidebar-toggle-button {
         background-color 0.2s ease;
 }
 
-.global-search-header button:hover,
 .lyrics-share-header button:hover,
 .poet-info-header button:hover {
     transform: translateY(-50%) rotate(-10deg);
     background-color: rgb(var(--secondary) / 0.8);
 }
 
-.global-search-header .global-search-close-button {
-    background-color: transparent;
-    color: rgb(var(--foreground) / 0.76);
-    box-shadow: inset 0 0 0 1px rgb(var(--border));
-}
 
-.global-search-header .global-search-close-button:hover {
-    transform: translateY(-50%) translateX(-2px);
-    background-color: rgb(var(--foreground) / 0.08);
-    color: rgb(var(--foreground));
-    box-shadow: inset 0 0 0 1px rgb(var(--foreground) / 0.18);
-}
 
-.global-search-input-wrap {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 1rem;
-    padding: 0.85rem 1rem;
-    border: 1px solid rgb(var(--border));
-    border-radius: 0.85rem;
-    background-color: rgb(var(--secondary));
-    color: rgb(var(--secondary-foreground));
-}
 
-.global-search-input-wrap input {
-    width: 100%;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-}
 
-.global-search-clear-button {
-    width: 1.85rem;
-    height: 1.85rem;
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgb(var(--border));
-    border-radius: 9999px;
-    background-color: transparent;
-    color: rgb(var(--foreground) / 0.62);
-    cursor: pointer;
-    transition:
-        background-color 0.2s ease,
-        border-color 0.2s ease,
-        color 0.2s ease;
-}
 
-.global-search-clear-button:hover {
-    border-color: rgb(var(--foreground) / 0.2);
-    background-color: rgb(var(--foreground) / 0.08);
-    color: rgb(var(--foreground));
-}
 
-.global-search-clear-button svg {
-    width: 0.8rem;
-    height: 0.8rem;
-}
 
-.global-search-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0 1rem 1rem;
-}
-
-.global-search-filters button {
-    min-width: 4rem;
-    padding: 0.45rem 0.85rem;
-    border: 1px solid rgb(var(--border));
-    border-radius: 9999px;
-    background-color: rgb(var(--card));
-    color: rgb(var(--card-foreground));
-    cursor: pointer;
-    font: inherit;
-}
-
-.global-search-filters button.active {
-    border-color: rgb(var(--primary));
-    background-color: rgb(var(--primary) / 0.12);
-    color: rgb(var(--primary));
-}
 
 .global-search-results {
     min-height: 18rem;
@@ -1771,17 +1686,11 @@ body:has(.menu-drawer) .sidebar-toggle-button {
     line-height: 1.9;
 }
 
-.global-search-empty,
-.global-search-error {
+.global-search-empty {
     margin: 3rem 0;
     text-align: center;
     color: rgb(var(--foreground) / 0.62);
 }
-
-.global-search-error {
-    color: rgb(var(--destructive));
-}
-
 .global-search-all-results {
     display: block;
     margin: 0.85rem 0 0.15rem;
@@ -2085,7 +1994,6 @@ body:has(.menu-drawer) .sidebar-toggle-button {
         padding: 0;
     }
 
-    .global-search-panel,
     .lyrics-share-panel {
         max-height: 92vh;
         width: min(100% - 1rem, 980px);

@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   FaBookOpen,
   FaFeatherAlt,
@@ -22,6 +21,11 @@ import {
   MIN_SEARCH_QUERY_LENGTH,
   normalizeSearchText,
 } from "@/utils/searchText";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogHeader, DialogPopup, DialogTitle } from "@/components/ui/dialog";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Toggle } from "@/components/ui/toggle";
 
 type SearchFilter = "all" | "poets" | "poems" | "books";
 
@@ -395,22 +399,6 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
   }, [filter, isOpen]);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
-  useEffect(() => {
     if (!isOpen || allPoets.length > 0) {
       return;
     }
@@ -557,64 +545,49 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
   const showLoadingMessage = isLoading && !hasResults;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            className="settings-backdrop global-modal-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-          <motion.div
-            className="global-search-dialog"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="global-search-panel"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="global-search-title"
-              initial={{ scale: 0.96, opacity: 0, y: 18 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.96, opacity: 0, y: 18 }}
-              transition={{ type: "spring", duration: 0.35, bounce: 0.18 }}
-            >
-              <header className="global-search-header">
-                <h2 id="global-search-title">جست‌وجو</h2>
-                <button
-                  type="button"
-                  className="global-search-close-button"
-                  onClick={onClose}
-                  aria-label="بستن"
-                >
-                  <FaTimes aria-hidden="true" />
-                </button>
-              </header>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogPopup
+        dir="rtl"
+        showCloseButton={false}
+        initialFocus={inputRef}
+        className="h-[min(88dvh,46rem)] text-right sm:max-w-3xl"
+      >
+              <DialogHeader className="gap-4 pb-3">
+                <div className="flex items-center justify-between gap-4">
+                  <DialogTitle>جست‌وجو</DialogTitle>
+                  <Button variant="ghost" size="icon" className="size-11" onClick={onClose} aria-label="بستن">
+                    <FaTimes aria-hidden="true" />
+                  </Button>
+                </div>
 
               <form
-                className="global-search-input-wrap"
+                className="relative"
                 onSubmit={(event) => {
                   event.preventDefault();
                   goToFullSearch();
                 }}
               >
-                <FaSearch aria-hidden="true" />
-                <input
+                <FaSearch aria-hidden="true" className="pointer-events-none absolute inset-y-0 start-3.5 my-auto size-3.5 text-muted-foreground" />
+                <Input
                   ref={inputRef}
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="نام شاعر، شعر یا دفتر..."
                   aria-label="جست‌وجوی سراسری"
+                  className="h-12 ps-10 pe-11 [&::-webkit-search-cancel-button]:hidden"
                 />
                 {query && (
-                  <button
+                  <Button
                     type="button"
-                    className="global-search-clear-button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="absolute inset-y-0 end-2 my-auto"
                     onClick={() => {
                       setQuery("");
                       inputRef.current?.focus();
@@ -622,25 +595,27 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
                     aria-label="پاک کردن جست‌وجو"
                   >
                     <FaTimes />
-                  </button>
+                  </Button>
                 )}
               </form>
 
-              <div className="global-search-filters">
+              <div className="flex flex-wrap gap-2">
                 {SEARCH_FILTERS.map((option) => (
-                  <button
+                  <Toggle
                     key={option.value}
-                    type="button"
-                    className={filter === option.value ? "active" : ""}
-                    aria-pressed={filter === option.value}
-                    onClick={() => setFilter(option.value)}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full px-3 data-pressed:border-primary data-pressed:bg-primary data-pressed:text-primary-foreground"
+                    pressed={filter === option.value}
+                    onPressedChange={() => setFilter(option.value)}
                   >
                     {option.label}
-                  </button>
+                  </Toggle>
                 ))}
               </div>
+              </DialogHeader>
 
-              <div className="global-search-results modern-scrollbar">
+              <div className="global-search-results modern-scrollbar min-h-0 flex-1">
                 {!shouldSearch && (
                   <p className="global-search-empty">
                     حداقل دو نویسه وارد کنید.
@@ -649,7 +624,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
                 {showLoadingMessage && (
                   <p className="global-search-empty">در حال جست‌وجو...</p>
                 )}
-                {error && <p className="global-search-error">{error}</p>}
+                {error && <FormError className="mx-auto my-12 w-fit">{error}</FormError>}
                 {shouldSearch && !isLoading && !error && !hasResults && (
                   <p className="global-search-empty">نتیجه‌ای پیدا نشد.</p>
                 )}
@@ -742,11 +717,8 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
                   </Link>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+      </DialogPopup>
+    </Dialog>
   );
 };
 
