@@ -25,18 +25,7 @@ import { useSettings } from "@/context/SettingsContext";
 import { logger } from "@/utils/logger";
 import poetSourceIndex from "@/data/poet-source-index.json";
 import { FaSpinner } from "react-icons/fa";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import RandomizePoemsPrompt from "@/components/RandomizePoemsPrompt";
 
 type RemotePoetSource = "ganjoor" | "echolalia";
 
@@ -115,46 +104,6 @@ const buildCategoryRows = (
       children: buildCategoryRows(children, categoryCache, selectedId, loadingId),
     };
   });
-
-function RandomizePoemsPrompt({
-  poetName,
-  onChoose,
-}: {
-  poetName: string;
-  onChoose: (randomize: boolean, rememberChoice: boolean) => void;
-}) {
-  const [rememberChoice, setRememberChoice] = useState(false);
-
-  return (
-    <Dialog open disablePointerDismissal>
-      <DialogPopup dir="rtl" showCloseButton={false} className="text-right sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="leading-8">
-            شعرهای {poetName} چطور نمایش داده شوند؟
-          </DialogTitle>
-          <DialogDescription className="leading-7">
-            می‌توانید شعرها را به صورت تصادفی بخوانید یا از ابتدای مجموعه
-            پیاپی جلو بروید.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogPanel>
-          <Label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border px-3 py-3 font-normal leading-6">
-            <span>برای همهٔ شاعران همین را استفاده کن و دوباره نپرس</span>
-            <Switch checked={rememberChoice} onCheckedChange={setRememberChoice} />
-          </Label>
-        </DialogPanel>
-        <DialogFooter variant="bare" className="grid grid-cols-1 sm:grid-cols-2">
-          <Button size="lg" onClick={() => onChoose(true, rememberChoice)}>
-            تصادفی
-          </Button>
-          <Button size="lg" variant="outline" onClick={() => onChoose(false, rememberChoice)}>
-            پیاپی
-          </Button>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
-  );
-}
 
 function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
   const { settings, setRandomizePoems, setAskRandomizePoemsOnPoetPages } =
