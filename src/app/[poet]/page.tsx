@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useSearchParams } from "next/navigation";
 import PoemFeedPager from "@/components/PoemFeedPager";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -25,7 +24,19 @@ import PoetImage from "@/components/PoetImage";
 import { useSettings } from "@/context/SettingsContext";
 import { logger } from "@/utils/logger";
 import poetSourceIndex from "@/data/poet-source-index.json";
-import { FaCheck, FaSpinner } from "react-icons/fa";
+import { FaSpinner } from "react-icons/fa";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 type RemotePoetSource = "ganjoor" | "echolalia";
 
@@ -115,68 +126,33 @@ function RandomizePoemsPrompt({
   const [rememberChoice, setRememberChoice] = useState(false);
 
   return (
-    <AnimatePresence>
-      <motion.div
-        className="settings-backdrop"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      />
-      <motion.div
-        className="settings-dialog"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      >
-        <motion.div
-          className="settings-panel max-w-md text-right"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="randomize-poems-title"
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          transition={{ type: "spring", duration: 0.4, bounce: 0.25 }}
-        >
-          <div className="settings-form">
-            <h2 id="randomize-poems-title" className="settings-title">
-              شعرهای {poetName} چطور نمایش داده شوند؟
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-neutral-400">
-              می‌توانید شعرها را به صورت تصادفی بخوانید یا از ابتدای مجموعه
-              پیاپی جلو بروید.
-            </p>
-            <button
-              type="button"
-              className={`randomize-remember-toggle${rememberChoice ? " active" : ""}`}
-              onClick={() => setRememberChoice((current) => !current)}
-              aria-pressed={rememberChoice}
-            >
-              <span className="randomize-remember-check" aria-hidden="true">
-                {rememberChoice && <FaCheck />}
-              </span>
-              <span>برای همهٔ شاعران همین را استفاده کن و دوباره نپرس</span>
-            </button>
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                className="settings-action-button primary justify-center"
-                onClick={() => onChoose(true, rememberChoice)}
-              >
-                تصادفی
-              </button>
-              <button
-                type="button"
-                className="settings-action-button secondary justify-center"
-                onClick={() => onChoose(false, rememberChoice)}
-              >
-                پیاپی
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+    <Dialog open disablePointerDismissal>
+      <DialogPopup dir="rtl" showCloseButton={false} className="text-right sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="leading-8">
+            شعرهای {poetName} چطور نمایش داده شوند؟
+          </DialogTitle>
+          <DialogDescription className="leading-7">
+            می‌توانید شعرها را به صورت تصادفی بخوانید یا از ابتدای مجموعه
+            پیاپی جلو بروید.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogPanel>
+          <Label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border px-3 py-3 font-normal leading-6">
+            <span>برای همهٔ شاعران همین را استفاده کن و دوباره نپرس</span>
+            <Switch checked={rememberChoice} onCheckedChange={setRememberChoice} />
+          </Label>
+        </DialogPanel>
+        <DialogFooter variant="bare" className="grid grid-cols-1 sm:grid-cols-2">
+          <Button size="lg" onClick={() => onChoose(true, rememberChoice)}>
+            تصادفی
+          </Button>
+          <Button size="lg" variant="outline" onClick={() => onChoose(false, rememberChoice)}>
+            پیاپی
+          </Button>
+        </DialogFooter>
+      </DialogPopup>
+    </Dialog>
   );
 }
 
