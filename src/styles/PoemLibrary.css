@@ -158,29 +158,11 @@
   right: 1rem;
   bottom: calc(1rem + env(safe-area-inset-bottom));
   z-index: 1205;
-  display: grid;
-  gap: 0.65rem;
-  padding: 0.95rem 1rem;
-  border-radius: 1rem;
-  background: rgb(var(--background) / 0.95);
-  border: 1px solid rgb(var(--foreground) / 0.14);
-  box-shadow: 0 18px 40px rgb(0 0 0 / 0.28);
 }
 
 .pwa-install-actions {
   display: flex;
   gap: 0.5rem;
-}
-
-.pwa-install-actions button {
-  flex: 1;
-  min-height: 2.5rem;
-  border-radius: 0.8rem;
-  border: 1px solid rgb(var(--foreground) / 0.14);
-}
-
-.pwa-install-actions button.primary {
-  background: rgb(var(--foreground) / 0.14);
 }
 
 .poem-favorite-button.is-active {

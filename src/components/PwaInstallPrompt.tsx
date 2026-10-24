@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -46,12 +48,11 @@ const PwaInstallPrompt = () => {
   }
 
   return (
-    <div className="pwa-install-banner" role="dialog" aria-label="نصب گنجورک">
-      <p>گنجورک را روی صفحهٔ اصلی نصب کنید تا سریع‌تر و آفلاین‌تر در دسترس باشد.</p>
+    <Card role="dialog" aria-label="نصب گنجورک" className="pwa-install-banner gap-3 px-4 shadow-lg">
+      <p className="text-sm leading-7">گنجورک را روی صفحهٔ اصلی نصب کنید تا سریع‌تر و آفلاین‌تر در دسترس باشد.</p>
       <div className="pwa-install-actions">
-        <button
-          type="button"
-          className="primary"
+        <Button
+          className="flex-1"
           onClick={async () => {
             await promptEvent.prompt();
             await promptEvent.userChoice;
@@ -60,9 +61,10 @@ const PwaInstallPrompt = () => {
           }}
         >
           نصب
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1"
           onClick={() => {
             window.localStorage.setItem("ganjoorak:pwa-install-dismissed", "1");
             setIsVisible(false);
@@ -70,9 +72,9 @@ const PwaInstallPrompt = () => {
           }}
         >
           بعداً
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 };
 
