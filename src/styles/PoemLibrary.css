@@ -254,4 +254,3 @@
   text-decoration: none;
 }
 .account-section-link svg { width: 0.6rem; height: 0.6rem; }
-.account-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; margin: 0; padding: 0; }

@@ -14,7 +14,6 @@ import {
 } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
 import { PoemLibraryList, useLibraryVersion } from "@/components/PoemLibraryPage";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
@@ -23,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import { FieldHint, Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs";
 import { useSettings } from "@/context/SettingsContext";
-import { getInterestByKey } from "@/data/interests";
 import {
   AccountError,
   fetchAccount,
@@ -215,9 +213,6 @@ export const ProfilePage = () => {
   const isReady = libraryVersion > 0;
   const history = isReady ? readHistory() : [];
   const favorites = isReady ? readFavorites() : [];
-  const interests = settings.interestKeys
-    .map((key) => getInterestByKey(key)?.label)
-    .filter(Boolean);
 
   const stats = [
     { label: "ذخیره", value: favorites.length, href: "/saved" },
@@ -287,27 +282,6 @@ export const ProfilePage = () => {
           entries={favorites.slice(0, 5)}
           emptyMessage="هنوز شعری نپسندیده‌اید. روی آیکن قلب در صفحهٔ شعر بزنید."
         />
-      </section>
-
-      <section className="app-section" aria-labelledby="profile-interests">
-        <h2 id="profile-interests" className="app-section-title">
-          <span>علاقه‌مندی‌ها</span>
-          <Link href="/?interests=1" className="account-section-link">
-            ویرایش
-            <FaChevronLeft aria-hidden="true" />
-          </Link>
-        </h2>
-        <Card size="sm" className="px-4">
-          {interests.length > 0 ? (
-            <ul className="account-chips">
-              {interests.map((label) => (
-                <li key={label}><Badge variant="secondary">{label}</Badge></li>
-              ))}
-            </ul>
-          ) : (
-            <p className="app-row-meta">هنوز علاقه‌مندی‌ای انتخاب نکرده‌اید.</p>
-          )}
-        </Card>
       </section>
     </AppPage>
   );

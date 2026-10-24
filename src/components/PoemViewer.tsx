@@ -59,7 +59,6 @@ interface PoemViewerProps {
   onTogglePoetInfo?: () => void;
   onOpenFeed?: () => void;
   onOpenFeedLabel?: string;
-  onOpenInterests?: () => void;
   /** Small chip rendered in-flow above the poem title (e.g. the daily-poem link). */
   titleEyebrow?: React.ReactNode;
   /** Feed "stay on this poem" lock; surfaced in the mobile menu. */
@@ -128,7 +127,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   onTogglePoetInfo,
   onOpenFeed,
   onOpenFeedLabel,
-  onOpenInterests,
   titleEyebrow,
   isZenLocked,
   onToggleZenLock,
@@ -1305,7 +1303,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         onUpdatesViewed={markAsRead}
         onOpenFeed={onOpenFeed}
         onOpenFeedLabel={onOpenFeedLabel}
-        onOpenInterests={onOpenInterests}
         onOpenSettings={() => {
           setIsSettingsOpen(true);
           setIsMenuOpen(false);

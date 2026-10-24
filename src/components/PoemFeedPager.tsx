@@ -33,7 +33,6 @@ interface PoemFeedPagerProps {
   onTogglePoetInfo?: () => void;
   onOpenFeed?: () => void;
   onOpenFeedLabel?: string;
-  onOpenInterests?: () => void;
   titleEyebrow?: ReactNode;
 }
 
@@ -69,7 +68,6 @@ export default function PoemFeedPager({
   onTogglePoetInfo,
   onOpenFeed,
   onOpenFeedLabel,
-  onOpenInterests,
   titleEyebrow,
 }: PoemFeedPagerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -624,7 +622,6 @@ export default function PoemFeedPager({
           onTogglePoetInfo={onTogglePoetInfo}
           onOpenFeed={onOpenFeed}
           onOpenFeedLabel={onOpenFeedLabel}
-          onOpenInterests={onOpenInterests}
           titleEyebrow={titleEyebrow}
           isZenLocked={isZenLocked}
           onToggleZenLock={() => setIsZenLocked((value) => !value)}

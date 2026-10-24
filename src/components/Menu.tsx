@@ -43,8 +43,6 @@ interface MenuProps {
   onOpenSettings: () => void;
   onOpenFeed?: () => void;
   onOpenFeedLabel?: string;
-  /** Opens the interests picker in place (home feed); otherwise the item links to /?interests=1. */
-  onOpenInterests?: () => void;
   onOpenSearch?: () => void;
   isZenLocked?: boolean;
   onToggleZenLock?: () => void;
@@ -113,7 +111,6 @@ const Menu: React.FC<MenuProps> = ({
   hasNewUpdates = false,
   onUpdatesViewed,
   onOpenSettings,
-  onOpenInterests,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -144,25 +141,9 @@ const Menu: React.FC<MenuProps> = ({
         label: "شاعران دنبال‌شده",
         count: followedCount > 0 ? persianNumber.format(followedCount) : undefined,
       },
-      onOpenInterests
-        ? {
-            kind: "button",
-            icon: <FaSlidersH />,
-            label: "علاقه‌مندی‌ها",
-            onClick: () => {
-              onOpenInterests();
-              onClose();
-            },
-          }
-        : {
-            kind: "link",
-            href: "/?interests=1",
-            icon: <FaSlidersH />,
-            label: "علاقه‌مندی‌ها",
-          },
       { kind: "link", href: "/profile", icon: <FaUserCircle />, label: "حساب کاربری" },
     ],
-    [followedCount, onClose, onOpenInterests],
+    [followedCount],
   );
 
   const moreItems = useMemo<MenuItem[]>(

@@ -24,7 +24,7 @@ const PwaInstallPrompt = () => {
       return;
     }
 
-    // Skip the first visit: it already opens the interests dialog.
+    // Skip the first visit.
     if (window.localStorage.getItem("ganjoorak:visited") !== "1") {
       window.localStorage.setItem("ganjoorak:visited", "1");
       return;
