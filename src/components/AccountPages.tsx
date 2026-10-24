@@ -33,10 +33,6 @@ import {
   type AccountUser,
 } from "@/utils/accountApi";
 import { readFavorites, readHistory } from "@/utils/poemLibrary";
-import {
-  findDirectoryPoet,
-  getDirectoryPoetDisplayName,
-} from "@/utils/poetDirectory";
 import "../styles/PoemLibrary.css";
 
 type AuthMode = "login" | "signup";
@@ -181,12 +177,6 @@ export const LoginPage = () => {
   );
 };
 
-const poetNameForKey = (key: string) => {
-  const slug = key.slice(key.indexOf(":") + 1);
-  const poet = findDirectoryPoet(slug);
-  return poet ? getDirectoryPoetDisplayName(poet) : slug;
-};
-
 const persianDateFormatter = new Intl.DateTimeFormat("fa-IR", { dateStyle: "long" });
 
 const persianNumber = new Intl.NumberFormat("fa-IR");
@@ -297,27 +287,6 @@ export const ProfilePage = () => {
           entries={favorites.slice(0, 5)}
           emptyMessage="هنوز شعری نپسندیده‌اید. روی آیکن قلب در صفحهٔ شعر بزنید."
         />
-      </section>
-
-      <section className="app-section" aria-labelledby="profile-poets">
-        <h2 id="profile-poets" className="app-section-title">
-          <span>شاعران دنبال‌شده</span>
-          <Link href="/following" className="account-section-link">
-            مدیریت
-            <FaChevronLeft aria-hidden="true" />
-          </Link>
-        </h2>
-        <Card size="sm" className="px-4">
-          {settings.followedPoetKeys.length > 0 ? (
-            <ul className="account-chips">
-              {settings.followedPoetKeys.map((key) => (
-                <li key={key}><Badge variant="secondary">{poetNameForKey(key)}</Badge></li>
-              ))}
-            </ul>
-          ) : (
-            <p className="app-row-meta">هنوز شاعری را دنبال نمی‌کنید.</p>
-          )}
-        </Card>
       </section>
 
       <section className="app-section" aria-labelledby="profile-interests">
