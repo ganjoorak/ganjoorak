@@ -1817,6 +1817,59 @@ body:has(.menu-drawer) .sidebar-toggle-button {
     pointer-events: none;
 }
 
+/* Page transitions (PageTransition / template.tsx). The outgoing page fades
+   out quickly; the incoming one fades in and rises a few pixels. The root
+   snapshot is only the themed background, so it swaps without animating. */
+::view-transition {
+    pointer-events: none;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+}
+
+::view-transition-group(.page-enter),
+::view-transition-group(.page-exit) {
+    animation: none;
+}
+
+::view-transition-old(.page-exit) {
+    animation: 140ms cubic-bezier(0.4, 0, 1, 1) both page-fade-out;
+}
+
+::view-transition-new(.page-enter) {
+    animation: 280ms cubic-bezier(0.22, 1, 0.36, 1) 70ms both page-fade-in;
+}
+
+@keyframes page-fade-out {
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes page-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+/* Browser swipe-back already animates; don't stack a second transition. */
+:root[data-ua-transition]::view-transition-old(*),
+:root[data-ua-transition]::view-transition-new(*),
+:root[data-ua-transition]::view-transition-group(*) {
+    animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(*),
+    ::view-transition-new(*),
+    ::view-transition-group(*) {
+        animation: none !important;
+    }
+}
+
 .lyrics-share-preview-frame img {
     display: block;
     width: 100%;

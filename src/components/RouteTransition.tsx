@@ -18,6 +18,27 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
     }
   }, [pathname]);
 
+  // Safari/Chrome swipe-back plays its own animation; flag it so the page
+  // transition CSS (globals.css) skips ours instead of playing both.
+  useEffect(() => {
+    let timer: number | null = null;
+    const handlePopState = (event: PopStateEvent) => {
+      if (!(event as PopStateEvent & { hasUAVisualTransition?: boolean }).hasUAVisualTransition) {
+        return;
+      }
+      const root = document.documentElement;
+      root.setAttribute("data-ua-transition", "");
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => root.removeAttribute("data-ua-transition"), 600);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      if (timer) window.clearTimeout(timer);
+    };
+  }, []);
+
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       if (
