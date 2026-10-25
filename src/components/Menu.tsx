@@ -12,6 +12,7 @@ import {
   FaBookmark,
   FaChevronLeft,
   FaChevronRight,
+  FaCommentDots,
   FaCompass,
   FaEllipsisH,
   FaHome,
@@ -35,6 +36,7 @@ import {
   useSettings,
   type ThemeOption,
 } from "@/context/SettingsContext";
+import FeedbackForm from "@/components/FeedbackForm";
 
 interface MenuProps {
   isOpen: boolean;
@@ -120,7 +122,7 @@ const Menu: React.FC<MenuProps> = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const lastPathnameRef = useRef(pathname);
-  const [view, setView] = useState<"main" | "more">("main");
+  const [view, setView] = useState<"main" | "more" | "feedback">("main");
 
   const followedCount = settings.followedPoetKeys?.length ?? 0;
 
@@ -163,6 +165,12 @@ const Menu: React.FC<MenuProps> = ({
         href: "/faq",
         icon: <FaQuestionCircle />,
         label: "پرسش‌های متداول",
+      },
+      {
+        kind: "button",
+        icon: <FaCommentDots />,
+        label: "بازخورد",
+        onClick: () => setView("feedback"),
       },
     ],
     [hasNewUpdates, onUpdatesViewed],
@@ -421,7 +429,7 @@ const Menu: React.FC<MenuProps> = ({
                       </ul>
                     </section>
                   </motion.div>
-                ) : (
+                ) : view === "more" ? (
                   <motion.div
                     key="menu-view-more"
                     className="menu-view"
@@ -447,79 +455,104 @@ const Menu: React.FC<MenuProps> = ({
                       </ul>
                     </section>
                   </motion.div>
+                ) : (
+                  <motion.div
+                    key="menu-view-feedback"
+                    className="menu-view"
+                    initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <div className="menu-subpage-header">
+                      <button
+                        type="button"
+                        className="menu-subpage-back"
+                        onClick={() => setView("more")}
+                        aria-label="بازگشت به بیشتر"
+                      >
+                        <FaChevronRight aria-hidden="true" />
+                      </button>
+                      <h2 className="menu-subpage-title">بازخورد</h2>
+                    </div>
+                    <FeedbackForm onDone={onClose} />
+                  </motion.div>
                 )}
               </AnimatePresence>
             </nav>
 
-            <footer className="menu-drawer-footer">
-              <div
-                className="menu-theme-switch"
-                role="radiogroup"
-                aria-label="پوستهٔ نمایش"
-              >
-                {THEME_OPTIONS.map((option) => {
-                  const active = settings.theme === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      className={`menu-theme-option${active ? " is-active" : ""}`}
-                      onClick={() => setTheme(option.value)}
-                    >
-                      <span className="menu-theme-option-icon">{option.icon}</span>
-                      <span>{option.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="menu-footer-row">
-                <button
-                  type="button"
-                  className="menu-settings-button"
-                  onClick={() => {
-                    onOpenSettings();
-                    onClose();
-                  }}
-                >
-                  <span className="menu-link-icon" aria-hidden="true">
-                    <FaSlidersH />
-                  </span>
-                  <span className="menu-link-label">تنظیمات</span>
-                  <span className="menu-settings-chevron" aria-hidden="true">
-                    <FaChevronLeft />
-                  </span>
-                </button>
-
+            {/* The feedback form needs the room, especially with a phone keyboard up. */}
+            {view !== "feedback" && (
+              <footer className="menu-drawer-footer">
                 <div
-                  className="menu-font-stepper"
-                  role="group"
-                  aria-label="اندازهٔ متن شعر"
+                  className="menu-theme-switch"
+                  role="radiogroup"
+                  aria-label="پوستهٔ نمایش"
                 >
-                  <button
-                    type="button"
-                    onClick={() => handleFontSizeStep(-1)}
-                    disabled={!canDecreaseFont}
-                    aria-label="کوچک‌تر کردن متن"
-                  >
-                    <FaMinus aria-hidden="true" />
-                  </button>
-                  <span className="menu-font-stepper-value" aria-live="polite">
-                    {persianNumber.format(settings.poemFontSize)}٪
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleFontSizeStep(1)}
-                    disabled={!canIncreaseFont}
-                    aria-label="بزرگ‌تر کردن متن"
-                  >
-                    <FaPlus aria-hidden="true" />
-                  </button>
+                  {THEME_OPTIONS.map((option) => {
+                    const active = settings.theme === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        className={`menu-theme-option${active ? " is-active" : ""}`}
+                        onClick={() => setTheme(option.value)}
+                      >
+                        <span className="menu-theme-option-icon">{option.icon}</span>
+                        <span>{option.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-            </footer>
+
+                <div className="menu-footer-row">
+                  <button
+                    type="button"
+                    className="menu-settings-button"
+                    onClick={() => {
+                      onOpenSettings();
+                      onClose();
+                    }}
+                  >
+                    <span className="menu-link-icon" aria-hidden="true">
+                      <FaSlidersH />
+                    </span>
+                    <span className="menu-link-label">تنظیمات</span>
+                    <span className="menu-settings-chevron" aria-hidden="true">
+                      <FaChevronLeft />
+                    </span>
+                  </button>
+
+                  <div
+                    className="menu-font-stepper"
+                    role="group"
+                    aria-label="اندازهٔ متن شعر"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleFontSizeStep(-1)}
+                      disabled={!canDecreaseFont}
+                      aria-label="کوچک‌تر کردن متن"
+                    >
+                      <FaMinus aria-hidden="true" />
+                    </button>
+                    <span className="menu-font-stepper-value" aria-live="polite">
+                      {persianNumber.format(settings.poemFontSize)}٪
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleFontSizeStep(1)}
+                      disabled={!canIncreaseFont}
+                      aria-label="بزرگ‌تر کردن متن"
+                    >
+                      <FaPlus aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              </footer>
+            )}
           </motion.div>
         </>
       )}

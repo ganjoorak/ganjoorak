@@ -1,0 +1,190 @@
+/* Feedback form inside the menu drawer's «بیشتر» › «بازخورد» view. */
+
+.feedback-form {
+    display: grid;
+    gap: 1rem;
+    padding: 0 0.25rem;
+}
+
+.feedback-intro {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: rgb(var(--muted-foreground));
+}
+
+.feedback-kinds {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: 0.85rem;
+    background-color: rgb(var(--secondary));
+}
+
+.feedback-kind {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2.5rem;
+    padding: 0.35rem 0.5rem;
+    border: none;
+    border-radius: 0.65rem;
+    background: transparent;
+    color: rgb(var(--secondary-foreground) / 0.72);
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: color 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.feedback-kind:hover {
+    color: rgb(var(--secondary-foreground));
+}
+
+.feedback-kind.is-active {
+    color: rgb(var(--foreground));
+    font-weight: 600;
+}
+
+.feedback-kind:focus-visible {
+    outline: 2px solid rgb(var(--ring) / 0.7);
+    outline-offset: 2px;
+}
+
+.feedback-kind:disabled {
+    cursor: default;
+}
+
+.feedback-kind-pill {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: rgb(var(--card));
+    box-shadow:
+        0 1px 2px rgb(0 0 0 / 0.16),
+        0 0 0 1px rgb(var(--border));
+}
+
+.feedback-kind-icon,
+.feedback-kind-label {
+    position: relative;
+}
+
+.feedback-kind-icon {
+    display: inline-flex;
+    font-size: 0.8rem;
+}
+
+.feedback-label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.feedback-count {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: rgb(var(--muted-foreground));
+    font-variant-numeric: tabular-nums;
+    transition: color 0.18s ease;
+}
+
+.feedback-count.is-near {
+    color: rgb(var(--destructive));
+}
+
+.feedback-optional {
+    font-weight: 400;
+    color: rgb(var(--muted-foreground));
+}
+
+.feedback-textarea {
+    width: 100%;
+    min-height: 8.5rem;
+    max-height: 40dvh;
+    resize: vertical;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid rgb(var(--input));
+    border-radius: 0.5rem;
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 400;
+    line-height: 1.85;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+    outline: none;
+    transition:
+        border-color 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.feedback-textarea::placeholder {
+    color: rgb(var(--muted-foreground));
+}
+
+.feedback-textarea:focus-visible {
+    border-color: rgb(var(--ring));
+    box-shadow: 0 0 0 3px rgb(var(--ring) / 0.2);
+}
+
+.feedback-textarea:disabled {
+    opacity: 0.6;
+}
+
+.feedback-submit {
+    width: 100%;
+    height: 2.75rem;
+    font-size: 0.92rem;
+}
+
+.feedback-sent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 0.75rem 1rem;
+}
+
+.feedback-sent-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin-bottom: 1rem;
+    border-radius: 9999px;
+    background-color: rgb(var(--primary));
+    color: rgb(var(--primary-foreground));
+    font-size: 1.25rem;
+    box-shadow: 0 0 0 6px rgb(var(--primary) / 0.12);
+}
+
+.feedback-sent-title {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: rgb(var(--foreground));
+}
+
+.feedback-sent-text {
+    margin: 0 0 1.4rem;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: rgb(var(--muted-foreground));
+}
+
+.feedback-sent-actions {
+    display: grid;
+    gap: 0.4rem;
+    width: 100%;
+}
+
+.feedback-sent-actions > * {
+    width: 100%;
+}

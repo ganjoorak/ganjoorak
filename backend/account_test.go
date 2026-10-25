@@ -415,3 +415,64 @@ func TestCredentialsFlow(t *testing.T) {
 		t.Fatalf("public profile: %s", public)
 	}
 }
+
+func TestFeedback(t *testing.T) {
+	store, err := openStore(filepath.Join(t.TempDir(), "accounts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.db.Close()
+	handler := newServer(store).routes()
+	do := func(body, cookie string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/api/account/feedback", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		if cookie != "" {
+			req.Header.Set("Cookie", cookie)
+		}
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	for _, bad := range []string{`{"kind":"spam","message":"سلام دنیا"}`, `{"kind":"bug","message":"  ه  "}`} {
+		if res := do(bad, ""); res.Code != http.StatusBadRequest {
+			t.Fatalf("invalid feedback %s: %d", bad, res.Code)
+		}
+	}
+	if res := do(`{"kind":"bug","message":"صفحه\r\nباز نمی‌شود\u0007","page":"/hafez"}`, ""); res.Code != http.StatusNoContent {
+		t.Fatalf("anonymous feedback: %d %s", res.Code, res.Body)
+	}
+
+	signup := httptest.NewRequest("POST", "/api/account/signup", strings.NewReader(`{"username":"saadi","password":"golestan-12"}`))
+	signup.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, signup)
+	cookie := strings.SplitN(rec.Header().Get("Set-Cookie"), ";", 2)[0]
+	if res := do(`{"kind":"suggestion","message":"پیشنهادی دارم","contact":"a@b.c"}`, cookie); res.Code != http.StatusNoContent {
+		t.Fatalf("signed-in feedback: %d %s", res.Code, res.Body)
+	}
+
+	rows, err := store.db.Query(`SELECT kind, message, username FROM feedback ORDER BY id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var got []string
+	for rows.Next() {
+		var kind, message, username string
+		if err := rows.Scan(&kind, &message, &username); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, kind+"|"+message+"|"+username)
+	}
+	want := []string{"bug|صفحه\nباز نمی‌شود|", "suggestion|پیشنهادی دارم|saadi"}
+	if strings.Join(got, ";") != strings.Join(want, ";") {
+		t.Fatalf("stored feedback = %q, want %q", got, want)
+	}
+
+	// Two invalid + two accepted so far; the hourly budget is 5 per IP.
+	do(`{"kind":"other","message":"سوم"}`, "")
+	if res := do(`{"kind":"other","message":"چهارم"}`, ""); res.Code != http.StatusTooManyRequests {
+		t.Fatalf("rate limit: %d", res.Code)
+	}
+}

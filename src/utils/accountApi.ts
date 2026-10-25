@@ -139,3 +139,13 @@ export const updateProfile = (profile: { username: string; displayName: string; 
 
 /** The shareable address of a profile, e.g. /@hadi (rewritten to /u/hadi). */
 export const publicProfilePath = (username: string) => `/@${username}`;
+
+export type FeedbackKind = "suggestion" | "bug" | "other";
+
+/** Works signed out too; with a session the service stores the username alongside. */
+export const sendFeedback = (feedback: {
+  kind: FeedbackKind;
+  message: string;
+  contact: string;
+  page: string;
+}) => request<void>("feedback", { method: "POST", json: feedback });

@@ -123,6 +123,50 @@ func validateProfile(in ProfileInput) (ProfileInput, error) {
 	return ProfileInput{Username: username, DisplayName: displayName, Avatar: in.Avatar}, nil
 }
 
+// FeedbackInput is one message from the in-app feedback form.
+type FeedbackInput struct {
+	Kind    string `json:"kind"`
+	Message string `json:"message"`
+	Contact string `json:"contact"`
+	Page    string `json:"page"`
+}
+
+const (
+	minFeedbackMessage = 3
+	maxFeedbackMessage = 4000
+	maxFeedbackContact = 200
+	maxFeedbackPage    = 300
+)
+
+var (
+	feedbackKinds      = map[string]bool{"suggestion": true, "bug": true, "other": true}
+	errBadFeedbackKind = errors.New("نوع بازخورد معتبر نیست.")
+	errBadFeedbackText = fmt.Errorf("متن بازخورد باید %d تا %d نویسه باشد.", minFeedbackMessage, maxFeedbackMessage)
+)
+
+// validateFeedback returns the cleaned input or a Persian, user-facing error.
+// Newlines survive in the message; the other fields are single-line.
+func validateFeedback(in FeedbackInput) (FeedbackInput, error) {
+	if !feedbackKinds[in.Kind] {
+		return in, errBadFeedbackKind
+	}
+	message := strings.TrimSpace(strings.Map(func(r rune) rune {
+		if r != '\n' && unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, strings.ReplaceAll(in.Message, "\r\n", "\n")))
+	if n := utf8.RuneCountInString(message); n < minFeedbackMessage || n > maxFeedbackMessage {
+		return in, errBadFeedbackText
+	}
+	return FeedbackInput{
+		Kind:    in.Kind,
+		Message: message,
+		Contact: cleanText(in.Contact, maxFeedbackContact),
+		Page:    cleanText(in.Page, maxFeedbackPage),
+	}, nil
+}
+
 func cleanText(value string, max int) string {
 	value = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {

@@ -53,6 +53,17 @@ CREATE TABLE IF NOT EXISTS sessions (
 	expires_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+-- Messages from the in-app feedback form. username is '' for signed-out senders
+-- and is copied (not a foreign key) so feedback outlives renamed or deleted accounts.
+CREATE TABLE IF NOT EXISTS feedback (
+	id INTEGER PRIMARY KEY,
+	kind TEXT NOT NULL,
+	message TEXT NOT NULL,
+	contact TEXT NOT NULL DEFAULT '',
+	page TEXT NOT NULL DEFAULT '',
+	username TEXT NOT NULL DEFAULT '',
+	created_at INTEGER NOT NULL
+);
 `
 
 // Columns added after the first release, applied once to older databases.
@@ -205,6 +216,13 @@ func (s *Store) createSession(ctx context.Context, userID int64, tokenHash strin
 
 func (s *Store) deleteSession(ctx context.Context, tokenHash string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = ?`, tokenHash)
+	return err
+}
+
+func (s *Store) addFeedback(ctx context.Context, in FeedbackInput, username string) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO feedback (kind, message, contact, page, username, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		in.Kind, in.Message, in.Contact, in.Page, username, time.Now().UnixMilli())
 	return err
 }
 

@@ -30,6 +30,8 @@ const (
 type server struct {
 	store   *Store
 	limiter *rateLimiter
+	// Separate, tighter budget so feedback spam cannot lock anyone out of login.
+	feedbackLimiter *rateLimiter
 	// Each argon2id run holds 19 MiB; cap concurrent runs so a burst of
 	// logins cannot exhaust memory.
 	hashSlots chan struct{}
@@ -37,9 +39,10 @@ type server struct {
 
 func newServer(store *Store) *server {
 	return &server{
-		store:     store,
-		limiter:   newRateLimiter(20, 15*time.Minute),
-		hashSlots: make(chan struct{}, 4),
+		store:           store,
+		limiter:         newRateLimiter(20, 15*time.Minute),
+		feedbackLimiter: newRateLimiter(5, time.Hour),
+		hashSlots:       make(chan struct{}, 4),
 	}
 }
 
@@ -57,6 +60,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/account/recovery-code", s.handleRecoveryCode)
 	mux.HandleFunc("POST /api/account/reset", s.handleReset)
 	mux.HandleFunc("GET /api/account/users/{username}", s.handlePublicProfile)
+	mux.HandleFunc("POST /api/account/feedback", s.handleFeedback)
 	return mux
 }
 
@@ -381,6 +385,35 @@ func (s *server) handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"profile": profile})
+}
+
+// handleFeedback stores a message from the feedback form. Signing in is
+// optional; when there is a session the username is kept with the message.
+func (s *server) handleFeedback(w http.ResponseWriter, r *http.Request) {
+	if !s.feedbackLimiter.allow(clientIP(r)) {
+		writeError(w, http.StatusTooManyRequests, tooManyMessage)
+		return
+	}
+	var in FeedbackInput
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	in, err := validateFeedback(in)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	username := ""
+	if cookie, err := r.Cookie(sessionCookie); err == nil && cookie.Value != "" {
+		if user, err := s.store.userForSession(r.Context(), hashSessionToken(cookie.Value)); err == nil {
+			username = user.Username
+		}
+	}
+	if err := s.store.addFeedback(r.Context(), in, username); err != nil {
+		internalError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // --- sessions ------------------------------------------------------------------
