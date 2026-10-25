@@ -9,7 +9,7 @@ const GANJOOR_API_BASE_URL = (
 
 const ECHOLALIA_API_BASE_URL = "https://echolalia.ir/wp-json/wp/v2";
 const ECHOLALIA_POET_ROOT_SLUG = "sher";
-const HIDDEN_ECHOLALIA_POET_SLUGS = new Set(["forough-farrokhzad"]);
+const HIDDEN_ECHOLALIA_POET_SLUGS = new Set(["forough-farrokhzad", "nosrat-rahmani"]);
 const OUTPUT_PATH = path.join(
   process.cwd(),
   "src",

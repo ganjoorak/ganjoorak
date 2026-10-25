@@ -17,6 +17,41 @@ const BUILD_ID = process.env.VERCEL_GIT_COMMIT_SHA || String(Date.now());
 // build time, not only when the server starts.
 const ACCOUNTS_API_URL = (process.env.ACCOUNTS_API_URL || 'http://127.0.0.1:8787').replace(/\/+$/, '');
 
+// Echolalia poets whose poems now live in our own collection (public/poems): their old Echolalia
+// pages redirect there. Post ids map to the local poem ids they were merged into.
+const MERGED_ECHOLALIA_POETS = [
+    { from: 'nosrat-rahmani', to: 'rahmani', posts: {
+        118: 11,
+        163: 12,
+        245: 13,
+        915: 14,
+        940: 15,
+        945: 16,
+        1289: 17,
+        1290: 5,
+        1388: 18,
+        3121: 19,
+        7514: 20,
+        9925: 21,
+        10507: 3,
+        10663: 22,
+        11033: 23
+    } },
+    { from: 'forough-farrokhzad', to: 'farrokhzad', posts: {} },
+];
+
+const mergedPoetRedirects = () =>
+    MERGED_ECHOLALIA_POETS.flatMap(({ from, to, posts }) =>
+        ['', '/echolalia'].flatMap((prefix) => [
+            ...Object.entries(posts).map(([postId, poemId]) => ({
+                source: `${prefix}/${from}/${postId}`,
+                destination: `/${to}/${poemId}`,
+                permanent: true,
+            })),
+            { source: `${prefix}/${from}/:id*`, destination: `/${to}`, permanent: true },
+        ]),
+    );
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 
@@ -28,6 +63,10 @@ const nextConfig = {
         '/poets': ['./data/echolalia/**', './public/poems/**'],
     },
     ...(isVercel ? {} : { output: 'standalone' }),
+
+    async redirects() {
+        return mergedPoetRedirects();
+    },
 
     async rewrites() {
         const ganjoorApiBaseUrl = GANJOOR_API_BASE_URL.replace(/\/+$/, '');

@@ -26,7 +26,7 @@ const sourcesBySlug = poetSourceIndex.sourcesBySlug as Record<
   string,
   StaticPoetEntry | undefined
 >;
-const hiddenEcholaliaSlugs = new Set(['forough-farrokhzad']);
+const hiddenEcholaliaSlugs = new Set(['forough-farrokhzad', 'nosrat-rahmani']);
 
 const getGanjoorImageUrl = (slug: string) =>
   `/api/ganjoor/poet/image/${slug}.gif`;

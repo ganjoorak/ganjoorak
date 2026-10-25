@@ -43,6 +43,34 @@ interface LocalPoemSummary {
   collection?: string;
 }
 
+interface LocalCollectionGroup {
+  title: string;
+  year: string | null;
+  poems: LocalPoemSummary[];
+}
+
+/** Consecutive poems of the same book, in file order; years come from the dataset's `collections`. */
+const groupByCollection = (
+  summaries: LocalPoemSummary[],
+  meta: Array<{ title: string; year?: string }>,
+): LocalCollectionGroup[] => {
+  const groups: LocalCollectionGroup[] = [];
+  summaries.forEach((summary) => {
+    const title = summary.collection ?? "";
+    const last = groups[groups.length - 1];
+    if (last && last.title === title) {
+      last.poems.push(summary);
+    } else {
+      groups.push({
+        title,
+        year: meta.find((entry) => entry.title === title)?.year ?? null,
+        poems: [summary],
+      });
+    }
+  });
+  return groups;
+};
+
 const indexedPoetSources = poetSourceIndex.sourcesBySlug as Record<
   string,
   PoetSourceIndexEntry | undefined
@@ -623,6 +651,7 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
         onRandom={handleRandomPoem}
         isRandomLoading={isRandomLoading}
       >
+        <PoetSearchPanel poet={catalog.poet} />
         <PoetProfileSection
           title="مجموعه‌ها"
           hint={
@@ -659,7 +688,6 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
             </div>
           )}
         </PoetProfileSection>
-        <PoetSearchPanel poet={catalog.poet} />
       </PoetProfile>
       <main
         className="relative flex flex-1 flex-col overflow-hidden"
@@ -984,6 +1012,7 @@ function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
         onResume={currentPoem ? () => setIsInfoOpen(false) : undefined}
         onRandom={handleRandomPoem}
       >
+        <PoetSearchPanel poet={poet} />
         <PoetProfileSection
           title="شعرها"
           aside={
@@ -1007,7 +1036,6 @@ function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
             </p>
           )}
         </PoetProfileSection>
-        <PoetSearchPanel poet={poet} />
       </PoetProfile>
       <main className="relative flex flex-1 flex-col overflow-hidden">
         <div className="relative flex flex-1 flex-col overflow-hidden">
@@ -1152,6 +1180,7 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
   const [isInfoOpen, setIsInfoOpen] = useState(true);
   const [poemIds, setPoemIds] = useState<number[]>([]);
   const [poemSummaries, setPoemSummaries] = useState<LocalPoemSummary[]>([]);
+  const [collectionMeta, setCollectionMeta] = useState<Array<{ title: string; year?: string }>>([]);
   const [poemOrder, setPoemOrder] = useState<number[]>([]);
   const [currentPoemIndex, setCurrentPoemIndex] = useState(0);
   const [currentPoem, setCurrentPoem] = useState<Poem | null>(null);
@@ -1219,6 +1248,7 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
         poemMapRef.current = map;
         setPoemIds(ids);
         setPoemSummaries(summaries);
+        setCollectionMeta(Array.isArray(dataset.collections) ? dataset.collections : []);
       } catch (err) {
         if (cancelled) return;
         logger.error("Error loading custom poet:", err);
@@ -1372,15 +1402,14 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
     loadPoemAtIndex(0, order);
   }, [loadPoemAtIndex, poemIds, randomizeChoice]);
 
-  const collectionCount = useMemo(
+  const collectionGroups = useMemo(
     () =>
-      new Set(
-        poemSummaries
-          .map((summary) => summary.collection)
-          .filter((value): value is string => Boolean(value)),
-      ).size,
-    [poemSummaries],
+      poemSummaries.some((summary) => summary.collection)
+        ? groupByCollection(poemSummaries, collectionMeta)
+        : [],
+    [collectionMeta, poemSummaries],
   );
+  const collectionCount = collectionGroups.filter((group) => group.title).length;
 
   const handleSelectLocalSummary = useCallback(
     (poemId: number) => {
@@ -1397,6 +1426,24 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
       loadPoemAtIndex(index, order);
     },
     [loadPoemAtIndex, poemSummaries],
+  );
+
+  // Like a Ganjoor book: opening a collection reads its poems in order.
+  const handleSelectCollection = useCallback(
+    (groupIndex: number) => {
+      const group = collectionGroups[groupIndex];
+      if (!group) return;
+      const order = group.poems.map((summary) => summary.id);
+
+      skipNextPoemOrderEffectRef.current = true;
+      poemOrderRef.current = order;
+      setPoemOrder(order);
+      setPoemError(null);
+      setIsInfoOpen(false);
+      setRandomizeChoice(false);
+      loadPoemAtIndex(0, order);
+    },
+    [collectionGroups, loadPoemAtIndex],
   );
 
   const handleRandomizeChoice = useCallback(
@@ -1459,32 +1506,54 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
         onResume={currentPoem ? () => setIsInfoOpen(false) : undefined}
         onRandom={handleRandomPoem}
       >
-        <PoetProfileSection
-          title="شعرها"
-          aside={
-            poemSummaries.length > 0 ? (
-              <span>{formatPersianNumber(poemSummaries.length)} شعر</span>
-            ) : undefined
-          }
-        >
-          {poemSummaries.length > 0 ? (
-            <PoetProfileList
-              rows={poemSummaries.map((summary) => ({
-                id: summary.id,
-                title: summary.title,
-                subtitle: summary.collection,
-                badge: formatPersianNumber(summary.id),
-                isSelected: currentPoem?.id === summary.id,
-              }))}
-              onSelect={handleSelectLocalSummary}
-            />
-          ) : (
-            <p className="poet-profile-empty">
-              شعری برای این شاعر ثبت نشده است.
-            </p>
-          )}
-        </PoetProfileSection>
         <PoetSearchPanel poet={poetInfo} />
+        {collectionGroups.length > 0 ? (
+          <PoetProfileSection
+            title="مجموعه‌ها"
+            hint={
+              !currentPoem ? "برای شروع خواندن، یک مجموعه را انتخاب کنید." : undefined
+            }
+          >
+            <PoetProfileList
+              rows={collectionGroups.map((group, index) => ({
+                id: index,
+                title: group.title || "شعرهای دیگر",
+                subtitle: group.year ?? undefined,
+                count: group.poems.length,
+                isSelected: Boolean(
+                  currentPoem && group.poems.some((summary) => summary.id === currentPoem.id),
+                ),
+              }))}
+              onSelect={handleSelectCollection}
+            />
+          </PoetProfileSection>
+        ) : (
+          <PoetProfileSection
+            title="شعرها"
+            aside={
+              poemSummaries.length > 0 ? (
+                <span>{formatPersianNumber(poemSummaries.length)} شعر</span>
+              ) : undefined
+            }
+          >
+            {poemSummaries.length > 0 ? (
+              <PoetProfileList
+                rows={poemSummaries.map((summary, index) => ({
+                  id: summary.id,
+                  title: summary.title,
+                  subtitle: summary.collection,
+                  badge: formatPersianNumber(index + 1),
+                  isSelected: currentPoem?.id === summary.id,
+                }))}
+                onSelect={handleSelectLocalSummary}
+              />
+            ) : (
+              <p className="poet-profile-empty">
+                شعری برای این شاعر ثبت نشده است.
+              </p>
+            )}
+          </PoetProfileSection>
+        )}
       </PoetProfile>
       <main className="relative flex flex-1 flex-col overflow-hidden">
         <div className="relative flex flex-1 flex-col overflow-hidden">

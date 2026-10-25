@@ -7,7 +7,7 @@ import { getIndexedPoetImageUrl } from "@/utils/poetImages";
 // Our own mirror of echolalia.ir's WordPress REST API (src/app/api/echolalia/wp), served from data/echolalia.
 const ECHOLALIA_API_BASE_URL = "/api/echolalia/wp";
 const ECHOLALIA_POET_ROOT_SLUG = "sher";
-const HIDDEN_ECHOLALIA_POET_SLUGS = new Set(["forough-farrokhzad"]);
+const HIDDEN_ECHOLALIA_POET_SLUGS = new Set(["forough-farrokhzad", "nosrat-rahmani"]);
 const API_TIMEOUT_MS = 15000;
 
 export interface EcholaliaCategory {
