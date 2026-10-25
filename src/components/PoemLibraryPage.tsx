@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { FaBookmark, FaChevronLeft, FaHeart, FaHistory, FaRegBookmark, FaRegHeart, FaTimes } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
@@ -15,7 +15,7 @@ import {
 } from "@/utils/poemLibrary";
 import "../styles/PoemLibrary.css";
 import { Empty, EmptyDescription, EmptyIcon } from "@/components/ui/empty";
-import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs";
+import { Tabs, TabsIndicator, TabsList, TabsTab } from "@/components/ui/tabs";
 
 type LibraryTab = "favorites" | "history";
 
@@ -42,6 +42,33 @@ export const PoemLibraryList = ({
   icon?: "bookmark" | "heart" | "history";
   onRemove?: (key: string) => void;
 }) => {
+  const leavingRef = useRef(new Set<string>());
+
+  // Fade the row out and close its gap before it is removed, so the list doesn't jump.
+  const handleRemove = (event: MouseEvent<HTMLButtonElement>, key: string) => {
+    if (!onRemove || leavingRef.current.has(key)) return;
+    const item = event.currentTarget.closest("li");
+    if (!item || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      onRemove(key);
+      return;
+    }
+    leavingRef.current.add(key);
+    item.style.overflow = "hidden";
+    item
+      .animate(
+        [
+          { height: `${item.offsetHeight}px`, opacity: 1 },
+          { height: "0px", opacity: 0 },
+        ],
+        { duration: 260, easing: "cubic-bezier(0.32, 0.72, 0, 1)", fill: "forwards" },
+      )
+      .finished.catch(() => undefined)
+      .then(() => {
+        leavingRef.current.delete(key);
+        onRemove(key);
+      });
+  };
+
   if (entries.length === 0) {
     return (
       <Empty>
@@ -80,7 +107,7 @@ export const PoemLibraryList = ({
               variant="ghost"
               size="icon"
               className="library-remove"
-              onClick={() => onRemove(entry.key)}
+              onClick={(event) => handleRemove(event, entry.key)}
               aria-label={`حذف «${entry.title}» از ذخیره‌ها`}
             >
               <FaTimes aria-hidden="true" />
@@ -131,9 +158,14 @@ const PoemLibraryPage = () => {
       width="narrow"
       headerExtra={
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
-          <TabsList aria-label="نشان‌شده‌ها">
+          <TabsList aria-label="نشان‌شده‌ها" className="relative">
+          <TabsIndicator />
           {tabs.map((tab) => (
-            <TabsTab key={tab.id} value={tab.id}>
+            <TabsTab
+              key={tab.id}
+              value={tab.id}
+              className="relative data-active:bg-transparent data-active:shadow-none"
+            >
               {tab.icon}
               {tab.label}
               {isReady && tab.count > 0 && (
@@ -147,44 +179,49 @@ const PoemLibraryPage = () => {
     >
       {!isReady ? (
         <p className="app-row-meta" role="status">در حال بارگذاری…</p>
-      ) : activeTab === "favorites" ? (
-        <PoemLibraryList
-          entries={favorites}
-          emptyMessage="هنوز شعری ذخیره نکرده‌اید. روی آیکن قلب در صفحهٔ شعر بزنید تا اینجا بماند."
-          emptyAction={
-            <Link href="/" className={buttonVariants({ variant: "secondary" })}>
-              رفتن به فید
-            </Link>
-          }
-          onRemove={(key) => {
-            removeFavorite(key);
-            refresh();
-          }}
-        />
       ) : (
-        <section className="app-section">
-          {history.length > 0 && (
-            <div className="app-section-title">
-              <span>{persianNumber.format(history.length)} شعر</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  clearHistory();
-                  refresh();
-                }}
-              >
-                پاک کردن تاریخچه
-              </Button>
-            </div>
+        // Re-keyed per tab so switching fades the other list in.
+        <div key={activeTab} className="library-panel">
+          {activeTab === "favorites" ? (
+            <PoemLibraryList
+              entries={favorites}
+              emptyMessage="هنوز شعری ذخیره نکرده‌اید. روی آیکن قلب در صفحهٔ شعر بزنید تا اینجا بماند."
+              emptyAction={
+                <Link href="/" className={buttonVariants({ variant: "secondary" })}>
+                  رفتن به فید
+                </Link>
+              }
+              onRemove={(key) => {
+                removeFavorite(key);
+                refresh();
+              }}
+            />
+          ) : (
+            <section className="app-section">
+              {history.length > 0 && (
+                <div className="app-section-title">
+                  <span>{persianNumber.format(history.length)} شعر</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      clearHistory();
+                      refresh();
+                    }}
+                  >
+                    پاک کردن تاریخچه
+                  </Button>
+                </div>
+              )}
+              <PoemLibraryList
+                entries={history}
+                icon="history"
+                emptyMessage="هنوز شعری نخوانده‌اید."
+              />
+            </section>
           )}
-          <PoemLibraryList
-            entries={history}
-            icon="history"
-            emptyMessage="هنوز شعری نخوانده‌اید."
-          />
-        </section>
+        </div>
       )}
     </AppPage>
   );

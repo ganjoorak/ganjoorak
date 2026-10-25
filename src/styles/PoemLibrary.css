@@ -502,3 +502,12 @@
   font-weight: 600;
   color: rgb(var(--foreground) / 0.85);
 }
+
+/* /saved: switching tab fades the other list in. */
+.library-panel { animation: library-panel-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) both; }
+@keyframes library-panel-in {
+  from { opacity: 0; transform: translateY(0.4rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .library-panel { animation: none; }
+}
