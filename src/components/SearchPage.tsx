@@ -838,7 +838,7 @@ export function SearchView({ variant, state, onChange, onNavigate, inputRef: ext
               enterKeyHint="search"
               spellCheck={false}
             />
-            <span className={`search-field-spinner${isBusy ? " is-active" : ""}`} aria-hidden="true" />
+            <span className={`search-field-progress${isBusy ? " is-active" : ""}`} aria-hidden="true" />
             <AnimatePresence>
               {draft && (
                 <motion.button
@@ -1174,8 +1174,7 @@ export function useSearchDialogState() {
     (next: SearchParamsUpdate) => setState((current) => applySearchUpdate(current, next)),
     [],
   );
-  const reset = useCallback(() => setState(emptySearchState), []);
-  return { state, onChange, reset, href: searchHref(state) };
+  return { state, onChange };
 }
 
 export default SearchPage;

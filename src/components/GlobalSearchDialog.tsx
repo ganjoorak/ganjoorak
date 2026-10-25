@@ -1,10 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import Link from "next/link";
-import { FaExternalLinkAlt, FaTimes } from "react-icons/fa";
 import { SearchView, useSearchDialogState } from "@/components/SearchPage";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogPopup, DialogTitle } from "@/components/ui/dialog";
 
 interface GlobalSearchDialogProps {
@@ -33,18 +30,8 @@ const GlobalSearchDialog = ({ isOpen, onClose }: GlobalSearchDialogProps) => {
         initialFocus={inputRef}
         className="search-dialog h-[min(88dvh,52rem)] text-right max-sm:h-[calc(100dvh-1rem-env(safe-area-inset-top))] sm:max-w-2xl"
       >
-        <div className="search-dialog-head">
-          <DialogTitle className="text-lg">جست‌وجو</DialogTitle>
-          <div className="search-dialog-actions">
-            <Link href={search.href} className="search-text-button" onClick={onClose}>
-              <FaExternalLinkAlt aria-hidden="true" />
-              صفحهٔ جست‌وجو
-            </Link>
-            <Button variant="ghost" size="icon" className="size-10" onClick={onClose} aria-label="بستن">
-              <FaTimes aria-hidden="true" />
-            </Button>
-          </div>
-        </div>
+        {/* No header: Escape, the backdrop or the sheet's grabber close it. */}
+        <DialogTitle className="sr-only">جست‌وجو</DialogTitle>
         <div className="search-dialog-body">
           <SearchView
             variant="dialog"
