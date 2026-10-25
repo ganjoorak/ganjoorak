@@ -29,13 +29,8 @@ export type SearchIntent = {
   term: string;
   poetId: number | null;
   poet: SearchPoetRef | null;
-};
-
-export type VerseSnippet = {
-  matchLine: string;
-  contextLine: string | null;
-  contextPosition: "before" | "after" | null;
-  highlight: { start: number; end: number } | null;
+  /** Something besides the poet's name is left to search for («حافظ عشق», not just «حافظ»). */
+  hasTerm: boolean;
 };
 
 const replaceDigits = (value: string, digits: string) =>
@@ -82,63 +77,6 @@ export const normalizeSearchText = (value: string) => {
     chars.push(mapped);
   }
   return chars.join("").trim();
-};
-
-const buildNormalizedMapping = (original: string) => {
-  const normalizedChars: string[] = [];
-  const indexMap: number[] = [];
-
-  for (let index = 0; index < original.length; index += 1) {
-    const mapped = normalizeSearchChar(original[index]);
-    if (!mapped) {
-      continue;
-    }
-    if (mapped === " " && normalizedChars[normalizedChars.length - 1] === " ") {
-      continue;
-    }
-    for (const char of mapped) {
-      normalizedChars.push(char);
-      indexMap.push(index);
-    }
-  }
-
-  while (normalizedChars[0] === " ") {
-    normalizedChars.shift();
-    indexMap.shift();
-  }
-  while (normalizedChars[normalizedChars.length - 1] === " ") {
-    normalizedChars.pop();
-    indexMap.pop();
-  }
-
-  return {
-    normalized: normalizedChars.join(""),
-    indexMap,
-  };
-};
-
-export const findNormalizedMatchRange = (
-  haystack: string,
-  needle: string,
-): { start: number; end: number } | null => {
-  const normalizedNeedle = normalizeSearchText(needle);
-  if (!normalizedNeedle) {
-    return null;
-  }
-
-  const { normalized, indexMap } = buildNormalizedMapping(haystack);
-  const at = normalized.indexOf(normalizedNeedle);
-  if (at < 0) {
-    return null;
-  }
-
-  const start = indexMap[at];
-  const last = indexMap[at + normalizedNeedle.length - 1];
-  if (start == null || last == null) {
-    return null;
-  }
-
-  return { start, end: last + 1 };
 };
 
 const containsAsPhrase = (haystack: string, needle: string) => {
@@ -263,7 +201,8 @@ export const parseSearchIntent = (
   text = stripLeadingTokens(text, TOPIC_PREFIXES).text;
 
   let term = text;
-  if (term.length < MIN_SEARCH_QUERY_LENGTH) {
+  const hasTerm = term.length >= MIN_SEARCH_QUERY_LENGTH;
+  if (!hasTerm) {
     term = poet
       ? poetAliases(poet)[0] || normalizeSearchText(query)
       : normalizeSearchText(query);
@@ -274,72 +213,9 @@ export const parseSearchIntent = (
     term,
     poetId: poet?.id && poet.id > 0 ? poet.id : null,
     poet,
+    hasTerm,
   };
 };
-
-export const splitPoemLines = (plainText: string) =>
-  plainText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-export const getVerseSnippet = (
-  plainText: string,
-  query: string,
-): VerseSnippet => {
-  const lines = splitPoemLines(plainText);
-  const needle = normalizeSearchText(query);
-
-  if (lines.length === 0) {
-    return {
-      matchLine: "",
-      contextLine: null,
-      contextPosition: null,
-      highlight: null,
-    };
-  }
-
-  const canMatch = needle.length >= MIN_SEARCH_QUERY_LENGTH;
-  const normalizedLines = canMatch ? lines.map(normalizeSearchText) : [];
-  let matchIndex = canMatch
-    ? normalizedLines.findIndex((line) => line.includes(needle))
-    : -1;
-  let highlightNeedle = needle;
-
-  // Multi-word queries are usually matched word-by-word by the backend, so
-  // the whole phrase may never appear in one verse. Fall back to the verse
-  // containing the longest query word and highlight that instead.
-  if (matchIndex < 0 && canMatch && needle.includes(" ")) {
-    const words = needle
-      .split(" ")
-      .filter((word) => word.length >= MIN_SEARCH_QUERY_LENGTH)
-      .sort((left, right) => right.length - left.length);
-    for (const word of words) {
-      const wordIndex = normalizedLines.findIndex((line) => line.includes(word));
-      if (wordIndex >= 0) {
-        matchIndex = wordIndex;
-        highlightNeedle = word;
-        break;
-      }
-    }
-  }
-
-  const index = matchIndex >= 0 ? matchIndex : 0;
-  const matchLine = lines[index];
-  const nextLine = lines[index + 1] ?? null;
-  const previousLine = index > 0 ? lines[index - 1] : null;
-
-  return {
-    matchLine,
-    contextLine: nextLine ?? previousLine,
-    contextPosition: nextLine ? "after" : previousLine ? "before" : null,
-    highlight:
-      matchIndex >= 0 ? findNormalizedMatchRange(matchLine, highlightNeedle) : null,
-  };
-};
-
-export const isSearchQueryLongEnough = (value: string) =>
-  normalizeSearchText(value).length >= MIN_SEARCH_QUERY_LENGTH;
 
 const persianNumberFormatter = new Intl.NumberFormat("fa-IR");
 

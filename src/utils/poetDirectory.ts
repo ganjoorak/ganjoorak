@@ -183,6 +183,9 @@ export const getPoetDirectory = (): DirectoryPoet[] => {
 
 export const isPoetDirectoryEnriched = () => enrichedDirectory !== null;
 
+/** The bundled list only: identical on server and client, so it is safe for the first render. */
+export const getStaticPoetDirectory = () => staticDirectory;
+
 /** Fetches Ganjoor nicknames once per session and merges them in. */
 export const loadPoetDirectory = (): Promise<DirectoryPoet[]> => {
   if (enrichedDirectory) {
