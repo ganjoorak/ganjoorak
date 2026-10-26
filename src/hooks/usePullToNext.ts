@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   consumeWheelGesture,
   MOUSE_IDLE_MS,
@@ -88,6 +88,8 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
   const onCommitRef = useRef(onCommit);
   const committingRef = useRef(false);
   const timeoutRef = useRef<number | null>(null);
+  // Set by the gesture effect: runs the same full slide a released pull does (used by the ⌄ button).
+  const commitRef = useRef<(() => boolean) | null>(null);
   enabledRef.current = enabled;
   onCommitRef.current = onCommit;
 
@@ -439,7 +441,14 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
     root.addEventListener("touchend", onTouchEnd, { passive: true });
     root.addEventListener("touchcancel", onTouchEnd, { passive: true });
     root.addEventListener("wheel", onWheel, { passive: false });
+    commitRef.current = () => {
+      if (!enabledRef.current || committingRef.current || !hasNextRef.current) return false;
+      // As a mouse pull released from rest: the whole strip glides up at the mouse commit pace.
+      commit(0.8, true);
+      return true;
+    };
     return () => {
+      commitRef.current = null;
       root.removeEventListener("touchstart", onTouchStart);
       root.removeEventListener("touchmove", onTouchMove);
       root.removeEventListener("touchend", onTouchEnd);
@@ -458,4 +467,8 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       document.documentElement.classList.remove(PULLING_CLASS);
     };
   }, []);
+
+  /** Slide the next poem up exactly like a pull does; false when it can't (disabled, busy, not loaded). */
+  const commitNext = useCallback(() => commitRef.current?.() ?? false, []);
+  return { commitNext };
 }

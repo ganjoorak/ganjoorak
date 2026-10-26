@@ -75,6 +75,9 @@ interface PoemViewerProps {
 
 type FrameCustom = { instant: boolean; direction: number };
 
+// Same pace and curve as a pull released by mouse (usePullToNext MOUSE_COMMIT_*), so every navigation moves alike.
+const FRAME_SLIDE = { duration: 0.42, ease: [0.32, 0.72, 0, 1] as const };
+
 type PoemSegment =
   | { type: "prose"; line: string; index: number }
   | { type: "centered"; line: string; index: number }
@@ -173,7 +176,16 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   const [isAtBottom, setIsAtBottom] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const poemTextRef = useRef<HTMLDivElement>(null);
+  const poemTextRef = useRef<HTMLDivElement | null>(null);
+  // During a poem change the new poem mounts before the old one leaves (AnimatePresence popLayout); a plain ref
+  // would be cleared when the old one unmounts, leaving scroll, pull-to-next and keys without a scroller.
+  const attachPoemText = useCallback((element: HTMLDivElement | null) => {
+    if (!element) return;
+    poemTextRef.current = element;
+    return () => {
+      if (poemTextRef.current === element) poemTextRef.current = null;
+    };
+  }, []);
   const boundaryNavigationUntilRef = useRef(0);
   const lastBoundaryNavigationAtRef = useRef(0);
   const reachedTopAtRef = useRef(0);
@@ -904,9 +916,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
 
   useHideOnScroll(poemTextRef, poem.id);
 
-  // The chip above the title (e.g. the feed switch) stays put while poems change: it is drawn once in a layer
-  // over the poem, placed on an empty spacer in the title. Layout offsets ignore transforms, so the frame
-  // animating a poem in or out does not drag the chip along; scrolling still carries it away with the title.
+  // The chip above the title (e.g. the feed switch) is pinned: drawn once in a layer above the poem (and above
+  // the pull-to-next sheet), at the spot of an empty spacer in the title, and it stays there while the poem
+  // scrolls, changes or is pulled. Layout offsets ignore transforms, so animating frames never move it.
   const poemContentRef = useRef<HTMLDivElement>(null);
   const eyebrowLayerRef = useRef<HTMLDivElement>(null);
   const eyebrowSpacerRef = useRef<HTMLDivElement | null>(null);
@@ -914,11 +926,12 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     const layer = eyebrowLayerRef.current;
     const content = poemContentRef.current;
     const spacer = eyebrowSpacerRef.current;
-    const text = poemTextRef.current;
+    const viewer = containerRef.current;
     const chip = layer?.firstElementChild as HTMLElement | null | undefined;
-    if (!layer || !content || !spacer || !text || !chip) return;
-    spacer.style.height = `${chip.offsetHeight}px`;
-    spacer.style.marginBottom = getComputedStyle(chip).marginBottom;
+    if (!layer || !content || !spacer || !viewer || !chip) return;
+    // Spacers (live poem and pull sheet) read these, so the title always starts below the chip.
+    viewer.style.setProperty("--poem-eyebrow-height", `${chip.offsetHeight}px`);
+    viewer.style.setProperty("--poem-eyebrow-gap", getComputedStyle(chip).marginBottom);
     let top = 0;
     let node: HTMLElement | null = spacer;
     while (node && node !== content) {
@@ -926,13 +939,22 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       node = node.offsetParent as HTMLElement | null;
     }
     if (node !== content) return;
-    layer.style.transform = `translate3d(0, ${top - text.scrollTop}px, 0)`;
+    // The unscrolled spot: the chip stays pinned while the poem scrolls under it.
+    layer.style.transform = `translate3d(0, ${top}px, 0)`;
   }, []);
-  // A new poem's spacer mounts only after the old poem has left (AnimatePresence mode="wait").
+  // A new poem's spacer mounts while the old poem is still sliding out (AnimatePresence mode="popLayout").
   const attachEyebrowSpacer = useCallback(
     (element: HTMLDivElement | null) => {
+      if (!element) return;
       eyebrowSpacerRef.current = element;
-      if (element) placeEyebrow();
+      placeEyebrow();
+      // Again once the new poem has laid out (its fonts and frame are in place by the next frame).
+      const frame = requestAnimationFrame(placeEyebrow);
+      // React 19 ref cleanup: an old spacer leaving later must not clear the new one.
+      return () => {
+        cancelAnimationFrame(frame);
+        if (eyebrowSpacerRef.current === element) eyebrowSpacerRef.current = null;
+      };
     },
     [placeEyebrow],
   );
@@ -941,14 +963,10 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     const chip = eyebrowLayerRef.current?.firstElementChild;
     if (!content || !chip) return;
     placeEyebrow();
-    content.addEventListener("scroll", placeEyebrow, { capture: true, passive: true });
     const observer = new ResizeObserver(placeEyebrow);
     observer.observe(content);
     observer.observe(chip);
-    return () => {
-      content.removeEventListener("scroll", placeEyebrow, true);
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, [placeEyebrow, titleEyebrow, showTitleSection]);
 
   // Mesras sit side by side and never wrap; on tablet-width screens a long couplet can be wider than the
@@ -1005,7 +1023,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     return () => window.clearTimeout(timer);
   }, [instantArrivalFor, isInstantArrival]);
   const sheetPoem = committedPeek ?? nextPoemPeek ?? null;
-  usePullToNext({
+  const { commitNext } = usePullToNext({
     scrollRef: poemTextRef,
     rootRef: containerRef,
     sheetRef: pullSheetRef,
@@ -1173,30 +1191,17 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     poemViewerVisibility.navigationControls &&
     (canNavigatePrevious || canNavigateNext);
   const poetPageHref = `/${poem.poetSlug}`;
-  // Forward: the old poem rises out and the new one rises in from below; back: the reverse.
+  // Like scrolling: the whole strip moves. Forward, the old poem rises out of the top as the new one rises in
+  // from below; back, the reverse. Both frames move together (AnimatePresence mode="popLayout").
   const frameDirection = parentDirection ? (parentDirection === "next" ? 1 : -1) : navigationDirection;
   const frameCustom: FrameCustom = { instant: isInstantArrival, direction: frameDirection };
   const navigationFrameVariants = {
-    enter: ({ direction }: FrameCustom) => ({
-      opacity: 0,
-      y: direction >= 0 ? 40 : -40,
-      filter: "blur(3px)",
-    }),
-    center: {
-      opacity: 1,
-      y: 0,
-      filter: "blur(0px)",
-      transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
-    },
+    enter: ({ direction }: FrameCustom) => ({ y: direction >= 0 ? "100%" : "-100%" }),
+    center: { y: 0, transition: FRAME_SLIDE },
     exit: ({ instant, direction }: FrameCustom) =>
       instant
         ? { opacity: 1, transition: { duration: 0 } }
-        : {
-            opacity: 0,
-            y: direction >= 0 ? -32 : 32,
-            filter: "blur(2px)",
-            transition: { duration: 0.2, ease: [0.4, 0, 1, 1] as const },
-          },
+        : { y: direction >= 0 ? "-100%" : "100%", transition: FRAME_SLIDE },
   };
 
   /**
@@ -1233,13 +1238,14 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         {/* Title scrolls with the poem: visible only at the very top. */}
         {showTitleSection && (
           <motion.div className="title-section">
-            {hasTitleEyebrow &&
-              (peek ? (
-                <div className="poem-eyebrow">{titleEyebrow}</div>
-              ) : (
-                // The live chip lives in a layer outside the animated frame (see placeEyebrow); this keeps its room.
-                <div className="poem-eyebrow poem-eyebrow--spacer" ref={attachEyebrowSpacer} aria-hidden="true" />
-              ))}
+            {hasTitleEyebrow && (
+              // The chip itself is the pinned layer (see placeEyebrow); here, and in the pull sheet, only its room.
+              <div
+                className="poem-eyebrow poem-eyebrow--spacer"
+                ref={peek ? undefined : attachEyebrowSpacer}
+                aria-hidden="true"
+              />
+            )}
             <motion.h2
               className="poem-title"
               initial={from({ opacity: 0, y: -20 })}
@@ -1473,7 +1479,10 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
           <button
             type="button"
             className="nav-button"
-            onClick={() => handleNext()}
+            // Like a pull: the next poem slides up with the current one; plain transition if it isn't ready.
+            onClick={() => {
+              if (!commitNext()) handleNext();
+            }}
             disabled={!canNavigateNext}
             aria-label="شعر بعدی"
             title="شعر بعدی"
@@ -1660,7 +1669,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
             <div className="poem-eyebrow">{titleEyebrow}</div>
           </div>
         )}
-        <AnimatePresence mode="wait" initial={false} custom={frameCustom}>
+        <AnimatePresence mode="popLayout" initial={false} custom={frameCustom}>
           <motion.div
             key={poem.id}
             className="poem-navigation-frame"
@@ -1675,10 +1684,11 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
             <div
               key={poem.id}
               className={poemTextClassName}
-              ref={poemTextRef}
+              ref={attachPoemText}
               data-poem-id={String(poem.id)}
             >
-              {renderPoemBody(poem, { animate: !isInstantArrival })}
+              {/* Entrance only for the first poem; navigated-to poems arrive already drawn, as when scrolling. */}
+              {renderPoemBody(poem, { animate: !isInstantArrival && frameDirection === 0 })}
             </div>
           </motion.div>
         </AnimatePresence>

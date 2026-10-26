@@ -153,28 +153,21 @@
     pointer-events: auto;
 }
 
-/* Live chip layer (PoemViewer placeEyebrow): drawn over the poem at the spacer's spot so poem
-   transitions never move it. Below the pull-to-next sheet (z-index 5), which shows its own copy. */
+/* Pinned chip (PoemViewer placeEyebrow): one layer above the poem and above the pull-to-next sheet
+   (z-index 5), at the spacer's unscrolled spot, so it never scrolls, animates or duplicates. */
 .poem-eyebrow-layer {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    z-index: 3;
+    z-index: 6;
     pointer-events: none;
-    transition: opacity 0.24s ease;
 }
 
-.poem-eyebrow--spacer {
+.poem-eyebrow.poem-eyebrow--spacer {
     visibility: hidden;
-}
-
-.poem-content--title-hidden .poem-eyebrow-layer {
-    opacity: 0;
-}
-
-.poem-content--title-hidden .poem-eyebrow-layer > .poem-eyebrow {
-    pointer-events: none;
+    height: var(--poem-eyebrow-height, 2.25rem);
+    margin-bottom: var(--poem-eyebrow-gap, 0.75rem);
 }
 
 .poem-eyebrow-chip {

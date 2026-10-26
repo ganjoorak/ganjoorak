@@ -440,8 +440,10 @@ export default function PoemFeedPager({
           pointer-events: none !important;
         }
 
-        .poem-feed-boundary-armed .navigation-controls {
-          opacity: 0.72 !important;
+        /* ⌃/⌄ stay put through every poem change: above the pull-to-next sheet (z-index 5), like the pinned
+           title chip, so the sheet never slides over them. */
+        .poem-feed-pager .navigation-controls {
+          z-index: 6;
         }
 
         @media (max-width: 768px) {
