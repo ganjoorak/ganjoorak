@@ -153,6 +153,30 @@
     pointer-events: auto;
 }
 
+/* Live chip layer (PoemViewer placeEyebrow): drawn over the poem at the spacer's spot so poem
+   transitions never move it. Below the pull-to-next sheet (z-index 5), which shows its own copy. */
+.poem-eyebrow-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    pointer-events: none;
+    transition: opacity 0.24s ease;
+}
+
+.poem-eyebrow--spacer {
+    visibility: hidden;
+}
+
+.poem-content--title-hidden .poem-eyebrow-layer {
+    opacity: 0;
+}
+
+.poem-content--title-hidden .poem-eyebrow-layer > .poem-eyebrow {
+    pointer-events: none;
+}
+
 .poem-eyebrow-chip {
     display: inline-flex;
     align-items: center;

@@ -14,10 +14,8 @@ const NAVIGATION_COOLDOWN_MS = 650;
 const EDGE_THRESHOLD_PX = 8;
 const KEY_SCROLL_AMOUNT_PX = 110;
 const READING_CHROME_HIDE_MS = 850;
-const CONTENT_TRANSITION_MS = 260;
 
 type Direction = "next" | "previous";
-type ContentTransition = "next" | "previous" | null;
 
 interface PoemFeedPagerProps {
   poem: Poem;
@@ -77,37 +75,10 @@ export default function PoemFeedPager({
   const touchStartedAtBottomRef = useRef(false);
   const lastNavigationAtRef = useRef(0);
   const readingChromeTimeoutRef = useRef<number | null>(null);
-  const previousIndexRef = useRef(currentIndex);
-  const contentTransitionTimeoutRef = useRef<number | null>(null);
   const [isZenLocked, setIsZenLocked] = useState(false);
-  const [contentTransition, setContentTransition] = useState<ContentTransition>(null);
-  // Set when the pull sheet commits: that poem is already on screen (the sheet is its exact copy), so it lands
-  // without the slide-in below.
-  const seamlessArrivalAtRef = useRef(0);
-
-  useEffect(() => {
-    const previousIndex = previousIndexRef.current;
-    previousIndexRef.current = currentIndex;
-
-    if (previousIndex === currentIndex) return;
-
-    if (Date.now() - seamlessArrivalAtRef.current < 1500) {
-      seamlessArrivalAtRef.current = 0;
-      setContentTransition(null);
-      return;
-    }
-
-    setContentTransition(currentIndex > previousIndex ? "next" : "previous");
-
-    if (contentTransitionTimeoutRef.current !== null) {
-      window.clearTimeout(contentTransitionTimeoutRef.current);
-    }
-
-    contentTransitionTimeoutRef.current = window.setTimeout(() => {
-      setContentTransition(null);
-      contentTransitionTimeoutRef.current = null;
-    }, CONTENT_TRANSITION_MS);
-  }, [currentIndex]);
+  // Direction of the last navigation, whatever started it (buttons, wheel, swipe, keys, pull sheet), so
+  // PoemViewer animates the old poem out and the new one in the right way.
+  const [navigationDirection, setNavigationDirection] = useState<Direction | null>(null);
 
   useEffect(() => {
     setIsZenLocked(localStorage.getItem(ZEN_STORAGE_KEY) === "1");
@@ -180,21 +151,16 @@ export default function PoemFeedPager({
     return true;
   }, []);
 
+  // PoemViewer's AnimatePresence plays the old poem's exit and the new one's entrance in this direction.
   const navigate = useCallback((direction: Direction) => {
     if (isZenLocked || isShareDialogOpen() || !canNavigate()) return;
+    if (direction === "next" ? isLast : isFirst) return;
 
     resetArm();
     resetTitleVisibility();
-
-    if (direction === "next") {
-      if (isLast) return;
-      onNext();
-      return;
-    }
-
-    if (!isFirst) {
-      onPrevious();
-    }
+    setNavigationDirection(direction);
+    if (direction === "next") onNext();
+    else onPrevious();
   }, [
     canNavigate,
     isFirst,
@@ -389,15 +355,8 @@ export default function PoemFeedPager({
       if (readingChromeTimeoutRef.current !== null) {
         window.clearTimeout(readingChromeTimeoutRef.current);
       }
-      if (contentTransitionTimeoutRef.current !== null) {
-        window.clearTimeout(contentTransitionTimeoutRef.current);
-      }
     };
   }, []);
-
-  const transitionClassName = contentTransition
-    ? ` poem-feed-viewer--transition-${contentTransition}`
-    : "";
 
   return (
     <div ref={rootRef} className="poem-feed-pager">
@@ -447,44 +406,6 @@ export default function PoemFeedPager({
           background-color: rgb(var(--foreground) / 0.34);
         }
 
-        .poem-feed-viewer--transition-next .poem-content,
-        .poem-feed-viewer--transition-previous .poem-content {
-          will-change: transform, opacity;
-          animation-duration: ${CONTENT_TRANSITION_MS}ms;
-          animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-          animation-fill-mode: both;
-        }
-
-        .poem-feed-viewer--transition-next .poem-content {
-          animation-name: poem-feed-content-in-next;
-        }
-
-        .poem-feed-viewer--transition-previous .poem-content {
-          animation-name: poem-feed-content-in-previous;
-        }
-
-        @keyframes poem-feed-content-in-next {
-          from {
-            opacity: 0.92;
-            transform: translate3d(0, 1.1rem, 0);
-          }
-          to {
-            opacity: 1;
-            transform: translate3d(0, 0, 0);
-          }
-        }
-
-        @keyframes poem-feed-content-in-previous {
-          from {
-            opacity: 0.92;
-            transform: translate3d(0, -1.1rem, 0);
-          }
-          to {
-            opacity: 1;
-            transform: translate3d(0, 0, 0);
-          }
-        }
-
         .poem-feed-lock-button {
           position: fixed !important;
           top: 7rem !important;
@@ -521,13 +442,6 @@ export default function PoemFeedPager({
 
         .poem-feed-boundary-armed .navigation-controls {
           opacity: 0.72 !important;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .poem-feed-viewer--transition-next .poem-content,
-          .poem-feed-viewer--transition-previous .poem-content {
-            animation: none;
-          }
         }
 
         @media (max-width: 768px) {
@@ -604,13 +518,12 @@ export default function PoemFeedPager({
           }
         }
       `}</style>
-      <div className={`poem-feed-viewer${transitionClassName}`}>
+      <div className="poem-feed-viewer">
         <PoemViewer
           poem={poem}
           onNext={(target) => {
             // The pull sheet passes the poem it showed; only advance if that is still the feed's next poem.
             if (target && target.id !== nextPoem?.id) return;
-            if (target) seamlessArrivalAtRef.current = Date.now();
             requestBoundaryNavigation("next");
           }}
           onPrevious={() => requestBoundaryNavigation("previous")}
@@ -623,6 +536,7 @@ export default function PoemFeedPager({
           onOpenFeed={onOpenFeed}
           onOpenFeedLabel={onOpenFeedLabel}
           titleEyebrow={titleEyebrow}
+          navigationDirection={navigationDirection}
           isZenLocked={isZenLocked}
           onToggleZenLock={() => setIsZenLocked((value) => !value)}
           nextPoemPeek={nextPoem}

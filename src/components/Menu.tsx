@@ -315,7 +315,7 @@ const Menu: React.FC<MenuProps> = ({
         initial: { x: "100%" },
         animate: { x: 0 },
         exit: { x: "100%" },
-        transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] },
+        transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] as const },
       };
 
   const canDecreaseFont = settings.poemFontSize > POEM_FONT_SIZE_MIN;
