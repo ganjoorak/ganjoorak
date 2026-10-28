@@ -1,24 +1,71 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
-  FaCheck,
-  FaColumns,
-  FaCopy,
-  FaDownload,
-  FaPalette,
-  FaTimes,
-} from "react-icons/fa";
-import type { Poem } from "@/types/poem";
+  AnimatePresence,
+  MotionConfig,
+  motion,
+  useReducedMotion,
+  type Variants,
+} from "framer-motion";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Download,
+  Film,
+  Image as ImageIcon,
+  Link2,
+  Pause,
+  Play,
+  RotateCcw,
+  Share2,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
+import ganjoorApi from "@/api/GanjoorApi";
+import type { Poem, VerseSync } from "@/types/poem";
 import { logger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogPopup, DialogTitle } from "@/components/ui/dialog";
-import { Toggle } from "@/components/ui/toggle";
+import { Tabs, TabsIndicator, TabsList, TabsTab } from "@/components/ui/tabs";
 import {
   FONT_STACKS,
   useSettings,
   type FontFamilyOption,
 } from "@/context/SettingsContext";
+import {
+  SHARE_CARD_FORMATS,
+  SHARE_CARD_THEMES,
+  canvasToBlob,
+  ensureShareFonts,
+  layoutShareCard,
+  paintShareCard,
+  renderShareCardCanvas,
+  type ShareCardFormat,
+  type ShareCardInput,
+  type ShareCardLayout,
+  type ShareCardLayoutResult,
+  type ShareCardThemeId,
+} from "@/components/share/shareCard";
+import {
+  buildShareTimeline,
+  drawShareFrame,
+  loadRecitationAudio,
+  pickShareVideoMime,
+  recordShareVideo,
+  type ShareVideoResult,
+} from "@/components/share/shareVideo";
+import "@/styles/SharePoemDialog.css";
 
 interface SharePoemDialogProps {
   poem: Poem;
@@ -27,13 +74,27 @@ interface SharePoemDialogProps {
   poetSlug?: string;
 }
 
-type ShareThemeId = "night" | "paper" | "ink";
-type ShareImageLayout = "single" | "couplet";
-type ShareActionId = "copyLink" | "copyText" | "downloadImage";
-type ShareActionFeedback = {
-  action: ShareActionId;
-  state: "success" | "error";
-} | null;
+type ShareMode = "image" | "video";
+type Step = "select" | "design";
+type ActionId = "copyText" | "copyLink" | "download" | "share";
+type Feedback = { action: ActionId; ok: boolean } | null;
+
+type VideoState =
+  | { status: "idle" }
+  | { status: "preparing"; label: string }
+  | { status: "recording"; progress: number }
+  | { status: "done"; result: ShareVideoResult; url: string }
+  | { status: "error"; message: string };
+
+interface SharePrefs {
+  theme?: ShareCardThemeId;
+  format?: ShareCardFormat;
+  layout?: ShareCardLayout;
+  font?: FontFamilyOption;
+}
+
+const PREFS_KEY = "ganjoorak-share-prefs";
+const PREVIEW_SCALE = 0.75;
 
 const SHARE_FONT_CHOICES: Array<{ value: FontFamilyOption; label: string }> = [
   { value: "vazirmatn", label: "وزیرمتن" },
@@ -43,56 +104,28 @@ const SHARE_FONT_CHOICES: Array<{ value: FontFamilyOption; label: string }> = [
   { value: "sahel", label: "ساحل" },
 ];
 
-const SHARE_IMAGE_LAYOUTS: Array<{ value: ShareImageLayout; label: string }> = [
+const LAYOUT_CHOICES: Array<{ value: ShareCardLayout; label: string }> = [
   { value: "single", label: "تک‌ستون" },
   { value: "couplet", label: "دوستون" },
 ];
 
-const SHARE_THEMES: Array<{
-  id: ShareThemeId;
-  label: string;
-  background: string;
-  accent: string;
-  title: string;
-  text: string;
-  muted: string;
-  border: string;
-  brand: string;
-}> = [
-  {
-    id: "night",
-    label: "شب",
-    background: "#111111",
-    accent: "rgba(255,255,255,0.12)",
-    title: "rgba(255,255,255,0.92)",
-    text: "rgba(255,255,255,0.90)",
-    muted: "rgba(255,255,255,0.62)",
-    border: "rgba(255,255,255,0.16)",
-    brand: "rgba(255,255,255,0.52)",
-  },
-  {
-    id: "paper",
-    label: "کاغذ",
-    background: "#f4ead7",
-    accent: "rgba(115,78,38,0.12)",
-    title: "#3d2b1f",
-    text: "#493527",
-    muted: "rgba(61,43,31,0.68)",
-    border: "rgba(61,43,31,0.18)",
-    brand: "rgba(61,43,31,0.54)",
-  },
-  {
-    id: "ink",
-    label: "مرکب",
-    background: "#f7f7f4",
-    accent: "rgba(20,24,28,0.08)",
-    title: "#17191d",
-    text: "#202329",
-    muted: "rgba(23,25,29,0.62)",
-    border: "rgba(23,25,29,0.16)",
-    brand: "rgba(23,25,29,0.50)",
-  },
-];
+const faNumber = new Intl.NumberFormat("fa-IR");
+
+const readPrefs = (): SharePrefs => {
+  try {
+    return JSON.parse(window.localStorage.getItem(PREFS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const writePrefs = (prefs: SharePrefs) => {
+  try {
+    window.localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // Private mode: preferences just don't stick.
+  }
+};
 
 const buildPoemUrl = (poem: Poem, poetSlug?: string) => {
   const baseUrl =
@@ -107,320 +140,95 @@ const buildPoemUrl = (poem: Poem, poetSlug?: string) => {
   return `${baseUrl}/poem/${poem.id}`;
 };
 
-const toBlob = async (dataUrl: string) => {
-  const response = await fetch(dataUrl);
-  return response.blob();
+// Same breakpoint as the dialog primitive's bottom sheet (Tailwind `sm`).
+const PHONE_QUERY = "(max-width: 639px)";
+const subscribePhone = (callback: () => void) => {
+  const query = window.matchMedia(PHONE_QUERY);
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
 };
-
-const wrapCanvasText = (
-  context: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number,
-) => {
-  const words = text.split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let currentLine = "";
-
-  words.forEach((word) => {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-
-    if (context.measureText(testLine).width > maxWidth && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  });
-
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  return lines;
-};
-
-const getCanvasFont = (weight: number, size: number, fontStack: string) =>
-  `${weight} ${size}px ${fontStack}`;
-
-const selectedLineFormatter = new Intl.NumberFormat("fa-IR");
-
-const formatSelectedLineCount = (count: number) =>
-  `${selectedLineFormatter.format(count)} مصرع انتخاب شده`;
-
-const fitPoemLines = ({
-  context,
-  lines,
-  fontStack,
-  maxWidth,
-  maxHeight,
-}: {
-  context: CanvasRenderingContext2D;
-  lines: string[];
-  fontStack: string;
-  maxWidth: number;
-  maxHeight: number;
-}) => {
-  const minFontSize = 24;
-  const maxFontSize = 42;
-
-  for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 2) {
-    context.font = getCanvasFont(500, fontSize, fontStack);
-
-    const renderedLines = lines.flatMap((line) =>
-      wrapCanvasText(context, line, maxWidth),
-    );
-
-    const lineHeight = Math.round(fontSize * 1.75);
-
-    if (renderedLines.length * lineHeight <= maxHeight) {
-      return { renderedLines, fontSize, lineHeight };
-    }
-  }
-
-  context.font = getCanvasFont(500, minFontSize, fontStack);
-
-  const lineHeight = Math.round(minFontSize * 1.75);
-  const maxLineCount = Math.max(1, Math.floor(maxHeight / lineHeight));
-
-  const renderedLines = lines
-    .flatMap((line) => wrapCanvasText(context, line, maxWidth))
-    .slice(0, maxLineCount);
-
-  if (renderedLines.length > 0) {
-    renderedLines[renderedLines.length - 1] =
-      renderedLines[renderedLines.length - 1].replace(/\s+$/, "") + "…";
-  }
-
-  return { renderedLines, fontSize: minFontSize, lineHeight };
-};
-
-const chunkLines = (lines: string[], size: number) =>
-  Array.from({ length: Math.ceil(lines.length / size) }, (_, index) =>
-    lines.slice(index * size, index * size + size),
+const useIsPhone = () =>
+  useSyncExternalStore(
+    subscribePhone,
+    () => window.matchMedia(PHONE_QUERY).matches,
+    () => false,
   );
 
-const fitCoupletLines = ({
-  context,
-  lines,
-  fontStack,
-  maxWidth,
-  maxHeight,
-}: {
-  context: CanvasRenderingContext2D;
-  lines: string[];
-  fontStack: string;
-  maxWidth: number;
-  maxHeight: number;
-}) => {
-  const minFontSize = 22;
-  const maxFontSize = 38;
-  const columnGap = 48;
-  const pairGapRatio = 0.52;
-  const columnWidth = (maxWidth - columnGap) / 2;
-  const pairs = chunkLines(lines, 2);
-
-  const buildRows = (fontSize: number) => {
-    context.font = getCanvasFont(500, fontSize, fontStack);
-    const lineHeight = Math.round(fontSize * 1.62);
-    const pairGap = Math.round(lineHeight * pairGapRatio);
-    const rows = pairs.map(([right = "", left = ""]) => {
-      const rightLines = right
-        ? wrapCanvasText(context, right, columnWidth)
-        : [];
-      const leftLines = left ? wrapCanvasText(context, left, columnWidth) : [];
-      const lineCount = Math.max(rightLines.length, leftLines.length, 1);
-
-      return {
-        rightLines,
-        leftLines,
-        lineCount,
-        height: lineCount * lineHeight,
-      };
-    });
-    const totalHeight =
-      rows.reduce((sum, row) => sum + row.height, 0) +
-      Math.max(0, rows.length - 1) * pairGap;
-
-    return {
-      rows,
-      fontSize,
-      lineHeight,
-      pairGap,
-      columnGap,
-      columnWidth,
-      totalHeight,
-    };
-  };
-
-  for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 2) {
-    const layout = buildRows(fontSize);
-    if (layout.totalHeight <= maxHeight) {
-      return layout;
-    }
-  }
-
-  const layout = buildRows(minFontSize);
-  const visibleRows = [];
-  let usedHeight = 0;
-
-  for (const row of layout.rows) {
-    const extraGap = visibleRows.length > 0 ? layout.pairGap : 0;
-    if (usedHeight + extraGap + row.height > maxHeight) {
-      break;
-    }
-    usedHeight += extraGap + row.height;
-    visibleRows.push(row);
-  }
-
-  if (visibleRows.length === 0 && layout.rows[0]) {
-    visibleRows.push(layout.rows[0]);
-    usedHeight = layout.rows[0].height;
-  }
-
-  const lastRow = visibleRows[visibleRows.length - 1];
-  const lastLines =
-    lastRow?.leftLines.length ? lastRow.leftLines : lastRow?.rightLines;
-  if (lastLines?.length) {
-    lastLines[lastLines.length - 1] =
-      lastLines[lastLines.length - 1].replace(/\s+$/, "") + "…";
-  }
-
-  return {
-    ...layout,
-    rows: visibleRows,
-    totalHeight: usedHeight,
-  };
+const saveBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 4000);
 };
 
-const createShareImage = async ({
-  poem,
-  lines,
-  theme,
-  fontStack,
-  imageLayout,
+// RTL: moving forward slides the new step in from the left.
+const stepVariants: Variants = {
+  enter: (direction: number) => ({ x: direction * -48, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (direction: number) => ({ x: direction * 48, opacity: 0 }),
+};
+
+const stepTransition = { type: "spring", stiffness: 420, damping: 38, mass: 0.9 } as const;
+
+const barSpring = { type: "spring", stiffness: 520, damping: 38 } as const;
+
+const fade = {
+  initial: { opacity: 0, scale: 0.6 },
+  animate: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.6 },
+  transition: { duration: 0.16 },
+};
+
+type TabOption<T extends string> = {
+  value: T;
+  label: React.ReactNode;
+  disabled?: boolean;
+  title?: string;
+  style?: React.CSSProperties;
+};
+
+/** One choice per row, in the pill tabs the poets page uses for its categories. */
+function OptionTabs<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
 }: {
-  poem: Poem;
-  lines: string[];
-  theme: (typeof SHARE_THEMES)[number];
-  fontStack: string;
-  imageLayout: ShareImageLayout;
-}) => {
-  if (typeof document === "undefined") {
-    return "";
-  }
-
-  await document.fonts?.ready;
-
-  const canvas = document.createElement("canvas");
-  const scale = 2;
-  const width = 1080;
-  const height = 1350;
-
-  canvas.width = width * scale;
-  canvas.height = height * scale;
-
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    return "";
-  }
-
-  context.scale(scale, scale);
-
-  context.fillStyle = theme.background;
-  context.fillRect(0, 0, width, height);
-
-  const gradient = context.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, theme.accent);
-  gradient.addColorStop(0.45, "rgba(255,255,255,0.02)");
-  gradient.addColorStop(1, theme.accent);
-
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, width, height);
-
-  context.strokeStyle = theme.border;
-  context.lineWidth = 2;
-  context.strokeRect(56, 56, width - 112, height - 112);
-
-  context.direction = "rtl";
-  context.textAlign = "center";
-
-  context.fillStyle = theme.title;
-  context.font = getCanvasFont(700, 50, fontStack);
-
-  const titleLines = wrapCanvasText(context, poem.title, width - 210).slice(
-    0,
-    2,
+  value: T;
+  options: Array<TabOption<T>>;
+  onChange: (value: T) => void;
+  label: string;
+}) {
+  return (
+    <div className="share-option">
+      <Tabs
+        value={value}
+        onValueChange={(next) => onChange(next as T)}
+        className="share-option__tabs min-w-0 flex-1"
+      >
+        <TabsList className="share-tabs relative" aria-label={label}>
+          <TabsIndicator />
+          {options.map((option) => (
+            <TabsTab
+              key={option.value}
+              value={option.value}
+              disabled={option.disabled}
+              title={option.title}
+              style={option.style}
+              className="relative data-active:bg-transparent data-active:shadow-none"
+            >
+              {option.label}
+            </TabsTab>
+          ))}
+        </TabsList>
+      </Tabs>
+    </div>
   );
-
-  titleLines.forEach((line, index) => {
-    context.fillText(line, width / 2, 160 + index * 62);
-  });
-
-  context.fillStyle = theme.muted;
-  context.font = getCanvasFont(400, 31, fontStack);
-  context.fillText(poem.poet, width / 2, 215 + (titleLines.length - 1) * 62);
-
-  context.fillStyle = theme.text;
-
-  const textTop = 340;
-  const textBottom = height - 185;
-
-  if (imageLayout === "couplet") {
-    const layout = fitCoupletLines({
-      context,
-      lines,
-      fontStack,
-      maxWidth: width - 210,
-      maxHeight: textBottom - textTop,
-    });
-
-    context.font = getCanvasFont(500, layout.fontSize, fontStack);
-    const rightColumnX =
-      width / 2 + layout.columnGap / 2 + layout.columnWidth / 2;
-    const leftColumnX =
-      width / 2 - layout.columnGap / 2 - layout.columnWidth / 2;
-    let y = Math.max(textTop, height / 2 - layout.totalHeight / 2);
-
-    layout.rows.forEach((row) => {
-      for (let index = 0; index < row.lineCount; index += 1) {
-        const lineY = y + index * layout.lineHeight;
-        if (row.rightLines[index]) {
-          context.fillText(row.rightLines[index], rightColumnX, lineY);
-        }
-        if (row.leftLines[index]) {
-          context.fillText(row.leftLines[index], leftColumnX, lineY);
-        }
-      }
-
-      y += row.height + layout.pairGap;
-    });
-  } else {
-    const { renderedLines, fontSize, lineHeight } = fitPoemLines({
-      context,
-      lines,
-      fontStack,
-      maxWidth: width - 210,
-      maxHeight: textBottom - textTop,
-    });
-
-    context.font = getCanvasFont(500, fontSize, fontStack);
-
-    const totalTextHeight = renderedLines.length * lineHeight;
-    let y = Math.max(textTop, height / 2 - totalTextHeight / 2);
-
-    renderedLines.forEach((line) => {
-      context.fillText(line, width / 2, y);
-      y += lineHeight;
-    });
-  }
-
-  context.fillStyle = theme.brand;
-  context.font = getCanvasFont(400, 26, fontStack);
-  context.fillText("ganjoorak.ir", width / 2, height - 120);
-
-  return canvas.toDataURL("image/png");
-};
+}
 
 const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
   poem,
@@ -429,20 +237,33 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
   poetSlug,
 }) => {
   const { settings } = useSettings();
+  const isPhone = useIsPhone();
+  const reduceMotion = useReducedMotion();
 
-  const [selectedLines, setSelectedLines] = useState<number[]>([]);
-  const [selectedThemeId, setSelectedThemeId] = useState<ShareThemeId>("night");
-  const [selectedImageLayout, setSelectedImageLayout] =
-    useState<ShareImageLayout>("single");
-  const [selectedFontFamily, setSelectedFontFamily] =
-    useState<FontFamilyOption>(settings.fontFamily);
-  const [imageUrl, setImageUrl] = useState("");
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [actionFeedback, setActionFeedback] = useState<ShareActionFeedback>(null);
-  const [mobileStep, setMobileStep] = useState<"select" | "preview">("select");
+  const [selected, setSelected] = useState<number[]>([]);
+  const [step, setStep] = useState<Step>("select");
+  const [direction, setDirection] = useState(1);
+  const [mode, setMode] = useState<ShareMode>("image");
+  const [themeId, setThemeId] = useState<ShareCardThemeId>("dark");
+  const [format, setFormat] = useState<ShareCardFormat>("post");
+  const [cardLayout, setCardLayout] = useState<ShareCardLayout>("single");
+  const [fontFamily, setFontFamily] = useState<FontFamilyOption>(settings.fontFamily);
+  const [recitationIndex, setRecitationIndex] = useState(-1);
+  const [verseSync, setVerseSync] = useState<VerseSync[] | null>(null);
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [video, setVideo] = useState<VideoState>({ status: "idle" });
+  const [layout, setLayout] = useState<ShareCardLayoutResult | null>(null);
+  const [previewPlaying, setPreviewPlaying] = useState(true);
+  const [panel, setPanel] = useState<"type" | "voice" | null>(null);
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const [support, setSupport] = useState({ shareFiles: false, share: false, video: false });
+
+  const previewRef = useRef<HTMLCanvasElement | null>(null);
+  const imageBlobRef = useRef<Blob | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const prefsLoaded = useRef(false);
 
   const poemUrl = useMemo(() => buildPoemUrl(poem, poetSlug), [poem, poetSlug]);
-
   const lines = useMemo(
     () =>
       poem.plainText
@@ -451,177 +272,738 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
         .filter(Boolean),
     [poem.plainText],
   );
-
-  const shareableLines = useMemo(() => lines, [lines]);
-
-  const selectedTextLines = useMemo(
-    () =>
-      selectedLines
-        .map((index) => shareableLines[index])
-        .filter(Boolean),
-    [selectedLines, shareableLines],
+  const recitations = useMemo(
+    () => (poem.recitations ?? []).filter((r) => r.mp3Url).slice(0, 4),
+    [poem.recitations],
   );
+  const recitation = recitationIndex >= 0 ? recitations[recitationIndex] : undefined;
 
-  const selectedTheme = useMemo(
+  const selectedLines = useMemo(
     () =>
-      SHARE_THEMES.find((theme) => theme.id === selectedThemeId) ??
-      SHARE_THEMES[0],
-    [selectedThemeId],
+      selected
+        .filter((index) => lines[index])
+        .map((index) => ({ index, text: lines[index] })),
+    [lines, selected],
+  );
+  const theme =
+    SHARE_CARD_THEMES.find((item) => item.id === themeId) ?? SHARE_CARD_THEMES[0];
+  const fontStack = FONT_STACKS[fontFamily];
+
+  const cardInput: ShareCardInput = useMemo(
+    () => ({
+      title: poem.title,
+      poet: poem.poet,
+      lines: selectedLines,
+      theme,
+      fontStack,
+      layout: cardLayout,
+      format,
+    }),
+    [cardLayout, fontStack, format, poem.poet, poem.title, selectedLines, theme],
   );
 
   const shareText = useMemo(
     () =>
       [
-        selectedTextLines.join("\n"),
+        selectedLines.map((line) => line.text).join("\n"),
         "",
         `${poem.title} - ${poem.poet}`,
         poemUrl,
       ]
         .filter(Boolean)
         .join("\n"),
-    [poem.poet, poem.title, poemUrl, selectedTextLines],
+    [poem.poet, poem.title, poemUrl, selectedLines],
   );
 
+  // Feature detection runs on the client only.
   useEffect(() => {
-    if (!isOpen) {
+    const probe = new File([new Blob(["x"], { type: "image/png" })], "x.png", {
+      type: "image/png",
+    });
+    setSupport({
+      share: typeof navigator.share === "function",
+      shareFiles:
+        typeof navigator.canShare === "function" && navigator.canShare({ files: [probe] }),
+      video: pickShareVideoMime() !== null,
+    });
+  }, []);
+
+  // Reset per opening; restore the last look the reader chose.
+  useEffect(() => {
+    if (!isOpen) return;
+    const prefs = readPrefs();
+    const appTheme = settings.theme as ShareCardThemeId;
+    setThemeId(prefs.theme ?? appTheme ?? "dark");
+    setFormat(prefs.format ?? "post");
+    setCardLayout(prefs.layout ?? "single");
+    setFontFamily(prefs.font ?? settings.fontFamily);
+    prefsLoaded.current = true;
+    setSelected(lines.slice(0, 4).map((_, index) => index));
+    setStep("select");
+    setDirection(1);
+    setMode("image");
+    setRecitationIndex(-1);
+    setPanel(null);
+    setFeedback(null);
+    setVideo({ status: "idle" });
+    // Only on open / poem change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, poem.id]);
+
+  useEffect(() => {
+    if (!isOpen || !prefsLoaded.current) return;
+    writePrefs({ theme: themeId, format, layout: cardLayout, font: fontFamily });
+  }, [cardLayout, fontFamily, format, isOpen, themeId]);
+
+  useEffect(() => {
+    if (!panel) return;
+    const close = (event: PointerEvent) => {
+      if (!barRef.current?.contains(event.target as Node)) setPanel(null);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [panel]);
+
+  useEffect(() => {
+    if (mode !== "video" && panel === "voice") setPanel(null);
+  }, [mode, panel]);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const id = window.setTimeout(() => setFeedback(null), 1600);
+    return () => window.clearTimeout(id);
+  }, [feedback]);
+
+  // Lay out the card whenever its inputs change (after the font is ready),
+  // and render the full-size PNG in the background so Share can run
+  // straight from the click (Safari drops the gesture across awaits).
+  useEffect(() => {
+    if (!isOpen || selectedLines.length === 0) {
+      setLayout(null);
+      imageBlobRef.current = null;
       return;
     }
-
-    setActionFeedback(null);
-    setMobileStep("select");
-    setSelectedFontFamily(settings.fontFamily);
-    setSelectedLines(shareableLines.slice(0, 4).map((_, index) => index));
-  }, [isOpen, poem.id, settings.fontFamily, shareableLines]);
-
-  useEffect(() => {
-    if (!actionFeedback) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setActionFeedback(null);
-    }, 1400);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [actionFeedback]);
-
-  useEffect(() => {
-    if (!isOpen || selectedTextLines.length === 0) {
-      setImageUrl("");
-      return;
-    }
-
     let cancelled = false;
-
-    const generate = async () => {
-      setIsGeneratingImage(true);
-
+    const run = async () => {
+      await ensureShareFonts(cardInput.fontStack);
+      if (cancelled) return;
+      const measure = document.createElement("canvas").getContext("2d");
+      if (!measure) return;
+      setLayout(layoutShareCard(measure, cardInput));
+      imageBlobRef.current = null;
       try {
-        const nextImageUrl = await createShareImage({
-          poem,
-          lines: selectedTextLines,
-          theme: selectedTheme,
-          fontStack: FONT_STACKS[selectedFontFamily],
-          imageLayout: selectedImageLayout,
-        });
-
-        if (!cancelled) {
-          setImageUrl(nextImageUrl);
-        }
+        const { canvas } = await renderShareCardCanvas(cardInput);
+        const blob = await canvasToBlob(canvas);
+        if (!cancelled) imageBlobRef.current = blob;
       } catch (error) {
         logger.error("Error creating share image:", error);
-      } finally {
-        if (!cancelled) {
-          setIsGeneratingImage(false);
-        }
       }
     };
+    const id = window.setTimeout(run, 60);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [cardInput, isOpen, selectedLines.length]);
 
-    generate();
+  // A finished video no longer matches once anything about it changes.
+  useEffect(() => {
+    abortRef.current?.abort();
+    setVideo((current) => {
+      if (current.status === "done") URL.revokeObjectURL(current.url);
+      return { status: "idle" };
+    });
+  }, [cardInput, recitationIndex]);
 
+  useEffect(() => {
+    if (!isOpen) abortRef.current?.abort();
+  }, [isOpen]);
+
+  // Verse timings for the chosen recitation, so lines appear as recited.
+  useEffect(() => {
+    setVerseSync(null);
+    if (!recitation?.inSyncWithText) return;
+    let cancelled = false;
+    ganjoorApi
+      .getRecitationVerses(recitation.id)
+      .then((data) => !cancelled && setVerseSync(data))
+      .catch((error) => logger.error("Error fetching verse sync:", error));
     return () => {
       cancelled = true;
     };
-  }, [
-    isOpen,
-    poem,
-    selectedFontFamily,
-    selectedImageLayout,
-    selectedTextLines,
-    selectedTheme,
-  ]);
+  }, [recitation]);
 
-  const toggleLine = (index: number) => {
-    setActionFeedback(null);
+  const syncFor = useCallback(
+    (shown: ShareCardLayoutResult, audioSeconds?: number) => {
+      if (!verseSync?.length || !recitation) return null;
+      const visible = selectedLines.slice(0, shown.lineGroups.length);
+      const starts = visible.map(
+        (line) => verseSync.find((v) => v.verseOrder === line.index + 1)?.audioStartMilliseconds,
+      );
+      if (!starts.length || starts.some((s) => s === undefined)) return null;
+      const last = visible[visible.length - 1];
+      const nextStart = verseSync.find((v) => v.verseOrder === last.index + 2)?.audioStartMilliseconds;
+      const lastStart = starts[starts.length - 1] as number;
+      const endMs =
+        nextStart ?? (audioSeconds ? audioSeconds * 1000 : lastStart + 4500);
+      return { starts: starts as number[], endMs };
+    },
+    [recitation, selectedLines, verseSync],
+  );
 
-    setSelectedLines((prev) => {
-      if (prev.includes(index)) {
-        return prev.filter((item) => item !== index);
-      }
+  const previewTimeline = useMemo(
+    () => (layout ? buildShareTimeline(layout, syncFor(layout)) : null),
+    [layout, syncFor],
+  );
 
-      return [...prev, index].sort((a, b) => a - b);
-    });
-  };
+  // Paint the preview. Image mode is a still; video mode loops the animation.
+  const showVideoResult = mode === "video" && video.status === "done";
+  useEffect(() => {
+    const canvas = previewRef.current;
+    if (!canvas || !layout || showVideoResult) return;
+    canvas.width = Math.round(layout.width * PREVIEW_SCALE);
+    canvas.height = Math.round(layout.height * PREVIEW_SCALE);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(PREVIEW_SCALE, 0, 0, PREVIEW_SCALE, 0, 0);
 
-  const areAllLinesSelected =
-    shareableLines.length > 0 && selectedLines.length === shareableLines.length;
-
-  const toggleAllLines = () => {
-    setActionFeedback(null);
-    setSelectedLines(
-      areAllLinesSelected ? [] : shareableLines.map((_, index) => index),
-    );
-  };
-
-  const copyText = async () => {
-    try {
-      await navigator.clipboard.writeText(shareText);
-      setActionFeedback({ action: "copyText", state: "success" });
-    } catch (error) {
-      logger.error("Failed to copy share text:", error);
-      setActionFeedback({ action: "copyText", state: "error" });
-    }
-  };
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(poemUrl);
-      setActionFeedback({ action: "copyLink", state: "success" });
-    } catch (error) {
-      logger.error("Failed to copy link:", error);
-      setActionFeedback({ action: "copyLink", state: "error" });
-    }
-  };
-
-  const downloadImage = () => {
-    if (!imageUrl) {
+    if (mode === "image" || !previewTimeline) {
+      paintShareCard(ctx, layout);
       return;
     }
-
-    const link = document.createElement("a");
-    link.href = imageUrl;
-    link.download = `ganjoorak-${poem.id}.png`;
-    link.click();
-    setActionFeedback({ action: "downloadImage", state: "success" });
-  };
-
-  const getActionButtonVariant = (action: ShareActionId) => {
-    if (actionFeedback?.action !== action) {
-      return "outline" as const;
+    const playing = previewPlaying && !reduceMotion;
+    if (!playing) {
+      drawShareFrame(ctx, layout, previewTimeline, previewTimeline.duration);
+      return;
     }
+    let frame = 0;
+    const loop = previewTimeline.duration + 0.8;
+    const start = performance.now();
+    const tick = () => {
+      const t = ((performance.now() - start) / 1000) % loop;
+      drawShareFrame(ctx, layout, previewTimeline, Math.min(t, previewTimeline.duration));
+      frame = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(frame);
+  }, [layout, mode, previewPlaying, previewTimeline, reduceMotion, showVideoResult, step, isPhone]);
 
-    return actionFeedback.state === "success"
-      ? ("default" as const)
-      : ("destructive" as const);
+  const toggleLine = (index: number) =>
+    setSelected((prev) =>
+      prev.includes(index)
+        ? prev.filter((item) => item !== index)
+        : [...prev, index].sort((a, b) => a - b),
+    );
+
+  const allSelected = lines.length > 0 && selected.length === lines.length;
+
+  const goTo = (next: Step) => {
+    setDirection(next === "design" ? 1 : -1);
+    setStep(next);
   };
 
-  const getActionIcon = (action: ShareActionId, fallback: React.ReactNode) => {
-    if (actionFeedback?.action === action && actionFeedback.state === "success") {
-      return <FaCheck />;
+  const flash = (action: ActionId, ok: boolean) => setFeedback({ action, ok });
+
+  const copy = async (action: "copyText" | "copyLink", text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      flash(action, true);
+    } catch (error) {
+      logger.error("Failed to copy:", error);
+      flash(action, false);
     }
-
-    return fallback;
   };
+
+  const fileBase = `ganjoorak-${poem.id}`;
+
+  const currentFile = (): File | null => {
+    if (mode === "video") {
+      if (video.status !== "done") return null;
+      const { blob, extension } = video.result;
+      return new File([blob], `${fileBase}.${extension}`, { type: blob.type });
+    }
+    const blob = imageBlobRef.current;
+    return blob ? new File([blob], `${fileBase}.png`, { type: "image/png" }) : null;
+  };
+
+  const download = async () => {
+    try {
+      const file = currentFile();
+      if (file) {
+        saveBlob(file, file.name);
+      } else if (mode === "image") {
+        const { canvas } = await renderShareCardCanvas(cardInput);
+        saveBlob(await canvasToBlob(canvas), `${fileBase}.png`);
+      } else {
+        return;
+      }
+      flash("download", true);
+    } catch (error) {
+      logger.error("Download failed:", error);
+      flash("download", false);
+    }
+  };
+
+  const share = async () => {
+    const file = currentFile();
+    const data: ShareData =
+      file && support.shareFiles && navigator.canShare({ files: [file] })
+        ? { files: [file], title: poem.title, text: `${poem.title} - ${poem.poet}\n${poemUrl}` }
+        : { title: poem.title, text: shareText };
+    try {
+      await navigator.share(data);
+      flash("share", true);
+    } catch (error) {
+      if ((error as DOMException)?.name !== "AbortError") {
+        logger.error("Share failed:", error);
+        flash("share", false);
+      }
+    }
+  };
+
+  const generateVideo = async () => {
+    if (!layout) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
+    try {
+      let audio: AudioBuffer | null = null;
+      if (recitation) {
+        setVideo({ status: "preparing", label: "دریافت صدای خوانش…" });
+        try {
+          audio = await loadRecitationAudio(recitation.mp3Url, signal);
+        } catch (error) {
+          if (signal.aborted) throw error;
+          logger.error("Recitation audio unavailable:", error);
+        }
+      }
+      setVideo({ status: "preparing", label: "آماده‌سازی…" });
+      await ensureShareFonts(fontStack);
+      const timeline = buildShareTimeline(layout, audio ? syncFor(layout, audio.duration) : null);
+      setVideo({ status: "recording", progress: 0 });
+      const result = await recordShareVideo({
+        layout,
+        timeline,
+        audio,
+        signal,
+        onProgress: (progress) => setVideo({ status: "recording", progress }),
+      });
+      if (signal.aborted) return;
+      setVideo({ status: "done", result, url: URL.createObjectURL(result.blob) });
+    } catch (error) {
+      if ((error as DOMException)?.name === "AbortError" || signal.aborted) {
+        setVideo({ status: "idle" });
+        return;
+      }
+      logger.error("Video export failed:", error);
+      setVideo({ status: "error", message: "ساخت ویدیو ممکن نشد. دوباره امتحان کنید." });
+    }
+  };
+
+  const cancelVideo = () => {
+    abortRef.current?.abort();
+    setVideo({ status: "idle" });
+  };
+
+  const busy = video.status === "preparing" || video.status === "recording";
+  const progress =
+    video.status === "recording" ? video.progress : video.status === "preparing" ? 0 : 1;
+
+  const feedbackIcon = (action: ActionId, icon: React.ReactNode) => (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.span key={feedback?.action === action ? (feedback.ok ? "ok" : "err") : "icon"} className="share-action__icon" {...fade}>
+        {feedback?.action === action ? feedback.ok ? <Check /> : <X /> : icon}
+      </motion.span>
+    </AnimatePresence>
+  );
+
+  const versePicker = (
+    <section className="share-pane share-pane--verses" aria-label="انتخاب مصرع‌ها">
+      <div className="share-pane__bar">
+        <span className="share-count" aria-live="polite">
+          <motion.b key={selected.length} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+            {faNumber.format(selected.length)}
+          </motion.b>{" "}
+          مصرع انتخاب شده
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="share-link-button"
+          onClick={() => setSelected(allSelected ? [] : lines.map((_, index) => index))}
+        >
+          {allSelected ? "لغو همه" : "انتخاب همه"}
+        </Button>
+      </div>
+      <div className="share-lines">
+        {lines.map((line, index) => {
+          const isSelected = selected.includes(index);
+          return (
+            <button
+              key={`${index}-${line}`}
+              type="button"
+              aria-pressed={isSelected}
+              className="share-line"
+              data-beyt-end={index % 2 === 1 || undefined}
+              onClick={() => toggleLine(index)}
+            >
+              <span className="share-line__text">{line}</span>
+              <span className="share-line__check" aria-hidden="true">
+                <AnimatePresence initial={false}>
+                  {isSelected && (
+                    <motion.span
+                      initial={{ scale: 0.4, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.4, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 600, damping: 30 }}
+                    >
+                      <Check />
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+
+  const { width: cardW, height: cardH } = SHARE_CARD_FORMATS[format];
+
+  const designer = (
+    <section className="share-pane share-pane--design" aria-label="پیش‌نمایش و طراحی">
+      <OptionTabs<ShareMode>
+        label="نوع خروجی"
+        value={mode}
+        onChange={(next) => {
+          setMode(next);
+          // Video is mostly for stories.
+          if (next === "video" && format === "post") setFormat("story");
+        }}
+        options={[
+          {
+            value: "image",
+            label: (
+              <>
+                <ImageIcon aria-hidden="true" /> تصویر
+              </>
+            ),
+          },
+          {
+            value: "video",
+            disabled: !support.video,
+            title: support.video ? undefined : "این مرورگر ضبط ویدیو را پشتیبانی نمی‌کند",
+            label: (
+              <>
+                <Film aria-hidden="true" /> ویدیو
+              </>
+            ),
+          },
+        ]}
+      />
+
+      <div className="share-stage">
+        <div
+          className="share-preview"
+          style={
+            { "--ratio": cardW / cardH } as React.CSSProperties
+          }
+        >
+          <AnimatePresence initial={false}>
+            {showVideoResult ? (
+              <motion.video
+                key="video"
+                className="share-preview__media"
+                src={video.url}
+                controls
+                playsInline
+                autoPlay
+                loop
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              />
+            ) : (
+              <motion.canvas
+                key="canvas"
+                ref={previewRef}
+                className="share-preview__media"
+                role="img"
+                aria-label="پیش‌نمایش کارت شعر"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: layout ? 1 : 0 }}
+                exit={{ opacity: 0 }}
+              />
+            )}
+          </AnimatePresence>
+
+          {!layout && selectedLines.length === 0 && (
+            <p className="share-preview__empty">مصرعی انتخاب نشده</p>
+          )}
+
+          {mode === "video" && !showVideoResult && !busy && layout && (
+            <button
+              type="button"
+              className="share-preview__play"
+              onClick={() => setPreviewPlaying((p) => !p)}
+              aria-label={previewPlaying && !reduceMotion ? "توقف پیش‌نمایش" : "پخش پیش‌نمایش"}
+            >
+              {previewPlaying && !reduceMotion ? <Pause /> : <Play />}
+            </button>
+          )}
+
+          <AnimatePresence>
+            {busy && (
+              <motion.div
+                className="share-progress"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="share-progress__ring" style={{ "--p": progress } as React.CSSProperties}>
+                  <span>{faNumber.format(Math.round(progress * 100))}٪</span>
+                </div>
+                <p>{video.status === "preparing" ? video.label : "در حال ساخت ویدیو…"}</p>
+                <Button variant="secondary" className="share-progress__cancel" onClick={cancelVideo}>
+                  <X /> لغو
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {(layout?.truncated || video.status === "error") && (
+          <motion.p
+            className="share-note"
+            data-error={video.status === "error" || undefined}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            {video.status === "error" ? video.message : "همه‌ی مصرع‌ها در کارت جا نشدند."}
+          </motion.p>
+        )}
+      </AnimatePresence>
+
+      <div className="share-bar-wrap" ref={barRef}>
+        <AnimatePresence>
+          {panel && (
+            <motion.div
+              className="share-popover"
+              role="dialog"
+              aria-label={panel === "voice" ? "صدای خوانش" : "قلم و چیدمان"}
+              initial={{ opacity: 0, y: 8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.97 }}
+              transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+            >
+              {panel === "type" ? (
+                <>
+                  <OptionTabs<ShareCardLayout>
+                    label="چیدمان"
+                    value={cardLayout}
+                    onChange={setCardLayout}
+                    options={LAYOUT_CHOICES}
+                  />
+                  <OptionTabs<FontFamilyOption>
+                    label="قلم"
+                    value={fontFamily}
+                    onChange={setFontFamily}
+                    options={SHARE_FONT_CHOICES.map((font) => ({
+                      ...font,
+                      style: { fontFamily: FONT_STACKS[font.value] },
+                    }))}
+                  />
+                </>
+              ) : (
+                <div className="share-voices" role="radiogroup" aria-label="صدای خوانش">
+                  {[{ value: -1, label: "بی‌صدا" }, ...recitations.map((item, index) => ({
+                    value: index,
+                    label: item.audioArtist || `خوانش ${faNumber.format(index + 1)}`,
+                  }))].map((item) => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={recitationIndex === item.value}
+                      className="share-voice"
+                      onClick={() => {
+                        setRecitationIndex(item.value);
+                        setPanel(null);
+                      }}
+                    >
+                      {item.label}
+                      {recitationIndex === item.value && <Check aria-hidden="true" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="share-bar">
+          <div className="share-bar__group" role="radiogroup" aria-label="رنگ کارت">
+            {SHARE_CARD_THEMES.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="radio"
+                aria-checked={item.id === themeId}
+                aria-label={item.label}
+                title={item.label}
+                className="share-bar__item"
+                onClick={() => setThemeId(item.id)}
+              >
+                {item.id === themeId && (
+                  <motion.span layoutId="share-bar-theme" className="share-bar__ring" transition={barSpring} />
+                )}
+                <span
+                  className="share-bar__swatch"
+                  style={{
+                    background: `linear-gradient(160deg, ${item.backgroundTop}, ${item.backgroundBottom})`,
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+
+          <span className="share-bar__divider" aria-hidden="true" />
+
+          <div className="share-bar__group" role="radiogroup" aria-label="اندازه">
+            {(Object.keys(SHARE_CARD_FORMATS) as ShareCardFormat[]).map((key) => {
+              const { width: w, height: h, label } = SHARE_CARD_FORMATS[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={key === format}
+                  aria-label={label}
+                  title={label}
+                  className="share-bar__item"
+                  onClick={() => setFormat(key)}
+                >
+                  {key === format && (
+                    <motion.span layoutId="share-bar-format" className="share-bar__ring" transition={barSpring} />
+                  )}
+                  <span className="share-bar__ratio" style={{ width: `${(w / h) * 1.05}rem`, height: "1.05rem" }} />
+                </button>
+              );
+            })}
+          </div>
+
+          <span className="share-bar__divider" aria-hidden="true" />
+
+          <button
+            type="button"
+            className="share-bar__item share-bar__text"
+            aria-label="قلم و چیدمان"
+            title="قلم و چیدمان"
+            aria-expanded={panel === "type"}
+            data-open={panel === "type" || undefined}
+            onClick={() => setPanel((open) => (open === "type" ? null : "type"))}
+            style={{ fontFamily: fontStack }}
+          >
+            Aa
+          </button>
+
+          {mode === "video" && recitations.length > 0 && (
+            <button
+              type="button"
+              className="share-bar__item share-bar__text"
+              aria-label="صدای خوانش"
+              title="صدای خوانش"
+              aria-expanded={panel === "voice"}
+              data-open={panel === "voice" || recitationIndex >= 0 || undefined}
+              onClick={() => setPanel((open) => (open === "voice" ? null : "voice"))}
+            >
+              {recitationIndex >= 0 ? <Volume2 /> : <VolumeX />}
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+
+  const videoReady = video.status === "done";
+  const hasAsset = mode === "image" ? Boolean(layout) : videoReady;
+  const canShare = support.share;
+
+  const primaryAction =
+    mode === "video" && !videoReady ? (
+      <Button
+        className="share-action share-action--primary"
+        onClick={busy ? cancelVideo : generateVideo}
+        disabled={!layout}
+      >
+        {busy ? <X /> : <Film />}
+        <span>{busy ? "لغو ساخت" : "ساخت ویدیو"}</span>
+      </Button>
+    ) : canShare ? (
+      <Button
+        className="share-action share-action--primary"
+        onClick={share}
+        disabled={!hasAsset}
+      >
+        {feedbackIcon("share", <Share2 />)}
+        <span>{mode === "video" ? "اشتراک ویدیو" : "اشتراک‌گذاری"}</span>
+      </Button>
+    ) : (
+      <Button
+        className="share-action share-action--primary"
+        onClick={download}
+        disabled={!hasAsset}
+      >
+        {feedbackIcon("download", <Download />)}
+        <span>{mode === "video" ? "دانلود ویدیو" : "دانلود تصویر"}</span>
+      </Button>
+    );
+
+  const iconAction = (
+    action: ActionId | null,
+    label: string,
+    icon: React.ReactNode,
+    onClick: () => void,
+    disabled = false,
+  ) => (
+    <Button
+      key={label}
+      variant="outline"
+      size="icon"
+      className="share-action share-action--icon"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+    >
+      {action ? feedbackIcon(action, icon) : icon}
+    </Button>
+  );
+
+  const secondaryActions = (
+    <div className="share-actions__row">
+      {canShare &&
+        (mode === "image" || videoReady) &&
+        iconAction(
+          "download",
+          mode === "video" ? "دانلود ویدیو" : "دانلود تصویر",
+          <Download />,
+          download,
+          !hasAsset,
+        )}
+      {mode === "video" && videoReady && iconAction(null, "ساخت دوباره", <RotateCcw />, generateVideo)}
+      {iconAction("copyText", "کپی متن", <Copy />, () => copy("copyText", shareText), !selectedLines.length)}
+      {iconAction("copyLink", "کپی لینک", <Link2 />, () => copy("copyLink", poemUrl))}
+    </div>
+  );
+
+  const showSelectStep = isPhone && step === "select";
 
   return (
     <Dialog
@@ -630,196 +1012,88 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
         if (!open) onClose();
       }}
     >
-      <DialogPopup
-        dir="rtl"
-        showCloseButton={false}
-        className={`lyrics-share-panel lyrics-share-panel--${mobileStep} max-w-none`}
-      >
-              <header className="lyrics-share-header">
-                <div>
-                  <DialogTitle>اشتراک شعر</DialogTitle>
-                  <p>{poem.title}</p>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-11"
-                  onClick={onClose}
-                  aria-label="بستن"
+      <DialogPopup dir="rtl" showCloseButton={false} className="share-sheet">
+        <MotionConfig reducedMotion="user">
+          <header className="share-sheet__header">
+            <AnimatePresence initial={false}>
+              {isPhone && step === "design" && (
+                <motion.span
+                  className="share-sheet__back"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
                 >
-                  <FaTimes />
-                </Button>
-              </header>
-
-              <div className="lyrics-share-body">
-                <section className="lyrics-share-controls">
-                  <div className="lyrics-share-selection-bar">
-                    <span>{formatSelectedLineCount(selectedLines.length)}</span>
-                    <Button variant="outline" size="sm" onClick={toggleAllLines}>
-                      {areAllLinesSelected ? "لغو انتخاب همه" : "انتخاب همه"}
-                    </Button>
-                  </div>
-
-                  <div
-                    className="lyrics-share-lines modern-scrollbar"
-                    aria-label="انتخاب مصرع‌ها"
-                  >
-                    {shareableLines.map((line, index) => {
-                      const isSelected = selectedLines.includes(index);
-
-                      return (
-                        <Toggle
-                          key={`${line}-${index}`}
-                          variant="outline"
-                          className="h-auto whitespace-normal data-pressed:border-primary"
-                          pressed={isSelected}
-                          onPressedChange={() => toggleLine(index)}
-                        >
-                          <span>{line}</span>
-                          {isSelected && <FaCheck aria-hidden="true" />}
-                        </Toggle>
-                      );
-                    })}
-                  </div>
-
                   <Button
-                    className="lyrics-share-mobile-next h-11"
-                    onClick={() => setMobileStep("preview")}
-                    disabled={selectedTextLines.length === 0}
+                    variant="ghost"
+                    size="icon"
+                    className="share-icon-button"
+                    onClick={() => goTo("select")}
+                    aria-label="بازگشت به انتخاب مصرع‌ها"
                   >
-                    پیش‌نمایش
+                    <ChevronRight />
                   </Button>
-                </section>
+                </motion.span>
+              )}
+            </AnimatePresence>
+            <motion.div layout="position" className="share-sheet__titles">
+              <DialogTitle className="share-sheet__title">اشتراک شعر</DialogTitle>
+              <p>
+                {poem.title} · {poem.poet}
+              </p>
+            </motion.div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="share-icon-button"
+              onClick={onClose}
+              aria-label="بستن"
+            >
+              <X />
+            </Button>
+          </header>
 
-                <section
-                  className="lyrics-share-preview"
-                  aria-label="پیش‌نمایش تصویر"
+          {isPhone ? (
+            <div className="share-sheet__steps">
+              <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+                <motion.div
+                  key={step}
+                  className="share-sheet__step"
+                  custom={direction}
+                  variants={stepVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={stepTransition}
                 >
-                  <div className="lyrics-share-preview-frame">
-                    {isGeneratingImage && <p>در حال ساخت تصویر...</p>}
+                  {step === "select" ? versePicker : designer}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          ) : (
+            <div className="share-sheet__body">
+              {versePicker}
+              {designer}
+            </div>
+          )}
 
-                    {!isGeneratingImage && imageUrl && (
-                      <img src={imageUrl} alt="پیش‌نمایش تصویر اشتراک شعر" />
-                    )}
-                  </div>
-
-                  <div className="lyrics-share-options">
-                    <div
-                      className="lyrics-share-theme-bar"
-                      aria-label="انتخاب قالب تصویر"
-                    >
-                      <span>
-                        <FaPalette aria-hidden="true" />
-                        قالب
-                      </span>
-
-                      <div>
-                        {SHARE_THEMES.map((theme) => (
-                          <Toggle
-                            key={theme.id}
-                            variant="outline"
-                            size="sm"
-                            className="rounded-full"
-                            pressed={theme.id === selectedThemeId}
-                            onPressedChange={() => setSelectedThemeId(theme.id)}
-                          >
-                            <span>{theme.label}</span>
-                          </Toggle>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div
-                      className="lyrics-share-theme-bar lyrics-share-font-bar"
-                      aria-label="انتخاب قلم تصویر"
-                    >
-                      <span>قلم</span>
-
-                      <div>
-                        {SHARE_FONT_CHOICES.map((font) => (
-                          <Toggle
-                            key={font.value}
-                            variant="outline"
-                            size="sm"
-                            className="rounded-full"
-                            pressed={font.value === selectedFontFamily}
-                            style={{ fontFamily: FONT_STACKS[font.value] }}
-                            onPressedChange={() => setSelectedFontFamily(font.value)}
-                          >
-                            <span className="lyrics-share-font-label">
-                              {font.label}
-                            </span>
-                          </Toggle>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div
-                      className="lyrics-share-theme-bar"
-                      aria-label="انتخاب چیدمان تصویر"
-                    >
-                      <span>
-                        <FaColumns aria-hidden="true" />
-                        چیدمان
-                      </span>
-
-                      <div>
-                        {SHARE_IMAGE_LAYOUTS.map((layout) => (
-                          <Toggle
-                            key={layout.value}
-                            variant="outline"
-                            size="sm"
-                            className="rounded-full"
-                            pressed={layout.value === selectedImageLayout}
-                            onPressedChange={() => setSelectedImageLayout(layout.value)}
-                          >
-                            <span>{layout.label}</span>
-                          </Toggle>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    className="lyrics-share-mobile-back h-11"
-                    onClick={() => setMobileStep("select")}
-                  >
-                    تغییر انتخاب
-                  </Button>
-                </section>
-              </div>
-
-              <footer className="lyrics-share-actions">
-                <Button
-                  variant={getActionButtonVariant("copyLink")}
-                  className="h-11"
-                  onClick={copyLink}
-                >
-                  {getActionIcon("copyLink", <FaCopy />)}
-                  <span>کپی لینک</span>
-                </Button>
-
-                <Button
-                  variant={getActionButtonVariant("copyText")}
-                  className="h-11"
-                  onClick={copyText}
-                >
-                  {getActionIcon("copyText", <FaCopy />)}
-                  <span>کپی متن</span>
-                </Button>
-
-                <Button
-                  variant={getActionButtonVariant("downloadImage")}
-                  className="h-11"
-                  onClick={downloadImage}
-                  disabled={!imageUrl}
-                >
-                  {getActionIcon("downloadImage", <FaDownload />)}
-                  <span>دانلود تصویر</span>
-                </Button>
-              </footer>
+          <footer className="share-actions">
+            {showSelectStep ? (
+              <Button
+                className="share-action share-action--primary"
+                onClick={() => goTo("design")}
+                disabled={selectedLines.length === 0}
+              >
+                <span>پیش‌نمایش و اشتراک</span>
+                <ChevronLeft />
+              </Button>
+            ) : (
+              <>
+                {primaryAction}
+                {secondaryActions}
+              </>
+            )}
+          </footer>
+        </MotionConfig>
       </DialogPopup>
     </Dialog>
   );

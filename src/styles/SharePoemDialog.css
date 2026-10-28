@@ -1,0 +1,639 @@
+/* Share dialog (SharePoemDialog). A two-pane dialog on desktop, a two-step
+   bottom sheet on phones (the primitive switches at Tailwind's `sm`). Plain
+   (unlayered) CSS, so it wins over the primitive's Tailwind utilities. */
+
+.share-sheet {
+    width: min(100%, 1000px);
+    max-width: none;
+    height: min(calc(100dvh - 2rem), 780px);
+    overflow: hidden;
+    background-color: rgb(var(--card));
+    color: rgb(var(--card-foreground));
+}
+
+.share-sheet__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem 0.75rem 0.75rem;
+    border-bottom: 1px solid rgb(var(--border));
+}
+
+.share-sheet__titles {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.share-sheet__title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.share-sheet__titles p {
+    margin: 0.1rem 0 0;
+    overflow: hidden;
+    color: rgb(var(--foreground) / 0.6);
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.share-icon-button.share-icon-button {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 9999px;
+}
+
+.share-icon-button svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.share-sheet__body {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    min-height: 0;
+}
+
+.share-pane {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+}
+
+.share-pane--verses {
+    border-inline-end: 1px solid rgb(var(--border));
+}
+
+.share-pane--design {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--foreground) / 0.22) transparent;
+}
+
+.share-pane__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.share-count {
+    color: rgb(var(--foreground) / 0.65);
+    font-size: 0.85rem;
+}
+
+.share-count b {
+    display: inline-block;
+    color: rgb(var(--foreground));
+    font-weight: 700;
+}
+
+.share-link-button.share-link-button {
+    height: 2.25rem;
+    padding-inline: 0.75rem;
+    font-size: 0.82rem;
+}
+
+/* Verse list */
+
+.share-lines {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.1rem;
+    margin-inline: -0.25rem;
+    padding: 0.1rem 0.25rem 0.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--foreground) / 0.22) transparent;
+}
+
+.share-line {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 2.9rem;
+    padding: 0.55rem 0.85rem;
+    border: none;
+    border-radius: 0.8rem;
+    background: transparent;
+    color: rgb(var(--foreground) / 0.6);
+    font: inherit;
+    line-height: 1.75;
+    text-align: start;
+    cursor: pointer;
+    transition:
+        background-color 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
+        transform 0.12s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.share-line[data-beyt-end] {
+    margin-bottom: 0.35rem;
+}
+
+.share-line:hover {
+    background: rgb(var(--foreground) / 0.06);
+}
+
+.share-line:active {
+    transform: scale(0.99);
+}
+
+.share-line:focus-visible {
+    outline: 2px solid rgb(var(--ring) / 0.6);
+    outline-offset: 1px;
+}
+
+.share-line[aria-pressed="true"] {
+    background: rgb(var(--foreground) / 0.06);
+    color: rgb(var(--foreground));
+}
+
+.share-line__text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.share-line__check {
+    display: grid;
+    flex: 0 0 auto;
+    width: 1.4rem;
+    height: 1.4rem;
+    place-items: center;
+    border: 1.5px solid rgb(var(--foreground) / 0.25);
+    border-radius: 9999px;
+    transition:
+        background-color 0.18s ease,
+        border-color 0.18s ease;
+}
+
+.share-line[aria-pressed="true"] .share-line__check {
+    border-color: rgb(var(--primary));
+    background: rgb(var(--primary));
+    color: rgb(var(--primary-foreground));
+}
+
+.share-line__check svg {
+    width: 0.85rem;
+    height: 0.85rem;
+    stroke-width: 3;
+}
+
+.share-line__check > span {
+    display: grid;
+    place-items: center;
+}
+
+/* Preview */
+
+.share-stage {
+    display: grid;
+    flex: 1 1 auto;
+    min-height: 15rem;
+    place-items: center;
+    container-type: size;
+}
+
+.share-preview {
+    --ratio: 0.8;
+    position: relative;
+    /* Both sides derive from the stage, so a format change animates the
+       box smoothly instead of jumping to the new aspect ratio. */
+    width: min(100cqw, calc(100cqh * var(--ratio)));
+    height: min(100cqh, calc(100cqw / var(--ratio)));
+    overflow: hidden;
+    border-radius: 0.9rem;
+    background: rgb(var(--muted));
+    box-shadow:
+        0 1px 2px rgb(0 0 0 / 0.08),
+        0 14px 40px -12px rgb(0 0 0 / 0.35);
+    transition:
+        width 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+        height 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.share-preview__media {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: transparent;
+}
+
+.share-preview__empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    color: rgb(var(--foreground) / 0.55);
+    font-size: 0.9rem;
+}
+
+.share-preview__play {
+    position: absolute;
+    inset-block-end: 0.6rem;
+    inset-inline-start: 0.6rem;
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    border: none;
+    border-radius: 9999px;
+    background: rgb(0 0 0 / 0.45);
+    color: #fff;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: background-color 0.18s ease, transform 0.12s ease;
+}
+
+.share-preview__play:hover {
+    background: rgb(0 0 0 / 0.6);
+}
+
+.share-preview__play:active {
+    transform: scale(0.94);
+}
+
+.share-preview__play svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.share-progress {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background: rgb(var(--card) / 0.72);
+    backdrop-filter: blur(6px);
+    color: rgb(var(--foreground));
+    text-align: center;
+}
+
+.share-progress p {
+    margin: 0;
+    font-size: 0.88rem;
+}
+
+.share-progress__ring {
+    --p: 0;
+    display: grid;
+    width: 4.5rem;
+    height: 4.5rem;
+    place-items: center;
+    border-radius: 9999px;
+    background:
+        radial-gradient(closest-side, rgb(var(--card)) 82%, transparent 84%),
+        conic-gradient(rgb(var(--primary)) calc(var(--p) * 1turn), rgb(var(--foreground) / 0.12) 0);
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.share-progress__cancel.share-progress__cancel {
+    height: 2.75rem;
+    padding-inline: 1.1rem;
+    border-radius: 9999px;
+}
+
+.share-note {
+    margin: 0;
+    overflow: hidden;
+    color: rgb(var(--foreground) / 0.62);
+    font-size: 0.8rem;
+    line-height: 1.7;
+    text-align: center;
+}
+
+.share-note[data-error] {
+    color: rgb(var(--destructive));
+}
+
+/* Options: one compact bar under the preview — colour swatches, size
+   shapes, and «Aa» (plus the voice in video mode), which open a small
+   popover above the bar. */
+
+.share-bar-wrap {
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
+.share-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: 9999px;
+    background: rgb(var(--muted));
+}
+
+.share-bar__group {
+    display: flex;
+    gap: 0.125rem;
+}
+
+.share-bar__divider {
+    width: 1px;
+    height: 1.25rem;
+    margin-inline: 0.2rem;
+    background: rgb(var(--foreground) / 0.12);
+}
+
+.share-bar__item {
+    position: relative;
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    border: none;
+    border-radius: 9999px;
+    background: transparent;
+    color: rgb(var(--foreground) / 0.6);
+    cursor: pointer;
+    transition: color 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.share-bar__item:hover,
+.share-bar__item[aria-checked="true"],
+.share-bar__item[data-open] {
+    color: rgb(var(--foreground));
+}
+
+.share-bar__item:focus-visible {
+    outline: 2px solid rgb(var(--ring) / 0.7);
+    outline-offset: 1px;
+}
+
+.share-bar__item > * {
+    position: relative;
+}
+
+.share-bar__ring.share-bar__ring {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgb(var(--background));
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.14);
+}
+
+.share-bar__swatch {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 9999px;
+    box-shadow: inset 0 0 0 1px rgb(var(--foreground) / 0.2);
+}
+
+.share-bar__ratio {
+    border: 1.75px solid currentColor;
+    border-radius: 0.2rem;
+}
+
+.share-bar__text {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.share-bar__text[data-open]:not([aria-expanded="true"]) {
+    color: rgb(var(--foreground));
+}
+
+.share-bar__text[aria-expanded="true"] {
+    background: rgb(var(--background));
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.14);
+}
+
+.share-bar__text svg {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.share-popover {
+    position: absolute;
+    inset-inline: 0;
+    bottom: calc(100% + 0.5rem);
+    z-index: 2;
+    display: flex;
+    max-width: 24rem;
+    margin-inline: auto;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid rgb(var(--border));
+    border-radius: 1.25rem;
+    background: rgb(var(--popover));
+    color: rgb(var(--popover-foreground));
+    box-shadow: 0 16px 40px -12px rgb(0 0 0 / 0.35);
+    transform-origin: bottom center;
+}
+
+.share-option {
+    display: flex;
+    min-width: 0;
+}
+
+.share-voices {
+    display: flex;
+    flex-direction: column;
+}
+
+.share-voice {
+    display: flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 0.85rem;
+    border: none;
+    border-radius: 0.75rem;
+    background: transparent;
+    color: rgb(var(--foreground) / 0.75);
+    font: inherit;
+    font-size: 0.88rem;
+    text-align: start;
+    cursor: pointer;
+}
+
+.share-voice:hover {
+    background: rgb(var(--foreground) / 0.05);
+}
+
+.share-voice[aria-checked="true"] {
+    color: rgb(var(--foreground));
+    font-weight: 600;
+}
+
+.share-voice svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Option rows reuse the poets page's pill tabs; long rows scroll sideways. */
+.share-tabs.share-tabs {
+    grid-auto-columns: minmax(max-content, 1fr);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+}
+
+.share-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.share-tabs > [role="tab"] {
+    padding-inline: 0.75rem;
+    font-size: 0.8rem;
+}
+
+.share-tabs__dot {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: 0 0 auto;
+    border-radius: 9999px;
+    box-shadow: inset 0 0 0 1px rgb(var(--foreground) / 0.18);
+}
+
+.share-preview__play:focus-visible {
+    outline: 2px solid rgb(var(--ring) / 0.7);
+    outline-offset: 2px;
+}
+
+/* Actions: one row — the main action, then icon buttons. */
+
+.share-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid rgb(var(--border));
+    background: rgb(var(--card));
+}
+
+.share-actions__row {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.5rem;
+}
+
+.share-action.share-action {
+    height: 2.75rem;
+    gap: 0.45rem;
+    padding-inline: 0.95rem;
+    border-radius: 9999px;
+    font-size: 0.88rem;
+}
+
+.share-action--primary.share-action--primary {
+    flex: 1 1 auto;
+    font-weight: 600;
+}
+
+.share-action--icon.share-action--icon {
+    width: 2.75rem;
+    padding: 0;
+}
+
+.share-action__icon {
+    display: inline-grid;
+    place-items: center;
+}
+
+.share-action svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+/* Phone: bottom sheet with two steps. A fixed height keeps the sheet still
+   while the steps slide past each other. */
+@media (max-width: 639px) {
+    .share-sheet {
+        width: 100%;
+        height: calc(100dvh - 1.5rem - env(safe-area-inset-top));
+        max-height: none;
+    }
+
+    .share-sheet__header {
+        padding: 0 0.75rem 0.5rem 0.5rem;
+    }
+
+    .share-sheet__back {
+        display: inline-flex;
+    }
+
+    .share-sheet__steps {
+        position: relative;
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .share-sheet__step {
+        display: flex;
+        width: 100%;
+        min-height: 0;
+        flex-direction: column;
+    }
+
+    .share-pane {
+        flex: 1 1 auto;
+        padding: 0.75rem;
+    }
+
+    .share-pane--verses {
+        border: none;
+    }
+
+    .share-stage {
+        flex: 0 0 auto;
+        height: min(56dvh, 34rem);
+        min-height: 16rem;
+    }
+
+    .share-line {
+        min-height: 3rem;
+        font-size: 0.95rem;
+    }
+
+    .share-tabs > [role="tab"] {
+        min-height: 2.5rem;
+    }
+
+    .share-actions {
+        padding: 0.65rem 0.75rem max(0.65rem, env(safe-area-inset-bottom));
+    }
+
+    .share-action.share-action {
+        height: 3rem;
+    }
+
+    .share-action--icon.share-action--icon {
+        width: 3rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .share-preview,
+    .share-line {
+        transition: none;
+    }
+}

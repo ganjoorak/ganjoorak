@@ -22,26 +22,4 @@
     padding: 0 !important;
     opacity: 0.72;
   }
-
-  .lyrics-share-panel {
-    overflow: hidden !important;
-  }
-
-  .lyrics-share-actions {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    max-width: 100% !important;
-    overflow: hidden !important;
-    padding-inline: 0.25rem !important;
-  }
-
-  .lyrics-share-actions button {
-    min-width: 0 !important;
-    max-width: 100% !important;
-    flex: 1 1 auto !important;
-    white-space: nowrap !important;
-  }
 }
