@@ -1842,6 +1842,33 @@ body:has(.menu-drawer) .sidebar-toggle-button {
     animation: 280ms cubic-bezier(0.22, 1, 0.36, 1) 70ms both page-fade-in;
 }
 
+/* Floating controls are position: fixed, so give each its own layer that
+   fades out and in with the page rather than leaving them to the root,
+   where they would swap instantly. `match-element` names each element
+   uniquely, so old and new buttons never pair up and morph in place. */
+.menu-button,
+.global-search-button,
+.poem-feed-lock-button,
+.navigation-controls,
+.action-buttons,
+.poet-info,
+.audio-player {
+    view-transition-name: match-element;
+    view-transition-class: page-chrome;
+}
+
+::view-transition-group(.page-chrome) {
+    animation: none;
+}
+
+::view-transition-old(.page-chrome) {
+    animation: 140ms cubic-bezier(0.4, 0, 1, 1) both page-fade-out;
+}
+
+::view-transition-new(.page-chrome) {
+    animation: 280ms cubic-bezier(0.22, 1, 0.36, 1) 70ms both page-fade-in;
+}
+
 @keyframes page-fade-out {
     to {
         opacity: 0;
@@ -1852,6 +1879,19 @@ body:has(.menu-drawer) .sidebar-toggle-button {
     from {
         opacity: 0;
         transform: translateY(8px);
+    }
+}
+
+/* Back/forward commits synchronously (no view transition), so the restored
+   page fades in on its own; see PageTransition. Opacity only: a transform
+   on body would move the containing block of every fixed control. */
+:root[data-nav-pop] body {
+    animation: 260ms cubic-bezier(0.22, 1, 0.36, 1) both page-pop-in;
+}
+
+@keyframes page-pop-in {
+    from {
+        opacity: 0;
     }
 }
 
@@ -1867,6 +1907,10 @@ body:has(.menu-drawer) .sidebar-toggle-button {
     ::view-transition-new(*),
     ::view-transition-group(*) {
         animation: none !important;
+    }
+
+    :root[data-nav-pop] body {
+        animation: none;
     }
 }
 
