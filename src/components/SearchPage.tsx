@@ -1,23 +1,18 @@
 "use client";
 
 import {
-  memo,
   useCallback,
   useDeferredValue,
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent,
   type MutableRefObject,
 } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  FaCheck,
-  FaChevronDown,
   FaExclamationCircle,
   FaFeatherAlt,
   FaHistory,
@@ -27,14 +22,7 @@ import {
 } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
 import ganjoorApi from "@/api/GanjoorApi";
-import type { GanjoorSemanticVerse } from "@/types/ganjoor";
-import {
-  HitCard,
-  HitSkeleton,
-  PoetAvatar,
-  PoetPill,
-  SOURCE_LABELS,
-} from "@/components/SearchHits";
+import { HitCard, HitSkeleton, PoetAvatar, PoetPill, SOURCE_LABELS } from "@/components/SearchHits";
 import { usePoemSearch } from "@/hooks/usePoemSearch";
 import type { PoemLibrarySource } from "@/utils/poemLibrary";
 import {
@@ -45,7 +33,6 @@ import {
   loadPoetDirectory,
   type DirectoryPoet,
 } from "@/utils/poetDirectory";
-import { LruCache } from "@/utils/searchCache";
 import { matchPoets, mergeHits } from "@/utils/searchClient";
 import {
   clearRecentSearches,
@@ -57,429 +44,39 @@ import {
   MIN_SEARCH_QUERY_LENGTH,
   formatPersianNumber,
   normalizeSearchText,
-  pairSemanticVerses,
-  parseSearchIntent,
 } from "@/utils/searchText";
 import { logger } from "@/utils/logger";
+import {
+  type SourceFilter,
+  type SearchMode,
+  SOURCE_FILTERS,
+  SEARCH_MODES,
+  type SearchParamsState,
+  type SearchParamsUpdate,
+  emptySearchState,
+  applySearchUpdate,
+  readSearchParams,
+  searchHref,
+} from "@/components/search/searchState";
+import { type SemanticState, semanticCache, idleSemantic } from "@/components/search/semantic";
+import {
+  EXAMPLE_QUERIES,
+  EXAMPLE_SEMANTIC_QUERIES,
+  POET_SCOPE_SLUGS,
+  SEMANTIC_TOP_K,
+  SEMANTIC_DELAY_MS,
+  URL_DELAY_MS,
+} from "@/components/search/searchConfig";
+import {
+  arrivedViaHistory,
+  readStoredScroll,
+  writeStoredScroll,
+} from "@/components/search/searchScroll";
+import { buildPlan } from "@/components/search/searchPlan";
+import { PoetCombobox } from "@/components/search/PoetCombobox";
+import { Segmented } from "@/components/search/Segmented";
+import { SemanticCard } from "@/components/search/SemanticCard";
 import "@/styles/SearchPage.css";
-
-type SourceFilter = "all" | PoemLibrarySource;
-type SearchMode = "keyword" | "semantic";
-
-interface SemanticHit {
-  key: string;
-  id: number;
-  title: string;
-  poetName: string;
-  avatarUrl: string | null;
-  collection: string | null;
-  href: string;
-  verses: GanjoorSemanticVerse[];
-}
-
-interface SemanticState {
-  status: "idle" | "loading" | "done" | "error";
-  hits: SemanticHit[];
-  scopePoet: string | null;
-  scopeCategory: string | null;
-}
-
-const SOURCE_FILTERS: Array<{ value: SourceFilter; label: string }> = [
-  { value: "all", label: "همه" },
-  { value: "ganjoor", label: "گنجور" },
-  { value: "echolalia", label: "اکولالیا" },
-  { value: "custom", label: "محلی" },
-];
-const SEARCH_MODES: Array<{ value: SearchMode; label: string }> = [
-  { value: "keyword", label: "واژه" },
-  { value: "semantic", label: "معنا" },
-];
-/* Literal words and hemistiches — what keyword search is good at. */
-const EXAMPLE_QUERIES = ["رخ یار", "بوی جوی مولیان", "باران", "حافظ عشق", "تنهایی", "فروغ"];
-/* Descriptions of a theme or feeling — what semantic search is good at. */
-const EXAMPLE_SEMANTIC_QUERIES = [
-  "شعری در مورد بی‌وفایی دنیا",
-  "غم دوری یار",
-  "شعر حافظ در مورد عشق",
-  "امید پس از ناامیدی",
-  "دلتنگی برای وطن",
-];
-const POET_SCOPE_SLUGS = ["hafez", "saadi", "moulavi", "ferdousi", "khayyam", "attar", "nezami"];
-const SEMANTIC_TOP_K = 12;
-const SEMANTIC_DELAY_MS = 600;
-const URL_DELAY_MS = 300;
-const SCROLL_KEY = "ganjoorak:search-scroll:v2";
-
-const semanticCache = new LruCache<SemanticState>(30);
-const idleSemantic: SemanticState = { status: "idle", hits: [], scopePoet: null, scopeCategory: null };
-
-// Only restore scroll when the user came back through history, never on a fresh visit.
-let lastPopstateAt = 0;
-if (typeof window !== "undefined") {
-  window.addEventListener("popstate", () => {
-    lastPopstateAt = Date.now();
-  });
-}
-const arrivedViaHistory = () => {
-  if (Date.now() - lastPopstateAt < 3000) return true;
-  const [navigation] = performance.getEntriesByType?.("navigation") ?? [];
-  return (navigation as PerformanceNavigationTiming | undefined)?.type === "back_forward";
-};
-
-const readStoredScroll = (): { href: string; y: number } | null => {
-  try {
-    const raw = window.sessionStorage.getItem(SCROLL_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-};
-const writeStoredScroll = (value: { href: string; y: number } | null) => {
-  try {
-    if (value) window.sessionStorage.setItem(SCROLL_KEY, JSON.stringify(value));
-    else window.sessionStorage.removeItem(SCROLL_KEY);
-  } catch {
-    // Best-effort only.
-  }
-};
-
-interface Plan {
-  term: string;
-  normalizedQuery: string;
-  poet: DirectoryPoet | null;
-  poetFromIntent: boolean;
-  shouldSearch: boolean;
-}
-
-/**
- * «حافظ عشق» searches «عشق» in Hafez; a bare poet name («فروغ») is not a filter — the poet shows
- * up as a poet result and the word is searched everywhere.
- */
-const buildPlan = (
-  query: string,
-  explicitPoet: DirectoryPoet | null,
-  exact: boolean,
-  directory: DirectoryPoet[],
-): Plan => {
-  const normalizedQuery = normalizeSearchText(query);
-  const shouldSearch = normalizedQuery.length >= MIN_SEARCH_QUERY_LENGTH;
-  if (!shouldSearch || exact || explicitPoet) {
-    return { term: normalizedQuery, normalizedQuery, poet: explicitPoet, poetFromIntent: false, shouldSearch };
-  }
-  const intent = parseSearchIntent(query, directory);
-  if (intent.poet && intent.hasTerm) {
-    return {
-      term: intent.term,
-      normalizedQuery,
-      poet: intent.poet as DirectoryPoet,
-      poetFromIntent: true,
-      shouldSearch,
-    };
-  }
-  return { term: normalizedQuery, normalizedQuery, poet: null, poetFromIntent: false, shouldSearch };
-};
-
-const PoetCombobox = memo(function PoetCombobox({
-  poets,
-  value,
-  onChange,
-}: {
-  poets: DirectoryPoet[];
-  value: DirectoryPoet | null;
-  onChange: (poet: DirectoryPoet | null) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [filter, setFilter] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const listRef = useRef<HTMLUListElement | null>(null);
-  const listboxId = useId();
-
-  const options = useMemo(
-    () => (normalizeSearchText(filter) ? matchPoets(filter, poets, 60) : poets.slice(0, 60)),
-    [filter, poets],
-  );
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setFilter("");
-    setActiveIndex(0);
-    window.setTimeout(() => inputRef.current?.focus(), 20);
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setIsOpen(false);
-    };
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("touchstart", handlePointerDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("touchstart", handlePointerDown);
-    };
-  }, [isOpen]);
-
-  useEffect(() => setActiveIndex(0), [filter]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    listRef.current
-      ?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)
-      ?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex, isOpen]);
-
-  const select = (poet: DirectoryPoet | null) => {
-    onChange(poet);
-    setIsOpen(false);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActiveIndex((index) => Math.min(index + 1, options.length - 1));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveIndex((index) => Math.max(index - 1, 0));
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      if (options[activeIndex]) select(options[activeIndex]);
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      setIsOpen(false);
-    }
-  };
-
-  return (
-    <div className="search-poet-filter" ref={rootRef}>
-      <button
-        type="button"
-        className={`search-chip search-poet-trigger${value ? " is-active" : ""}`}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-controls={listboxId}
-        onClick={() => setIsOpen((open) => !open)}
-      >
-        {value ? (
-          <PoetAvatar src={value.imageUrl} name={getDirectoryPoetDisplayName(value)} size={18} />
-        ) : (
-          <FaFeatherAlt aria-hidden="true" />
-        )}
-        <span>{value ? getDirectoryPoetDisplayName(value) : "شاعر"}</span>
-        <FaChevronDown className="search-poet-trigger-chevron" aria-hidden="true" />
-      </button>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            className="search-poet-popover"
-            role="presentation"
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-          >
-            <div className="search-poet-search">
-              <FaSearch aria-hidden="true" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="نام شاعر…"
-                aria-label="جست‌وجوی شاعر"
-                aria-controls={listboxId}
-                aria-activedescendant={
-                  options[activeIndex] ? `${listboxId}-${options[activeIndex].key}` : undefined
-                }
-                role="combobox"
-                aria-expanded="true"
-                autoComplete="off"
-              />
-            </div>
-            <ul className="search-poet-list modern-scrollbar" role="listbox" id={listboxId} ref={listRef}>
-              {value && !filter && (
-                <li role="option" aria-selected={false} className="search-poet-option" onClick={() => select(null)}>
-                  <span className="search-avatar search-avatar-fallback" aria-hidden="true">
-                    <FaTimes />
-                  </span>
-                  <span className="search-poet-option-name">همهٔ شاعران</span>
-                </li>
-              )}
-              {options.map((poet, index) => {
-                const isSelected = value?.key === poet.key;
-                return (
-                  <li
-                    key={poet.key}
-                    id={`${listboxId}-${poet.key}`}
-                    role="option"
-                    aria-selected={isSelected}
-                    data-index={index}
-                    className={`search-poet-option${index === activeIndex ? " is-active" : ""}${
-                      isSelected ? " is-selected" : ""
-                    }`}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => select(poet)}
-                  >
-                    <PoetAvatar src={poet.imageUrl} name={getDirectoryPoetDisplayName(poet)} size={28} />
-                    <span className="search-poet-option-name">
-                      {getDirectoryPoetDisplayName(poet)}
-                      <small>{SOURCE_LABELS[poet.source]}</small>
-                    </span>
-                    {isSelected && <FaCheck className="search-poet-option-check" aria-hidden="true" />}
-                  </li>
-                );
-              })}
-              {options.length === 0 && <li className="search-poet-empty">شاعری با این نام پیدا نشد.</li>}
-            </ul>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-});
-
-const Segmented = <T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  counts,
-}: {
-  label: string;
-  options: Array<{ value: T; label: string }>;
-  value: T;
-  onChange: (value: T) => void;
-  counts?: Partial<Record<T, number | null>>;
-}) => (
-  <div className="search-segmented" role="group" aria-label={label}>
-    {options.map((option) => {
-      const active = value === option.value;
-      const count = counts?.[option.value];
-      return (
-        <button
-          key={option.value}
-          type="button"
-          className={`search-segment${active ? " is-active" : ""}`}
-          aria-pressed={active}
-          onClick={() => onChange(option.value)}
-        >
-          {active && (
-            <motion.span
-              layoutId={`segment-${label}`}
-              className="search-segment-thumb"
-              transition={{ type: "spring", stiffness: 520, damping: 40 }}
-            />
-          )}
-          <span className="search-segment-label">
-            {option.label}
-            {count != null && count > 0 && <small>{formatPersianNumber(count)}</small>}
-          </span>
-        </button>
-      );
-    })}
-  </div>
-);
-
-const SemanticCard = memo(function SemanticCard({
-  hit,
-  index,
-  onClick,
-}: {
-  hit: SemanticHit;
-  index: number;
-  onClick: () => void;
-}) {
-  const couplets = pairSemanticVerses(hit.verses).slice(0, 2);
-  return (
-    <motion.li
-      layout="position"
-      className="search-hit"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, delay: Math.min(index * 0.03, 0.24) }}
-    >
-      <Link href={hit.href} className="search-hit-link" onClick={onClick}>
-        <span className="search-hit-verse">
-          {couplets.map((couplet) =>
-            couplet.text ? (
-              <span key={couplet.key} className="search-hit-line is-match">
-                {couplet.text}
-              </span>
-            ) : (
-              <span key={couplet.key} className="search-hit-couplet">
-                <span className="search-hit-line is-match">{couplet.right}</span>
-                <span className="search-hit-line">{couplet.left}</span>
-              </span>
-            ),
-          )}
-        </span>
-        <span className="search-hit-meta">
-          <PoetAvatar src={hit.avatarUrl} name={hit.poetName} size={22} />
-          <span className="search-hit-crumb">
-            <strong>{hit.poetName}</strong>
-            {hit.collection && <span>{hit.collection}</span>}
-            <span>{hit.title}</span>
-          </span>
-        </span>
-      </Link>
-    </motion.li>
-  );
-});
-
-/** Everything that defines a search; the page keeps it in the URL, the dialog in local state. */
-export interface SearchParamsState {
-  q: string;
-  source: SourceFilter;
-  poet: string | null;
-  exact: boolean;
-  mode: SearchMode;
-  global: boolean;
-}
-
-export type SearchParamsUpdate = Partial<SearchParamsState>;
-
-const emptySearchState: SearchParamsState = {
-  q: "",
-  source: "all",
-  poet: null,
-  exact: false,
-  mode: "keyword",
-  global: false,
-};
-
-/** Applies an update and drops flags that don't apply to the resulting mode. */
-const applySearchUpdate = (current: SearchParamsState, next: SearchParamsUpdate): SearchParamsState => {
-  const merged = { ...current, ...next, q: (next.q ?? current.q).trim() };
-  const semantic = merged.mode === "semantic";
-  return {
-    ...merged,
-    source: semantic ? "all" : merged.source,
-    exact: merged.exact && !!merged.q && !semantic,
-    global: merged.global && !!merged.q && semantic,
-  };
-};
-
-const readSearchParams = (params: URLSearchParams): SearchParamsState => {
-  const source = params.get("source");
-  return {
-    q: params.get("q") ?? "",
-    source: SOURCE_FILTERS.some((option) => option.value === source) ? (source as SourceFilter) : "all",
-    poet: params.get("poet"),
-    exact: params.get("exact") === "1",
-    mode: params.get("mode") === "semantic" ? "semantic" : "keyword",
-    global: params.get("global") === "1",
-  };
-};
-
-const searchHref = (state: SearchParamsState) => {
-  const params = new URLSearchParams();
-  if (state.q) params.set("q", state.q);
-  if (state.mode === "semantic") params.set("mode", "semantic");
-  if (state.source !== "all") params.set("source", state.source);
-  if (state.poet) params.set("poet", state.poet);
-  if (state.exact) params.set("exact", "1");
-  if (state.global) params.set("global", "1");
-  return params.toString() ? `/search?${params}` : "/search";
-};
 
 interface SearchViewProps {
   variant: "page" | "dialog";

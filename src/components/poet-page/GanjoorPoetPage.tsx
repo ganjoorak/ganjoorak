@@ -17,7 +17,12 @@ import { logger } from "@/utils/logger";
 import { fetchRandomPoemByPoetId } from "@/utils/poemIndex";
 import RandomizePoemsPrompt from "@/components/RandomizePoemsPrompt";
 import { usePoemSequence } from "@/components/poet-page/usePoemSequence";
-import { buildCategoryRows, createPoemOrder, formatPersianNumber, indexCategories } from "@/components/poet-page/poetPageUtils";
+import {
+  buildCategoryRows,
+  createPoemOrder,
+  formatPersianNumber,
+  indexCategories,
+} from "@/components/poet-page/poetPageUtils";
 
 const fetchGanjoorPoem = (poemId: number) => ganjoorApi.getPoemById(poemId);
 

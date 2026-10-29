@@ -16,7 +16,12 @@ import { useSettings } from "@/context/SettingsContext";
 import { logger } from "@/utils/logger";
 import RandomizePoemsPrompt from "@/components/RandomizePoemsPrompt";
 import { usePoemSequence } from "@/components/poet-page/usePoemSequence";
-import { type LocalPoemSummary, createPoemOrder, formatPersianNumber, groupByCollection } from "@/components/poet-page/poetPageUtils";
+import {
+  type LocalPoemSummary,
+  createPoemOrder,
+  formatPersianNumber,
+  groupByCollection,
+} from "@/components/poet-page/poetPageUtils";
 
 export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
   const { settings, setRandomizePoems, setAskRandomizePoemsOnPoetPages } =
