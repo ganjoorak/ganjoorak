@@ -22,12 +22,10 @@ import type { Poem } from "@/types/poem";
 import type { Poet } from "@/types/poet";
 import type { GanjoorCategory, GanjoorPoetCatalog } from "@/types/ganjoor";
 import { PoetSlug, isValidPoetSlug } from "@/types/poet";
-import PoetImage from "@/components/PoetImage";
 import { useSettings } from "@/context/SettingsContext";
 import { logger } from "@/utils/logger";
 import { fetchRandomPoemByPoetId } from "@/utils/poemIndex";
 import poetSourceIndex from "@/data/poet-source-index.json";
-import { FaSpinner } from "react-icons/fa";
 import RandomizePoemsPrompt from "@/components/RandomizePoemsPrompt";
 
 type RemotePoetSource = "ganjoor" | "echolalia";
@@ -733,7 +731,6 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
             <PoemFeedPager
               poem={currentPoem}
               nextPoem={nextPoem}
-              currentIndex={currentPoemIndex}
               onNext={handleNext}
               onPrevious={handlePrevious}
               isFirst={isFirstPoem}
@@ -1077,7 +1074,6 @@ function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
             <PoemFeedPager
               poem={currentPoem}
               nextPoem={nextPoem}
-              currentIndex={currentPoemIndex}
               onNext={handleNext}
               onPrevious={handlePrevious}
               isFirst={isFirstPoem}
@@ -1615,7 +1611,6 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
             <PoemFeedPager
               poem={currentPoem}
               nextPoem={nextPoem}
-              currentIndex={currentPoemIndex}
               onNext={handleNext}
               onPrevious={handlePrevious}
               isFirst={isFirstPoem}

@@ -112,7 +112,6 @@ export default function TodayPage() {
     <main className="h-screen overflow-hidden">
       <PoemFeedPager
         poem={poem}
-        currentIndex={0}
         isFirst={true}
         isLast={true}
         onNext={() => {}}

@@ -14,7 +14,6 @@ import {
   FaBackward,
   FaForward,
   FaSpinner,
-  FaArrowLeft,
   FaChevronUp,
   FaChevronDown,
   FaEye,
@@ -22,7 +21,7 @@ import {
   FaListUl,
 } from "react-icons/fa";
 import "../styles/PoemViewer.css";
-import type { Poem, PoemRecitation, VerseSync } from "@/types/poem";
+import type { Poem, VerseSync } from "@/types/poem";
 import ganjoorApi from "@/api/GanjoorApi";
 import Link from "next/link";
 import PoetImage from "@/components/PoetImage";
@@ -148,14 +147,11 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   isPreparingNext = false,
   pullToNext,
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [currentRecitationIndex, setCurrentRecitationIndex] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [isMouseOverPoemText, setIsMouseOverPoemText] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -172,8 +168,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   const [isRecitersOpen, setIsRecitersOpen] = useState(false);
   const playAfterSwitchRef = useRef(false);
   const audioPlayerRef = useRef<HTMLDivElement>(null);
-  const [isAtTop, setIsAtTop] = useState(true);
-  const [isAtBottom, setIsAtBottom] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const poemTextRef = useRef<HTMLDivElement | null>(null);
@@ -206,15 +200,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     currentRecitation?.audioSrcUrl ||
     "";
 
-  // Define loading animation variants
-  const loadingVariants = {
-    hidden: { opacity: 0, y: "-100%" },
-    visible: { opacity: 1, y: "0%" },
-  };
-
-  // Turn off loading when a new poem arrives
+  // Reset scroll and navigation state when a new poem arrives
   useEffect(() => {
-    setIsLoading(false);
     containerRef.current
       ?.querySelector(".poem-content")
       ?.classList.remove("poem-content--title-hidden");
@@ -229,8 +216,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     previousScrollTopRef.current = 0;
     isAtTopRef.current = true;
     isAtBottomRef.current = false;
-    setIsAtTop(true);
-    setIsAtBottom(false);
 
     // Reset recitation index if needed
     if (poem.recitations && poem.recitations.length > 0) {
@@ -372,18 +357,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   const chunk = (arr: string[], size: number) => {
     return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
       arr.slice(i * size, (i + 1) * size),
-    );
-  };
-
-  // Helper functions for wheel handling
-  const isScrollNearBottom = () => {
-    if (!poemTextRef.current) return false;
-    const threshold = 20;
-    return (
-      poemTextRef.current.scrollHeight -
-        poemTextRef.current.scrollTop -
-        poemTextRef.current.clientHeight <
-      threshold
     );
   };
 
@@ -536,11 +509,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         .play()
         .then(() => {
           setIsPlaying(true);
-          setError(null);
         })
         .catch((err) => {
           logger.error("Error playing audio:", err);
-          setError("خطا در پخش صدا");
           setIsPlaying(false);
         })
         .finally(() => {
@@ -562,7 +533,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     }
     setCurrentRecitationIndex(currentRecitationIndex + 1);
     setCurrentTime(0);
-    setError(null);
     if (wasPlaying) {
       const playWhenReady = () => {
         if (audioRef.current) {
@@ -570,11 +540,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
             .play()
             .then(() => {
               setIsPlaying(true);
-              setError(null);
             })
             .catch((err) => {
               logger.error("Error playing audio:", err);
-              setError("خطا در پخش صدا");
               setIsPlaying(false);
             });
         }
@@ -596,7 +564,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     }
     setCurrentRecitationIndex(currentRecitationIndex - 1);
     setCurrentTime(0);
-    setError(null);
     if (wasPlaying) {
       const playWhenReady = () => {
         if (audioRef.current) {
@@ -604,11 +571,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
             .play()
             .then(() => {
               setIsPlaying(true);
-              setError(null);
             })
             .catch((err) => {
               logger.error("Error playing audio:", err);
-              setError("خطا در پخش صدا");
               setIsPlaying(false);
             });
         }
@@ -634,7 +599,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     setCurrentRecitationIndex(index);
     setCurrentTime(0);
     setDuration(0);
-    setError(null);
   };
 
   // After a switch from the list, start the new recitation once its src is in the DOM.
@@ -648,11 +612,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       .play()
       .then(() => {
         setIsPlaying(true);
-        setError(null);
       })
       .catch((err) => {
         logger.error("Error playing audio:", err);
-        setError("خطا در پخش صدا");
         setIsPlaying(false);
       })
       .finally(() => setIsAudioLoading(false));
@@ -775,7 +737,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     e: React.SyntheticEvent<HTMLAudioElement, Event>,
   ) => {
     logger.error("Audio error:", e.currentTarget.error || e);
-    setError("خطا در بارگذاری صدا");
     setIsAudioLoading(false);
     setIsPlaying(false);
   };
@@ -804,7 +765,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         setCurrentRecitationIndex(0);
       }
     }
-    setError(null);
 
     // Try to play the first recitation if available and was playing before
     if (poem.recitations?.length > 0 && audioRef.current && isPlaying) {
@@ -813,11 +773,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         .play()
         .then(() => {
           setIsPlaying(true);
-          setError(null);
         })
         .catch((error) => {
           logger.error("Error auto-playing audio:", error);
-          setError("خطا در پخش خودکار صدا");
           setIsPlaying(false);
         })
         .finally(() => {
@@ -826,9 +784,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     }
   }, [poem.id]);
 
-  // Reset error when audio source changes
+  // Reset playback state when audio source changes
   useEffect(() => {
-    setError(null);
     setIsAudioLoading(false);
     setCurrentTime(0);
     setDuration(0);
@@ -837,8 +794,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   useEffect(() => {
     isAtTopRef.current = true;
     isAtBottomRef.current = false;
-    setIsAtTop(true);
-    setIsAtBottom(false);
     previousScrollTopRef.current = 0;
   }, [poem.id]);
 
@@ -876,15 +831,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         reachedBottomAtRef.current = 0;
       }
 
-      if (isAtTopRef.current !== atTop) {
-        isAtTopRef.current = atTop;
-        setIsAtTop(atTop);
-      }
-
-      if (isAtBottomRef.current !== atBottom) {
-        isAtBottomRef.current = atBottom;
-        setIsAtBottom(atBottom);
-      }
+      isAtTopRef.current = atTop;
+      isAtBottomRef.current = atBottom;
 
       previousScrollTopRef.current = scrollTop;
     };
@@ -1048,15 +996,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         return;
       }
 
-      const poemText = poemTextRef.current;
-      if (!poemText) return;
-
-      const canScroll = () => poemText.scrollHeight > poemText.clientHeight;
-
-      const isAtBottom = () =>
-        poemText.scrollHeight - poemText.scrollTop - poemText.clientHeight < 20;
-
-      const isAtTop = () => poemText.scrollTop === 0;
+      if (!poemTextRef.current) return;
 
       // Handle audio controls
       if (poem.recitations && poem.recitations.length > 0) {
@@ -1081,51 +1021,13 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         }
       }
 
-      // Handle poem navigation and scrolling
-      if (e.code === "ArrowDown" || e.code === "ArrowUp") {
-        const scrollAmount = 100; // Pixels to scroll per key press
-
-        // If mouse is not over poem text
-        if (!isMouseOverPoemText) {
-          if (e.code === "ArrowDown" && !isLast) {
-            e.preventDefault();
-            handleNext();
-          } else if (e.code === "ArrowUp" && !isFirst) {
-            e.preventDefault();
-            handlePrevious();
-          }
-          return;
-        }
-
-        // If mouse is over poem text and content is scrollable
-        if (canScroll()) {
-          if (e.code === "ArrowDown") {
-            if (!isAtBottom()) {
-              e.preventDefault();
-              poemText.scrollBy({ top: scrollAmount, behavior: "smooth" });
-            } else if (!isLast) {
-              e.preventDefault();
-              handleNext();
-            }
-          } else if (e.code === "ArrowUp") {
-            if (!isAtTop()) {
-              e.preventDefault();
-              poemText.scrollBy({ top: -scrollAmount, behavior: "smooth" });
-            } else if (!isFirst) {
-              e.preventDefault();
-              handlePrevious();
-            }
-          }
-        } else {
-          // If content is not scrollable, move to next/previous poem
-          if (e.code === "ArrowDown" && !isLast) {
-            e.preventDefault();
-            handleNext();
-          } else if (e.code === "ArrowUp" && !isFirst) {
-            e.preventDefault();
-            handlePrevious();
-          }
-        }
+      // Arrow keys move between poems
+      if (e.code === "ArrowDown" && !isLast) {
+        e.preventDefault();
+        handleNext();
+      } else if (e.code === "ArrowUp" && !isFirst) {
+        e.preventDefault();
+        handlePrevious();
       }
     };
 
@@ -1139,7 +1041,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     isLast,
     handleNext,
     handlePrevious,
-    isMouseOverPoemText,
     isShareOpen,
   ]);
 
@@ -1448,21 +1349,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         onClose={() => setIsShareOpen(false)}
         poetSlug={poetSlug}
       />
-
-      {/* Loading overlay is now permanently hidden when scrolling through poems
-            <AnimatePresence>
-                {isLoading && (
-                    <motion.div
-                        className="loading-overlay"
-                        variants={loadingVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="hidden"
-                    >
-                        در حال بارگیری...
-                    </motion.div>
-                )}
-            </AnimatePresence> */}
 
       {showNavigationControls && (
         <div className="navigation-controls" aria-label="ناوبری شعر">
@@ -1783,12 +1669,6 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       )}
     </motion.div>
   );
-};
-
-// Function to extract poet name from fullTitle
-const getPoetName = (fullTitle: string): string => {
-  const parts = fullTitle.split(" » ");
-  return parts[0];
 };
 
 export default PoemViewer;

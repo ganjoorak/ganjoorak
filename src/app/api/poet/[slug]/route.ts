@@ -19,7 +19,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ slug: string }> },
 ) {
     try {

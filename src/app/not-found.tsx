@@ -3,15 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import type { Poem } from '@/types/poem';
 import LoadingScreen from '@/components/LoadingScreen';
-import { useRouter } from 'next/navigation';
 import { logger } from '@/utils/logger';
 import { fetchRandomGanjoorPoem } from '@/utils/poemIndex';
 
 export default function NotFound() {
     const [loading, setLoading] = useState(false);
-    const router = useRouter();
 
     const goToRandomPoem = async () => {
         setLoading(true);

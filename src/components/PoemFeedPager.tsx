@@ -20,7 +20,6 @@ type Direction = "next" | "previous";
 interface PoemFeedPagerProps {
   poem: Poem;
   nextPoem?: Poem;
-  currentIndex: number;
   isFirst: boolean;
   isLast?: boolean;
   isPreparingNextPoem?: boolean;
@@ -55,7 +54,6 @@ const isShareDialogOpen = () =>
 export default function PoemFeedPager({
   poem,
   nextPoem,
-  currentIndex,
   isFirst,
   isLast = false,
   isPreparingNextPoem = false,

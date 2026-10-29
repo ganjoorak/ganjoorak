@@ -21,23 +21,9 @@ export const POEM_INTERESTS: PoemInterest[] = [
   { key: "satire", label: "هجو و رسوایی" },
 ];
 
-export const DEFAULT_SUGGESTED_INTEREST_KEYS = [
-  "love",
-  "wine",
-  "spring",
-  "seeking",
-  "time",
-  "prayer",
-  "epic",
-  "satire",
-];
-
 const INTEREST_BY_KEY = new Map(
   POEM_INTERESTS.map((interest) => [interest.key, interest]),
 );
-
-export const getInterestByKey = (key: string | null | undefined) =>
-  key ? INTEREST_BY_KEY.get(key) ?? null : null;
 
 export const isValidInterestKey = (key: string) => INTEREST_BY_KEY.has(key);
 
@@ -53,31 +39,4 @@ export const sanitizeInterestKeys = (keys: unknown): string[] => {
       ),
     ),
   );
-};
-
-export const orderInterestsForRail = (selectedKeys: string[]): PoemInterest[] => {
-  const selected = sanitizeInterestKeys(selectedKeys);
-  const selectedSet = new Set(selected);
-
-  const chosen = selected
-    .map((key) => INTEREST_BY_KEY.get(key))
-    .filter((interest): interest is PoemInterest => Boolean(interest));
-
-  if (chosen.length === 0) {
-    const suggested = DEFAULT_SUGGESTED_INTEREST_KEYS.map((key) =>
-      INTEREST_BY_KEY.get(key),
-    ).filter((interest): interest is PoemInterest => Boolean(interest));
-
-    return [
-      ...suggested,
-      ...POEM_INTERESTS.filter(
-        (interest) => !DEFAULT_SUGGESTED_INTEREST_KEYS.includes(interest.key),
-      ),
-    ];
-  }
-
-  return [
-    ...chosen,
-    ...POEM_INTERESTS.filter((interest) => !selectedSet.has(interest.key)),
-  ];
 };

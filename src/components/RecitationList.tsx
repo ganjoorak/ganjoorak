@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { FaPlay } from "react-icons/fa";
 import type { PoemRecitation } from "@/types/poem";
 import { cn } from "@/lib/utils";

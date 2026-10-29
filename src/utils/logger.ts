@@ -13,5 +13,3 @@ export const logger = {
   warn: createLoggerMethod(console.warn),
   error: createLoggerMethod(console.error),
 };
-
-export type Logger = typeof logger;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FaBackward, FaEye, FaEyeSlash, FaForward, FaPause, FaPlay, FaSpinner } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from "@/components/ui/drawer";

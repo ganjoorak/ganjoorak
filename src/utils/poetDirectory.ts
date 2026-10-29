@@ -181,8 +181,6 @@ export const getPoetDirectory = (): DirectoryPoet[] => {
   return staticDirectory;
 };
 
-export const isPoetDirectoryEnriched = () => enrichedDirectory !== null;
-
 /** The bundled list only: identical on server and client, so it is safe for the first render. */
 export const getStaticPoetDirectory = () => staticDirectory;
 
@@ -252,21 +250,6 @@ export const findDirectoryPoet = (
     directory.find((poet) => poet.id === id) ||
     null
   );
-};
-
-export const findDirectoryPoetByEcholaliaCategory = (
-  categoryIds: number[],
-  directory: DirectoryPoet[] = getPoetDirectory(),
-) => {
-  for (const id of categoryIds) {
-    const poet = directory.find(
-      (candidate) => candidate.source === "echolalia" && candidate.id === id,
-    );
-    if (poet) {
-      return poet;
-    }
-  }
-  return null;
 };
 
 export const getDirectoryPoetDisplayName = displayName;

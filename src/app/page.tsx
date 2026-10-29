@@ -889,7 +889,6 @@ export default function Home() {
                 <PoemFeedPager
                     poem={currentPoem}
                     nextPoem={nextPoem}
-                    currentIndex={currentPoemIndex}
                     isFirst={currentPoemIndex === 0}
                     isPreparingNextPoem={isFetchingMore && !nextPoem}
                     onNext={handleNext}
