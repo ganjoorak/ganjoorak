@@ -618,6 +618,20 @@
         min-height: 2.5rem;
     }
 
+    /* Eight controls must fit a 375px phone: narrower, still 44px tall. */
+    .share-bar {
+        gap: 0.125rem;
+    }
+
+    .share-bar__item {
+        width: 2.25rem;
+        height: 2.75rem;
+    }
+
+    .share-bar__divider {
+        margin-inline: 0.1rem;
+    }
+
     .share-actions {
         padding: 0.65rem 0.75rem max(0.65rem, env(safe-area-inset-bottom));
     }

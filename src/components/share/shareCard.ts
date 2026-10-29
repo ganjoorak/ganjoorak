@@ -17,7 +17,6 @@ export interface ShareCardTheme {
   title: string;
   text: string;
   muted: string;
-  ornament: string;
   brand: string;
 }
 
@@ -32,7 +31,6 @@ export const SHARE_CARD_THEMES: ShareCardTheme[] = [
     title: "rgba(255,255,255,0.95)",
     text: "rgba(255,255,255,0.9)",
     muted: "rgba(255,255,255,0.58)",
-    ornament: "rgba(214,182,122,0.85)",
     brand: "rgba(255,255,255,0.42)",
   },
   {
@@ -45,7 +43,6 @@ export const SHARE_CARD_THEMES: ShareCardTheme[] = [
     title: "#0a0a0a",
     text: "#1c1c1f",
     muted: "rgba(10,10,10,0.55)",
-    ornament: "rgba(10,10,10,0.42)",
     brand: "rgba(10,10,10,0.4)",
   },
   {
@@ -58,7 +55,6 @@ export const SHARE_CARD_THEMES: ShareCardTheme[] = [
     title: "#3d2f22",
     text: "#403428",
     muted: "rgba(64,52,40,0.62)",
-    ornament: "rgba(120,90,50,0.7)",
     brand: "rgba(64,52,40,0.45)",
   },
 ];
@@ -99,7 +95,6 @@ export interface ShareCardLayoutResult {
   height: number;
   theme: ShareCardTheme;
   texts: CardText[];
-  ornamentY: number;
   /** Reveal order for the video: "line:N" groups, N = position in input lines. */
   lineGroups: string[];
   /** Characters per line group, to pace the video. */
@@ -180,12 +175,13 @@ export function layoutShareCard(
   const titleLineHeight = Math.round(titleSize * 1.35);
   const poetSize = isStory ? 38 : 34;
   const headerHeight = titleLines.length * titleLineHeight + poetSize * 1.9;
-  const ornamentGap = isStory ? 110 : 92;
+  // Space between the title block and the verses.
+  const headerGap = isStory ? 84 : 68;
 
   const footerHeight = isStory ? 270 : 200;
   const topLimit = inset + (isStory ? 170 : 96);
   const bottomLimit = height - footerHeight;
-  const versesMax = bottomLimit - topLimit - headerHeight - ornamentGap;
+  const versesMax = bottomLimit - topLimit - headerHeight - headerGap;
 
   // Verses: largest font size that fits, then truncate at the minimum.
   const minSize = 24;
@@ -293,8 +289,8 @@ export function layoutShareCard(
     if (lastLines.length) lastLines[lastLines.length - 1] = ellipsize(lastLines[lastLines.length - 1]);
   }
 
-  // Centre the whole composition (header + ornament + verses) vertically.
-  const blockHeight = headerHeight + ornamentGap + metrics.total;
+  // Centre the whole composition (header + verses) vertically.
+  const blockHeight = headerHeight + headerGap + metrics.total;
   let y = Math.max(topLimit, topLimit + (bottomLimit - topLimit - blockHeight) / 2);
   const cx = width / 2;
 
@@ -320,8 +316,7 @@ export function layoutShareCard(
   });
   y += poetSize * 0.55;
 
-  const ornamentY = y + ornamentGap / 2;
-  y += ornamentGap;
+  y += headerGap;
 
   const verseFont = font(500, size, fontStack);
   const verseBoldFont = font(800, size, fontStack);
@@ -371,7 +366,6 @@ export function layoutShareCard(
     height,
     theme,
     texts,
-    ornamentY,
     lineGroups,
     lineLengths,
     truncated,
@@ -439,29 +433,6 @@ export function paintShareCard(
   ctx.direction = "rtl";
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-
-  // Ornament: two hairlines around a small diamond under the poet line.
-  {
-    const cx = width / 2;
-    const y = layout.ornamentY;
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = theme.ornament;
-    ctx.fillStyle = theme.ornament;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(cx - 22, y);
-    ctx.lineTo(cx - 142, y);
-    ctx.moveTo(cx + 22, y);
-    ctx.lineTo(cx + 142, y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx, y - 9);
-    ctx.lineTo(cx + 9, y);
-    ctx.lineTo(cx, y + 9);
-    ctx.lineTo(cx - 9, y);
-    ctx.closePath();
-    ctx.fill();
-  }
 
   for (const item of layout.texts) {
     ctx.fillStyle = item.color;
