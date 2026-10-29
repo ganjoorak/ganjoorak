@@ -72,7 +72,7 @@ const poemSummaryPromiseCache: Record<
   Promise<EcholaliaPoemSummary[]> | undefined
 > = {};
 
-const decodeWordPressSlug = (slug: string) => {
+export const decodeWordPressSlug = (slug: string) => {
   try {
     return decodeURIComponent(slug);
   } catch {
@@ -80,7 +80,7 @@ const decodeWordPressSlug = (slug: string) => {
   }
 };
 
-const decodeHtmlEntities = (value: string) => {
+export const decodeHtmlEntities = (value: string) => {
   const namedEntities: Record<string, string> = {
     amp: "&",
     lt: "<",
@@ -100,7 +100,7 @@ const decodeHtmlEntities = (value: string) => {
     .replace(/&([a-z]+);/gi, (match, entity) => namedEntities[entity] ?? match);
 };
 
-const htmlToPlainText = (html: string) =>
+export const htmlToPlainText = (html: string) =>
   decodeHtmlEntities(
     html
       .replace(/<div\s+class=["']sing-block["'][\s\S]*$/i, "")
@@ -144,7 +144,7 @@ const mapPostToSearchPost = (post: EcholaliaPost): EcholaliaSearchPost => {
 const getPoetImageRoute = (categoryId: number) =>
   `/api/echolalia/poet-image/${categoryId}`;
 
-const isHiddenEcholaliaPoetSlug = (slug: string) =>
+export const isHiddenEcholaliaPoetSlug = (slug: string) =>
   HIDDEN_ECHOLALIA_POET_SLUGS.has(decodeWordPressSlug(slug));
 
 const isHiddenEcholaliaPoetCategory = (category: EcholaliaCategory) =>

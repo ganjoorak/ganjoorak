@@ -2,7 +2,9 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Palette } from "lucide-react";
 import AppPage from "@/components/AppPage";
+import AppearanceSheet from "@/components/profile/AppearanceSheet";
 import { PasswordField } from "@/components/AccountPages";
 import ProfileAvatar, { AVATAR_MOTIFS, resolveAvatar, type AvatarKey } from "@/components/ProfileAvatar";
 import RecoveryCodePanel from "@/components/RecoveryCodePanel";
@@ -98,6 +100,7 @@ export default function AccountSettingsPage() {
   const router = useRouter();
   const [user, setUser] = useState<AccountUser | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
 
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
@@ -186,6 +189,21 @@ export default function AccountSettingsPage() {
 
   return (
     <AppPage title="تنظیمات حساب" width="narrow" backHref="/profile">
+      <section className="app-section" aria-labelledby="settings-appearance">
+        <h2 id="settings-appearance" className="app-section-title">
+          <span>ظاهر نمایه</span>
+        </h2>
+        <Card className="settings-card">
+          <p className="settings-description">
+            بنر، رنگ تأکید، رنگ پس‌زمینه و متن «دربارهٔ من» صفحهٔ نمایه‌تان را بسازید.
+          </p>
+          <Button type="button" variant="outline" className="settings-submit" onClick={() => setAppearanceOpen(true)}>
+            <Palette aria-hidden="true" />
+            ویرایش ظاهر
+          </Button>
+        </Card>
+      </section>
+
       <SettingsSection
         id="settings-profile"
         title="نمایه"
@@ -298,6 +316,7 @@ export default function AccountSettingsPage() {
           </>
         )}
       </SettingsSection>
+      <AppearanceSheet open={appearanceOpen} onOpenChange={setAppearanceOpen} user={user} onSaved={setUser} />
     </AppPage>
   );
 }

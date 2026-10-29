@@ -76,6 +76,8 @@ interface SharePoemDialogProps {
   isOpen: boolean;
   onClose: () => void;
   poetSlug?: string;
+  /** Line indices (into the poem's non-empty lines) to start with; default is the first four. */
+  initialSelected?: number[];
 }
 
 
@@ -84,6 +86,7 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
   isOpen,
   onClose,
   poetSlug,
+  initialSelected,
 }) => {
   const { settings } = useSettings();
   const isPhone = useIsPhone();
@@ -195,7 +198,11 @@ const SharePoemDialog: React.FC<SharePoemDialogProps> = ({
     setCardLayout(prefs.layout ?? "single");
     setFontFamily(prefs.font ?? settings.fontFamily);
     prefsLoaded.current = true;
-    setSelected(lines.slice(0, 4).map((_, index) => index));
+    setSelected(
+      initialSelected?.length
+        ? initialSelected.filter((index) => index >= 0 && index < lines.length)
+        : lines.slice(0, 4).map((_, index) => index),
+    );
     setStep("select");
     setDirection(1);
     setMode("image");

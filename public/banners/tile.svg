@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" preserveAspectRatio="xMidYMid slice">
+<defs>
+<linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d4d73"/><stop offset=".5" stop-color="#127a8c"/><stop offset="1" stop-color="#0b3b66"/></linearGradient>
+<pattern id="p" width="125" height="125" patternUnits="userSpaceOnUse">
+<g fill="none" stroke="#f0d28a" stroke-width="2.5" stroke-linejoin="round">
+<rect x="22" y="22" width="81" height="81" rx="2"/><rect x="22" y="22" width="81" height="81" rx="2" transform="rotate(45 62.5 62.5)"/><path d="M0 62.500h22M103 62.500h22M62.500 0v22M62.500 103v22" stroke-opacity=".6"/>
+<circle cx="62.500" cy="62.500" r="20"/>
+<path d="M62.500 42.500l14 20-14 20-14-20z"/>
+</g>
+<g fill="#f0d28a" opacity=".85"><circle cx="0" cy="0" r="5"/><circle cx="125" cy="0" r="5"/><circle cx="0" cy="125" r="5"/><circle cx="125" cy="125" r="5"/></g>
+<g fill="#e9f6f4" opacity=".16"><path d="M62.500 42.500l14 20-14 20-14-20z"/></g>
+</pattern>
+<linearGradient id="v" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#06284a" stop-opacity=".6"/><stop offset=".25" stop-color="#06284a" stop-opacity="0"/><stop offset=".75" stop-color="#06284a" stop-opacity="0"/><stop offset="1" stop-color="#06284a" stop-opacity=".6"/></linearGradient>
+</defs>
+<rect width="1500" height="500" fill="url(#s)"/>
+<rect width="1500" height="500" fill="url(#p)" opacity=".75"/>
+<rect width="1500" height="500" fill="url(#v)"/>
+</svg>

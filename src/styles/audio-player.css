@@ -181,10 +181,17 @@
         line-height: 1.75;
     }
 
+    /* overflow-x: auto makes the y axis auto too, and glyphs overflow the line box by a pixel or two,
+       so Chrome drew a scrollbar (two tiny arrows) on every mesra. The line still scrolls, unseen. */
     .verse-line {
         white-space: nowrap;
         overflow-x: auto;
+        scrollbar-width: none;
         font-size: 1.4rem;
+    }
+
+    .verse-line::-webkit-scrollbar {
+        display: none;
     }
 
     .action-buttons {

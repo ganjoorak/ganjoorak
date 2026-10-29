@@ -1,0 +1,72 @@
+/* «ویرایش ظاهر» sheet. The shell, groups, rows and buttons are the settings sheet's (SettingsSheet.css);
+   only the preview, the banner picker and the colour swatches are specific to it. */
+
+/* Live preview, themed with the profile's own colours (profileThemeStyle) like the real page. */
+.appearance-preview { background: rgb(var(--background)); color: rgb(var(--foreground)); overflow: hidden; }
+.appearance-preview-banner { aspect-ratio: 3 / 1; background: center / cover no-repeat rgb(var(--muted)); }
+.appearance-preview-body { display: grid; justify-items: start; gap: 0.1rem; padding: 0 0.9rem 0.9rem; }
+.appearance-preview-avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-top: -1.75rem;
+  margin-bottom: 0.2rem;
+  box-shadow: 0 0 0 3px rgb(var(--background)), inset 0 0 0 1px rgb(var(--border));
+}
+.appearance-preview-body strong { font-size: 1rem; font-weight: 800; }
+.appearance-preview-body > span { font-size: 0.75rem; color: rgb(var(--muted-foreground)); }
+.appearance-preview-body p { margin: 0.25rem 0 0; font-size: 0.82rem; line-height: 1.8; overflow-wrap: anywhere; }
+.appearance-preview-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem; }
+.appearance-preview-button {
+  padding: 0.3rem 0.95rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.appearance-preview-button--outline { border-color: rgb(var(--border)); background: transparent; color: inherit; }
+
+/* Banner picker */
+.appearance-banners { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.appearance-banner {
+  position: relative;
+  display: grid;
+  align-items: end;
+  aspect-ratio: 3 / 1.5;
+  padding: 0.3rem 0.45rem;
+  overflow: hidden;
+  border: 1px solid rgb(var(--input));
+  border-radius: calc(var(--radius) + 2px);
+  background: center / cover no-repeat rgb(var(--muted));
+  color: #fff;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: start;
+  cursor: pointer;
+}
+.appearance-banner span { text-shadow: 0 1px 3px rgb(0 0 0 / 0.7); }
+.appearance-banner--none { place-items: center; color: rgb(var(--muted-foreground)); }
+.appearance-banner--none span { text-shadow: none; }
+.appearance-banner[aria-checked="true"],
+.appearance-swatch[aria-pressed="true"] { outline: 2px solid rgb(var(--primary)); outline-offset: 2px; }
+.appearance-banner:focus-visible,
+.appearance-swatch:focus-visible { outline: 2px solid rgb(var(--ring) / 0.7); outline-offset: 2px; }
+
+/* Colours */
+.appearance-swatches { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.15rem; }
+.appearance-swatch {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid rgb(var(--input));
+  border-radius: 999px;
+  background: rgb(var(--card));
+  color: rgb(var(--muted-foreground));
+  cursor: pointer;
+}
+.appearance-swatch svg { width: 0.85rem; height: 0.85rem; }
+.appearance-color-row { display: flex; align-items: center; gap: 0.5rem; }

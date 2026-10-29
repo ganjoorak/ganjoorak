@@ -3,18 +3,23 @@
 import { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import {
   FaArrowRight,
-  FaCheck,
   FaCog,
   FaChevronLeft,
   FaEye,
   FaEyeSlash,
+  FaGlobe,
   FaHistory,
-  FaShareAlt,
   FaSignOutAlt,
 } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
+import AppearanceSheet from "@/components/profile/AppearanceSheet";
+import { BadgeGrid } from "@/components/profile/BadgeGrid";
+import ProfileHeader, { ShareProfileButton } from "@/components/profile/ProfileHeader";
+import { QuotesPanel } from "@/components/profile/QuotesPanel";
+import { StreakCard, StreakChip } from "@/components/profile/StreakCard";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import RecoveryCodePanel from "@/components/RecoveryCodePanel";
 import { CollectionList, PoemLibraryList, useLibraryVersion } from "@/components/PoemLibraryPage";
@@ -26,7 +31,7 @@ import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { FieldHint, Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsIndicator, TabsList, TabsTab } from "@/components/ui/tabs";
+import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import {
   AccountError,
   fetchAccount,
@@ -42,7 +47,10 @@ import {
 } from "@/utils/accountApi";
 import { readLovedCollections } from "@/utils/collectionLibrary";
 import { readFavorites, readHistory, type PoemLibraryEntry } from "@/utils/poemLibrary";
+import { profileThemeStyle } from "@/utils/profileTheme";
+import { fetchCatalog, type Badge, type Streak } from "@/utils/progressApi";
 import "../styles/PoemLibrary.css";
+import "../styles/ProfileHeader.css";
 
 type AuthMode = "login" | "signup";
 
@@ -417,19 +425,30 @@ export const LoginPage = () => {
   );
 };
 
-const persianDateFormatter = new Intl.DateTimeFormat("fa-IR", { dateStyle: "long" });
-
 const persianNumber = new Intl.NumberFormat("fa-IR");
 
 // Mirrors readingWindow in backend/account.go, for the owner's own preview.
 const READING_WINDOW_MS = 20 * 60 * 1000;
 const OWNER_FAVORITES_SHOWN = 5;
 
-type ProfileSummary = Omit<PublicProfile, "favoriteCount" | "followerCount" | "followingCount"> & {
+/** What the profile body needs; the owner's page builds it from the account and this device's lists. */
+type ProfileSummary = Omit<
+  PublicProfile,
+  "favoriteCount" | "followerCount" | "followingCount" | "streak" | "badges" | "quotes" | "quoteCount"
+> & {
   favoriteCount?: number;
   followerCount?: number;
   followingCount?: number;
 };
+
+type ProfileTab = "quotes" | "favorites" | "books" | "badges";
+
+const PROFILE_TABS: { id: ProfileTab; label: string }[] = [
+  { id: "quotes", label: "تکه‌ها" },
+  { id: "favorites", label: "پسندها" },
+  { id: "books", label: "کتاب‌ها" },
+  { id: "badges", label: "نشان‌ها" },
+];
 
 const ProfilePoem = ({ entry, live }: { entry: PoemLibraryEntry; live?: boolean }) => (
   <Link
@@ -443,186 +462,144 @@ const ProfilePoem = ({ entry, live }: { entry: PoemLibraryEntry; live?: boolean 
     <span className="app-row-body">
       <span className="app-row-title">{entry.title}</span>
       {entry.excerpt && <span className="library-excerpt">{entry.excerpt}</span>}
-      <span className="app-row-meta">{entry.poetName}</span>
+      <span className="app-row-meta">{live ? "در حال خواندن · " : "آخرین شعر · "}{entry.poetName}</span>
     </span>
     <FaChevronLeft className="app-row-chevron" aria-hidden="true" />
   </Link>
 );
 
-/** Counts are public; only the owner may open the lists behind them. */
-const FollowCount = ({ href, count, label }: { href?: string; count: number; label: string }) => {
-  const content = (
-    <>
-      <strong>{persianNumber.format(count)}</strong> {label}
-    </>
-  );
-  return href ? (
-    <Link href={href} className="account-hero-follow-link">
-      {content}
-    </Link>
-  ) : (
-    <span>{content}</span>
-  );
-};
-
 /**
  * The profile body shared by the owner's /profile and the public /@username:
- * the poem being read now, the last poem, and liked poems. Preferred poets and
- * the full history stay private.
+ * header (banner, name, bio, buttons), streak, the poem being read / the last
+ * one, then tabs for quotes, liked poems, loved books and badges. Preferred
+ * poets and the full history stay private.
  */
 const ProfileView = ({
   profile,
-  heroActions,
+  isOwner,
+  actions,
+  streak,
+  notice,
+  quotes,
+  badges,
+  defaultTab = "quotes",
   favoritesHref,
   favoritesLimit,
-  isOwner,
-  children,
+  footer,
 }: {
   profile: ProfileSummary;
-  heroActions?: ReactNode;
+  isOwner: boolean;
+  /** Primary buttons under the header. */
+  actions?: ReactNode;
+  /** Streak card (owner) or chip (visitors). */
+  streak?: ReactNode;
+  /** Shown above the tabs, e.g. "your profile is private". */
+  notice?: ReactNode;
+  quotes: ReactNode;
+  badges: ReactNode;
+  defaultTab?: ProfileTab;
   /** Link to the full list when only part of it is shown. */
   favoritesHref?: string;
   favoritesLimit?: number;
-  isOwner: boolean;
-  children?: ReactNode;
+  footer?: ReactNode;
 }) => {
   const favorites = favoritesLimit ? profile.favorites.slice(0, favoritesLimit) : profile.favorites;
   const favoriteCount = profile.favoriteCount ?? profile.favorites.length;
   const hiddenFavorites = favoriteCount - favorites.length;
+  const poem = profile.nowReading ?? profile.lastPoem;
 
   return (
     <>
-      <Card className="account-hero">
-        <ProfileAvatar username={profile.username} avatar={profile.avatar} className="account-hero-avatar" />
-        <div className="account-hero-text">
-          <strong>{profile.displayName}</strong>
-          <span>
-            <span dir="ltr">@{profile.username}</span>
-            {" · "}
-            عضو از {persianDateFormatter.format(new Date(profile.createdAt))}
-          </span>
-          {profile.followerCount !== undefined && profile.followingCount !== undefined && (
-            <span className="account-hero-follows">
-              <FollowCount href={isOwner ? "/following?tab=followers" : undefined} count={profile.followerCount} label="دنبال‌کننده" />
-              {" · "}
-              <FollowCount href={isOwner ? "/following" : undefined} count={profile.followingCount} label="دنبال‌شده" />
-            </span>
-          )}
-        </div>
-        {heroActions}
-      </Card>
+      <ProfileHeader profile={profile} isOwner={isOwner}>
+        {actions}
+      </ProfileHeader>
 
-      {children}
+      {streak}
 
-      {profile.nowReading && (
-        <section className="app-section" aria-labelledby="profile-reading">
-          <h2 id="profile-reading" className="app-section-title">
-            <span>در حال خواندن</span>
-          </h2>
+      {poem && (
+        <section className="profile-now" aria-label={profile.nowReading ? "در حال خواندن" : "آخرین شعر"}>
           <div className="app-list">
-            <ProfilePoem entry={profile.nowReading} live />
+            <ProfilePoem entry={poem} live={Boolean(profile.nowReading)} />
           </div>
         </section>
       )}
 
-      {(profile.lastPoem || !profile.nowReading) && (
-        <section className="app-section" aria-labelledby="profile-last-poem">
-          <h2 id="profile-last-poem" className="app-section-title">
-            <span>آخرین شعر</span>
-          </h2>
-          {profile.lastPoem ? (
-            <div className="app-list">
-              <ProfilePoem entry={profile.lastPoem} />
-            </div>
-          ) : (
-            <Empty>
-              <EmptyDescription>
-                {isOwner ? "هنوز شعری نخوانده یا نشنیده‌اید." : "هنوز شعری نخوانده است."}
-              </EmptyDescription>
-            </Empty>
-          )}
-        </section>
-      )}
+      {notice}
 
-      {(profile.lovedCollections.length > 0 || isOwner) && (
-        <section className="app-section" aria-labelledby="profile-books">
-          <h2 id="profile-books" className="app-section-title">
-            <span>کتاب‌های دوست‌داشتنی</span>
-          </h2>
+      <Tabs defaultValue={defaultTab} className="profile-tabs">
+        <TabsList aria-label="بخش‌های نمایه" className="relative">
+          <TabsIndicator />
+          {PROFILE_TABS.map((tab) => (
+            <TabsTab
+              key={tab.id}
+              value={tab.id}
+              className="relative data-active:bg-transparent data-active:shadow-none"
+            >
+              {tab.label}
+            </TabsTab>
+          ))}
+        </TabsList>
+
+        <TabsPanel value="quotes" keepMounted className="library-panel">
+          {quotes}
+        </TabsPanel>
+
+        <TabsPanel value="favorites" className="library-panel">
+          <PoemLibraryList
+            entries={favorites}
+            icon="heart"
+            emptyMessage={
+              isOwner
+                ? "هنوز شعری نپسندیده‌اید. روی آیکن قلب در صفحهٔ شعر بزنید."
+                : "هنوز شعری نپسندیده است."
+            }
+          />
+          {favoritesHref && hiddenFavorites > 0 && (
+            <p className="profile-more">
+              <Link href={favoritesHref} className="account-section-link">
+                همهٔ {persianNumber.format(favoriteCount)} شعر
+                <FaChevronLeft aria-hidden="true" />
+              </Link>
+            </p>
+          )}
+          {!favoritesHref && hiddenFavorites > 0 && (
+            <p className="profile-more">و {persianNumber.format(hiddenFavorites)} شعر دیگر</p>
+          )}
+        </TabsPanel>
+
+        <TabsPanel value="books" className="library-panel">
           <CollectionList
             entries={profile.lovedCollections}
-            emptyMessage="هنوز کتابی را دوست نداشته‌اید. در صفحهٔ هر شاعر روی قلبِ کنار مجموعه بزنید."
+            emptyMessage={
+              isOwner
+                ? "هنوز کتابی را دوست نداشته‌اید. در صفحهٔ هر شاعر روی قلبِ کنار مجموعه بزنید."
+                : "هنوز کتابی را دوست نداشته است."
+            }
           />
-        </section>
-      )}
+        </TabsPanel>
 
-      <section className="app-section" aria-labelledby="profile-favorites">
-        <h2 id="profile-favorites" className="app-section-title">
-          <span>
-            پسندیده‌ها
-            {favoriteCount > 0 && (
-              <span className="profile-count"> ({persianNumber.format(favoriteCount)})</span>
-            )}
-          </span>
-          {favoritesHref && hiddenFavorites > 0 && (
-            <Link href={favoritesHref} className="account-section-link">
-              همه
-              <FaChevronLeft aria-hidden="true" />
-            </Link>
-          )}
-        </h2>
-        <PoemLibraryList
-          entries={favorites}
-          icon="heart"
-          emptyMessage={
-            isOwner
-              ? "هنوز شعری نپسندیده‌اید. روی آیکن قلب در صفحهٔ شعر بزنید."
-              : "هنوز شعری نپسندیده است."
-          }
-        />
-        {!favoritesHref && hiddenFavorites > 0 && (
-          <p className="profile-more">
-            و {persianNumber.format(hiddenFavorites)} شعر دیگر
-          </p>
-        )}
-      </section>
+        <TabsPanel value="badges" className="library-panel">
+          {badges}
+        </TabsPanel>
+      </Tabs>
+
+      {footer}
     </>
   );
 };
 
-const ShareProfileButton = ({ profile }: { profile: Pick<PublicProfile, "username" | "displayName"> }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleShare = async () => {
-    const url = `${window.location.origin}${publicProfilePath(profile.username)}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: `${profile.displayName} در گنجورک`, url });
-        return;
-      }
-      await navigator.clipboard?.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // The share sheet was dismissed; nothing to do.
-    }
-  };
-
-  return (
-    <Button type="button" variant="outline" size="sm" className="account-pill" onClick={handleShare}>
-      {copied ? <FaCheck aria-hidden="true" /> : <FaShareAlt aria-hidden="true" />}
-      {copied ? "کپی شد" : "اشتراک"}
-    </Button>
-  );
-};
+const errorText = (caught: unknown) => (caught instanceof AccountError ? caught.message : "خطایی رخ داد.");
 
 export const ProfilePage = () => {
   const router = useRouter();
   const [user, setUser] = useState<AccountUser | null>(null);
   const [follows, setFollows] = useState<FollowCounts | null>(null);
+  const [progress, setProgress] = useState<{ streak: Streak; badges: Badge[] } | null>(null);
+  const [catalog, setCatalog] = useState<Badge[]>([]);
   const [error, setError] = useState("");
   const [visibilityError, setVisibilityError] = useState("");
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   // When the page opened; "now reading" is judged against it.
   const [openedAt, setOpenedAt] = useState(0);
   // Lists come from this device, which AccountSync keeps merged with the
@@ -631,18 +608,23 @@ export const ProfilePage = () => {
 
   useEffect(() => {
     fetchAccount()
-      .then(({ user: account, follows: counts }) => {
+      .then(({ user: account, follows: counts, progress: earned }) => {
         setOpenedAt(Date.now());
         setUser(account);
         setFollows(counts);
+        setProgress(earned ?? null);
       })
       .catch((caught) => {
         if (caught instanceof AccountError && caught.status === 401) {
           router.replace("/login");
         } else {
-          setError(caught instanceof AccountError ? caught.message : "خطایی رخ داد.");
+          setError(errorText(caught));
         }
       });
+    // The locked badges are only a nicety; the page works without the catalog.
+    fetchCatalog()
+      .then((body) => setCatalog(body.badges))
+      .catch(() => undefined);
   }, [router]);
 
   if (!user) {
@@ -671,6 +653,9 @@ export const ProfilePage = () => {
     followingCount: follows?.following,
   };
   const profilePath = publicProfilePath(user.username);
+  const themeStyle = profileThemeStyle(user.accent, user.background);
+  const earnedKeys = new Set((progress?.badges ?? []).map((badge) => badge.key));
+  const lockedBadges = catalog.filter((badge) => !earnedKeys.has(badge.key));
 
   const handleVisibility = async (isPublic: boolean) => {
     setVisibilityError("");
@@ -679,54 +664,30 @@ export const ProfilePage = () => {
       const { user: account } = await setProfileVisibility(isPublic);
       setUser(account);
     } catch (caught) {
-      setVisibilityError(caught instanceof AccountError ? caught.message : "خطایی رخ داد.");
+      setVisibilityError(errorText(caught));
     } finally {
       setIsSavingVisibility(false);
     }
   };
 
-  return (
-    <AppPage title="حساب من" width="narrow">
-      <ProfileView
-        profile={profile}
-        isOwner
-        favoritesHref="/saved"
-        favoritesLimit={OWNER_FAVORITES_SHOWN}
-        heroActions={
-          <div className="account-hero-actions">
-            <Link
-              href="/profile/settings"
-              className={buttonVariants({ variant: "outline", size: "sm", className: "account-pill" })}
-            >
-              <FaCog aria-hidden="true" />
-              تنظیمات
-            </Link>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="account-pill"
-              onClick={async () => {
-                await logOut().catch(() => undefined);
-                window.location.assign("/");
-              }}
-            >
-              <FaSignOutAlt aria-hidden="true" />
-              خروج
-            </Button>
-          </div>
-        }
-      >
-        <Card className="profile-public">
-          <div className="profile-public-row">
-            <div className="profile-public-text">
-              <strong id="profile-public-label">نمایهٔ عمومی</strong>
-              <span>
-                {user.isPublic
-                  ? "هر کس پیوند را داشته باشد، شعر در حال خواندن، آخرین شعر و پسندیده‌هایتان را می‌بیند."
-                  : "خاموش است؛ نمایهٔ شما برای دیگران پیدا نمی‌شود."}
+  const visibilityCard = (
+    <>
+      <ul className="app-list">
+        <li>
+          <div className="app-row">
+            <span className="app-row-icon" aria-hidden="true">
+              <FaGlobe />
+            </span>
+            <span className="app-row-body">
+              <span id="profile-public-label" className="app-row-title">
+                نمایهٔ عمومی
               </span>
-            </div>
+              <span className="app-row-meta">
+                {user.isPublic
+                  ? "هر کس پیوند را داشته باشد، تکه‌ها، پسندها، نشان‌ها و شعر در حال خواندنتان را می‌بیند."
+                  : "خاموش است؛ نمایهٔ شما برای دیگران پیدا نمی‌شود و پیوند اشتراک کار نمی‌کند."}
+              </span>
+            </span>
             <Switch
               checked={user.isPublic}
               disabled={isSavingVisibility}
@@ -734,17 +695,89 @@ export const ProfilePage = () => {
               aria-labelledby="profile-public-label"
             />
           </div>
-          {visibilityError && <FormError>{visibilityError}</FormError>}
-          {user.isPublic && (
-            <div className="profile-public-row">
-              <Link href={profilePath} className="profile-public-link" dir="ltr">
-                ganjoorak.ir{profilePath}
-              </Link>
-              <ShareProfileButton profile={user} />
-            </div>
-          )}
-        </Card>
-      </ProfileView>
+        </li>
+        {user.isPublic && (
+          <li>
+            <Link href={profilePath} className="app-row">
+              <span className="app-row-body">
+                <span className="app-row-title" dir="ltr">
+                  ganjoorak.ir{profilePath}
+                </span>
+              </span>
+              <FaChevronLeft className="app-row-chevron" aria-hidden="true" />
+            </Link>
+          </li>
+        )}
+      </ul>
+      {visibilityError && <FormError>{visibilityError}</FormError>}
+    </>
+  );
+
+  return (
+    <AppPage
+      title={user.displayName}
+      width="narrow"
+      hideHeader
+      style={themeStyle}
+      actions={
+        <>
+          <Link
+            href="/profile/settings"
+            className={buttonVariants({ variant: "ghost", size: "icon-lg", className: "app-page-bar-icon" })}
+            aria-label="تنظیمات"
+          >
+            <FaCog aria-hidden="true" />
+          </Link>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-lg"
+            className="app-page-bar-icon"
+            aria-label="خروج"
+            onClick={async () => {
+              await logOut().catch(() => undefined);
+              window.location.assign("/");
+            }}
+          >
+            <FaSignOutAlt aria-hidden="true" />
+          </Button>
+        </>
+      }
+    >
+      <ProfileView
+        profile={profile}
+        isOwner
+        favoritesHref="/saved"
+        favoritesLimit={OWNER_FAVORITES_SHOWN}
+        actions={
+          <>
+            {user.isPublic && <ShareProfileButton profile={user} />}
+            <Button type="button" className="profile-action" onClick={() => setAppearanceOpen(true)}>
+              <Pencil aria-hidden="true" />
+              ویرایش
+            </Button>
+          </>
+        }
+        streak={progress && <StreakCard streak={progress.streak} />}
+        notice={!user.isPublic ? <section className="profile-notice">{visibilityCard}</section> : undefined}
+        quotes={<QuotesPanel username={user.username} isOwner />}
+        badges={
+          progress?.badges.length || lockedBadges.length ? (
+            <BadgeGrid earned={progress?.badges ?? []} locked={lockedBadges} />
+          ) : (
+            <Empty>
+              <EmptyDescription>هنوز نشانی نگرفته‌اید. هر روز یک شعر بخوانید تا رشته شروع شود.</EmptyDescription>
+            </Empty>
+          )
+        }
+        footer={user.isPublic ? <section className="profile-footer">{visibilityCard}</section> : undefined}
+      />
+      <AppearanceSheet
+        open={appearanceOpen}
+        onOpenChange={setAppearanceOpen}
+        user={user}
+        onSaved={setUser}
+      />
     </AppPage>
   );
 };
@@ -765,10 +798,24 @@ export const PublicProfilePage = ({ profile }: { profile: PublicProfile }) => {
       .catch(() => undefined);
   }, [profile.username]);
 
+  const themeStyle = profileThemeStyle(profile.accent, profile.background);
+  const lastQuote = profile.quotes[profile.quotes.length - 1];
+  const firstPage = {
+    quotes: profile.quotes,
+    next: lastQuote && profile.quotes.length < profile.quoteCount ? lastQuote.id : null,
+  };
+  // Open on the first tab that has something in it.
+  const defaultTab: ProfileTab =
+    profile.quoteCount > 0 || profile.favoriteCount === 0
+      ? "quotes"
+      : "favorites";
+
   return (
     <AppPage
       title={profile.displayName}
       width="narrow"
+      hideHeader
+      style={themeStyle}
       actions={
         isOwner && (
           <Link href="/profile" className={buttonVariants({ variant: "ghost", size: "sm" })}>
@@ -780,9 +827,16 @@ export const PublicProfilePage = ({ profile }: { profile: PublicProfile }) => {
       <ProfileView
         profile={{ ...profile, followerCount }}
         isOwner={false}
-        heroActions={
-          <div className="account-hero-actions">
-            {!isOwner && (
+        defaultTab={defaultTab}
+        actions={
+          <>
+            <ShareProfileButton profile={profile} />
+            {isOwner ? (
+              <Link href="/profile" className={buttonVariants({ className: "profile-action" })}>
+                <Pencil aria-hidden="true" />
+                ویرایش
+              </Link>
+            ) : (
               <FollowUserButton
                 username={profile.username}
                 displayName={profile.displayName}
@@ -790,8 +844,18 @@ export const PublicProfilePage = ({ profile }: { profile: PublicProfile }) => {
                 onChange={(following) => setFollowerCount((count) => count + (following ? 1 : -1))}
               />
             )}
-            <ShareProfileButton profile={profile} />
-          </div>
+          </>
+        }
+        streak={<StreakChip streak={profile.streak} />}
+        quotes={<QuotesPanel username={profile.username} isOwner={false} initial={firstPage} />}
+        badges={
+          profile.badges.length > 0 ? (
+            <BadgeGrid earned={profile.badges} />
+          ) : (
+            <Empty>
+              <EmptyDescription>هنوز نشانی نگرفته است.</EmptyDescription>
+            </Empty>
+          )
         }
       />
     </AppPage>

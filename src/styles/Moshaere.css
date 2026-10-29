@@ -1,0 +1,93 @@
+/* Moshaere (verse-chain game). Cards, rows, chips, tabs, fields and sheets come from the app's own
+   building blocks (AppPage, quote cards, search results, settings sheet); only layout glue lives here. */
+
+/* The composer is docked at the very bottom of the page, so the page keeps no bottom gap of its own. */
+.msh-page--public .app-page-main,
+.msh-page--match .app-page-main { padding-bottom: 0; }
+.msh-room > * + *, .msh-page--match .app-page-main > * + * { margin-top: 0.9rem; }
+
+/* Verse cards (the profile quote cards) */
+.msh-move.is-mine { background: rgb(var(--muted) / 0.55); }
+/* Match chains: a quiet tint per team (the host's team in the primary tone, the other one neutral). */
+.msh-move.is-team-0 { background: rgb(var(--primary) / 0.07); border-inline-start: 3px solid rgb(var(--primary) / 0.6); }
+.msh-move.is-team-1 { background: rgb(var(--muted) / 0.6); border-inline-start: 3px solid rgb(var(--muted-foreground) / 0.45); }
+.msh-move.is-new { animation: msh-in 0.35s cubic-bezier(0.32, 0.72, 0, 1) both; }
+@keyframes msh-in { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .msh-move.is-new { animation: none; } }
+
+/* Docked composer: the same blurred bar as the page's top bar. */
+.msh-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  margin: 1rem -1rem 0;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  border-top: 1px solid rgb(var(--border));
+  background: rgb(var(--background) / 0.92);
+  backdrop-filter: saturate(1.4) blur(14px);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+}
+@media (min-width: 768px) { .msh-dock { margin-inline: -1.5rem; padding-inline: 1.5rem; } }
+
+/* The search field, grown to hold two mesras; its send button leads (the right side in RTL). */
+.search-field.msh-field {
+  height: auto;
+  min-height: 3.25rem;
+  align-items: flex-end;
+  padding-block: 0.3rem;
+  padding-inline: 0.35rem 1.1rem;
+  border-radius: 1.6rem;
+}
+.search-field.msh-field--compact { height: 3rem; }
+.msh-candidates { max-height: min(26dvh, 15rem); overflow-y: auto; overscroll-behavior: contain; }
+
+/* Match rows: invitations keep their buttons on a line of their own. */
+.msh-match { flex-wrap: wrap; }
+.msh-match .follow-link { flex-basis: 14rem; }
+.msh-match-actions { display: flex; flex-basis: 100%; gap: 0.4rem; padding: 0 1rem 0.75rem; }
+.msh-match-error { flex-basis: 100%; margin: 0 1rem 0.75rem; }
+
+/* Teams as overlapping avatars (match rows). */
+.msh-stack { display: inline-flex; flex-shrink: 0; }
+.msh-stack-item {
+  width: 1.9rem;
+  height: 1.9rem;
+  box-shadow: 0 0 0 2px rgb(var(--card));
+}
+.msh-stack-item + .msh-stack-item { margin-inline-start: -0.55rem; }
+.msh-stack-item.is-away { opacity: 0.5; }
+.msh-stack-more {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgb(var(--muted));
+  color: rgb(var(--muted-foreground));
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.msh-versus { display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
+.msh-versus-sep { width: 1px; height: 1.4rem; background: rgb(var(--border)); }
+.msh-match .app-row-meta { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+
+/* Removable member chips of the new-match sheet. */
+.msh-chip-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-inline-start: 0.1rem;
+  border-radius: 999px;
+  color: rgb(var(--muted-foreground));
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.msh-chip-remove:hover { background: rgb(var(--foreground) / 0.08); color: rgb(var(--foreground)); }
+.msh-chip-remove svg { width: 0.65rem; height: 0.65rem; }
+
+/* Match page: the team on turn is outlined; players who are no longer in the game fade. */
+.msh-page--match .msh-team { margin-bottom: 0; }
+.msh-team .app-list { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.msh-team.is-turn .app-list { border-color: rgb(var(--primary) / 0.65); box-shadow: 0 0 0 1px rgb(var(--primary) / 0.25); }
+.msh-team.is-turn .app-section-title { color: rgb(var(--foreground)); }
+.msh-player--away .follow-avatar, .msh-player--away .app-row-body { opacity: 0.55; }
+.msh-turn-note { margin: 0 0 0.5rem; font-size: 0.78rem; font-weight: 600; color: rgb(var(--primary)); }

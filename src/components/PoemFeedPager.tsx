@@ -48,8 +48,14 @@ const getPoemText = (target: EventTarget | null) => {
 const getActivePoemText = (root: HTMLElement | null) =>
   root?.querySelector(".poem-text") as HTMLElement | null;
 
+// A touch that starts on the lines the selection toolbar highlights is the reader adjusting their selection
+// (long-press, dragging a handle), never a swipe to another poem.
+const isSelectionTouch = (target: EventTarget | null) =>
+  target instanceof Element && target.closest("[data-quote-selected]") !== null;
+
+// The share sheet and the stories viewer own the keys, wheel and touches while open.
 const isShareDialogOpen = () =>
-  Boolean(document.querySelector(".share-sheet"));
+  Boolean(document.querySelector(".share-sheet, [data-story-viewer]"));
 
 export default function PoemFeedPager({
   poem,
@@ -71,6 +77,7 @@ export default function PoemFeedPager({
   const touchPoemTextRef = useRef<HTMLElement | null>(null);
   const touchStartedAtTopRef = useRef(false);
   const touchStartedAtBottomRef = useRef(false);
+  const touchOnSelectionRef = useRef(false);
   const lastNavigationAtRef = useRef(0);
   const readingChromeTimeoutRef = useRef<number | null>(null);
   const [isZenLocked, setIsZenLocked] = useState(false);
@@ -253,6 +260,7 @@ export default function PoemFeedPager({
       updateTitleVisibility(poemText);
       hideReadingChromeTemporarily();
       touchPoemTextRef.current = poemText;
+      touchOnSelectionRef.current = isSelectionTouch(event.target);
       touchStartYRef.current = touch.clientY;
       touchStartedAtTopRef.current = isAtTop(poemText);
       touchStartedAtBottomRef.current = isAtBottom(poemText);
@@ -269,6 +277,7 @@ export default function PoemFeedPager({
 
       updateTitleVisibility(poemText);
       hideReadingChromeTemporarily();
+      if (touchOnSelectionRef.current) return;
       const diff = touchStartYRef.current - touch.clientY;
       if (Math.abs(diff) < STRONG_SWIPE_PX) return;
 
@@ -308,7 +317,8 @@ export default function PoemFeedPager({
       if (isShareDialogOpen()) return;
 
       if (event.defaultPrevented) return;
-      if (event.altKey || event.metaKey || event.ctrlKey) return;
+      // Shift+arrows extend a text selection.
+      if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return;
       if (event.code !== "ArrowDown" && event.code !== "ArrowUp") return;
 
       const target = event.target as Element | null;

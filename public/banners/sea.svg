@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" preserveAspectRatio="xMidYMid slice">
+<defs>
+<linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe9ef"/><stop offset=".35" stop-color="#6cc5d1"/><stop offset="1" stop-color="#0f5c7a"/></linearGradient>
+<pattern id="w" width="100" height="50" patternUnits="userSpaceOnUse"><g fill="none" stroke="#fff" stroke-width="2.5" opacity=".28"><path d="M0 50a50 50 0 0 1 100 0M20 50a30 30 0 0 1 60 0M38 50a12 12 0 0 1 24 0"/><path d="M-50 25a50 50 0 0 1 100 0M-30 25a30 30 0 0 1 60 0M-12 25a12 12 0 0 1 24 0"/><path d="M50 25a50 50 0 0 1 100 0M70 25a30 30 0 0 1 60 0M88 25a12 12 0 0 1 24 0"/></g></pattern>
+<linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#06384f" stop-opacity=".55"/></linearGradient>
+</defs>
+<rect width="1500" height="500" fill="url(#s)"/>
+<circle cx="1200" cy="110" r="46" fill="#fffbe6" opacity=".9"/>
+<path d="M0 200 C300 180 600 215 900 200 S1300 185 1500 200 V500 H0Z" fill="#3aa5b8" opacity=".55"/>
+<rect y="200" width="1500" height="300" fill="url(#w)"/>
+<rect y="200" width="1500" height="300" fill="url(#f)"/>
+<g fill="#fff" opacity=".85"><path d="M300 170 l60 0 -30-70z"/><path d="M296 176h72l-14 16h-44z" fill="#0f4a66"/><path d="M330 100v70" stroke="#0f4a66" stroke-width="3"/></g>
+</svg>

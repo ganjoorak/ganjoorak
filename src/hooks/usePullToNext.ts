@@ -294,6 +294,8 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       if (!enabledRef.current || committingRef.current || event.touches.length !== 1) return;
       const el = scrollRef.current;
       if (!el || !(event.target instanceof Node) || !el.contains(event.target)) return;
+      // Adjusting a text selection (see PoemSelectionMenu), not pulling.
+      if (event.target instanceof Element && event.target.closest("[data-quote-selected]")) return;
       const t = event.touches[0];
       tracking = true;
       decided = false;

@@ -451,7 +451,6 @@
 .account-pill { border-radius: 999px !important; }
 
 /* Profile: now reading / last poem, public-profile settings. */
-.profile-count { font-weight: 500; color: rgb(var(--muted-foreground)); }
 .profile-poem--live .app-row-icon { background: rgb(var(--primary) / 0.12); }
 .profile-live-dot {
   width: 0.55rem;
@@ -474,35 +473,6 @@
   text-align: center;
   color: rgb(var(--muted-foreground));
 }
-.profile-public {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
-  margin-bottom: 1.75rem;
-}
-.profile-public-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.85rem;
-}
-.profile-public-row + .profile-public-row {
-  padding-top: 0.75rem;
-  border-top: 1px solid rgb(var(--border));
-}
-.profile-public-text { display: grid; gap: 0.15rem; min-width: 0; }
-.profile-public-text strong { font-size: 0.95rem; font-weight: 800; }
-.profile-public-text span { font-size: 0.78rem; line-height: 1.7; color: rgb(var(--muted-foreground)); }
-.profile-public-link {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: rgb(var(--foreground) / 0.85);
-}
-
 /* /saved: switching tab fades the other list in. */
 .library-panel { animation: library-panel-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) both; }
 @keyframes library-panel-in {

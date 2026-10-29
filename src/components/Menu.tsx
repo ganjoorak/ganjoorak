@@ -15,6 +15,7 @@ import {
   FaCommentDots,
   FaCompass,
   FaEllipsisH,
+  FaFeatherAlt,
   FaHome,
   FaMinus,
   FaMoon,
@@ -132,6 +133,7 @@ const Menu: React.FC<MenuProps> = ({
       { kind: "link", href: "/", icon: <FaHome />, label: "صفحه اصلی" },
       { kind: "link", href: "/explore", icon: <FaCompass />, label: "کاوش" },
       { kind: "link", href: "/poets", icon: <FaUsers />, label: "شاعران" },
+      { kind: "link", href: "/moshaere", icon: <FaFeatherAlt />, label: "مشاعره" },
     ],
     [],
   );

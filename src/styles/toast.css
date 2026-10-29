@@ -1,0 +1,97 @@
+/* Toasts: one container at the top of the screen (the bottom belongs to the audio bar and the
+   floating buttons), under the status bar on phones. Clicks pass through everywhere but the cards.
+   The card is the floating reading bar's surface (shadcn.css .audio-player): card colour at 78%,
+   blurred, hairline border, same shadow. Icon and text follow the .app-row-* rows of AppPage.css (copied: the Toaster sits in the root layout). */
+.gk-toaster {
+    position: fixed;
+    inset-inline: 0;
+    top: calc(env(safe-area-inset-top) + 0.75rem);
+    z-index: 1300;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding-inline: 1rem;
+    pointer-events: none;
+}
+
+.gk-toast {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: min(100%, 26rem);
+    padding: 0.55rem 0.65rem;
+    border: 1px solid rgb(var(--border));
+    border-radius: 1.5rem;
+    background: rgb(var(--card) / 0.78);
+    color: rgb(var(--card-foreground));
+    box-shadow: 0 12px 32px -10px rgb(0 0 0 / 0.28), 0 2px 8px rgb(0 0 0 / 0.08);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    pointer-events: auto;
+}
+
+.gk-toast--error {
+    border-color: rgb(var(--destructive) / 0.3);
+}
+
+.gk-toast__icon {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    background: rgb(var(--muted));
+    color: rgb(var(--foreground) / 0.8);
+}
+
+.gk-toast__icon svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+/* Badges and streaks: the icon takes the primary colour, like a switched-on switch. */
+.gk-toast--celebrate .gk-toast__icon {
+    background: rgb(var(--primary));
+    color: rgb(var(--primary-foreground));
+}
+
+.gk-toast--error .gk-toast__icon {
+    background: rgb(var(--destructive) / 0.1);
+    color: rgb(var(--destructive));
+}
+
+.gk-toast__body {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.gk-toast__body p {
+    margin: 0;
+}
+
+.gk-toast__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.6;
+}
+
+.gk-toast__description {
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: rgb(var(--muted-foreground));
+}
+
+.gk-toast__action {
+    flex: 0 0 auto;
+    border-radius: 999px;
+}
+
+.gk-toast__close {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    color: rgb(var(--muted-foreground));
+}

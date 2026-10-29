@@ -1,0 +1,79 @@
+/* Profile sections: streak card + chip, quotes, badges. Built from the app's own pieces
+   (Card, .app-list rows, the search verse excerpt); only app colour tokens, so a profile's
+   accent/background (--primary and friends, see utils/profileTheme.ts) carries through. */
+
+/* Streak card: flame row, two figures, 28-day calendar. */
+.streak-card { margin-bottom: 1.25rem; }
+.streak-head { display: flex; align-items: center; gap: 0.85rem; }
+.streak-flame[data-active="true"] { background: rgb(var(--primary) / 0.12); color: rgb(var(--primary)); }
+.streak-flame[data-active="true"] svg { fill: currentColor; fill-opacity: 0.25; }
+.streak-head .app-row-body { gap: 0.1rem; }
+
+.streak-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  border-block: 1px solid rgb(var(--border));
+}
+.streak-stats > div { display: grid; gap: 0.1rem; padding: 0.7rem var(--card-spacing); }
+.streak-stats > div + div { border-inline-start: 1px solid rgb(var(--border)); }
+.streak-stats dt { font-size: 0.78rem; color: rgb(var(--muted-foreground)); }
+.streak-stats dd { margin: 0; font-size: 0.95rem; font-weight: 700; }
+
+.streak-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0 var(--card-spacing);
+  list-style: none;
+}
+.streak-day { aspect-ratio: 1; border-radius: 0.4rem; background: rgb(var(--muted)); }
+.streak-day[data-read="true"] { background: rgb(var(--primary)); }
+.streak-day[data-today="true"] { outline: 2px solid rgb(var(--ring) / 0.7); outline-offset: 2px; }
+
+.streak-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: rgb(var(--muted));
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.streak-chip svg { width: 0.95rem; height: 0.95rem; color: rgb(var(--muted-foreground)); }
+.streak-chip svg[data-active="true"] { color: rgb(var(--primary)); fill: currentColor; fill-opacity: 0.25; }
+.streak-chip-best { font-weight: 500; color: rgb(var(--muted-foreground)); }
+.streak-chip-best::before { content: "·"; margin-inline-end: 0.35rem; }
+
+/* Quotes: the verse excerpt of the search results (.search-hit-* in search-results.css) in a plain card.
+   The search tokens are re-declared here so they resolve against the profile's own colours. */
+.quotes-panel { display: grid; gap: 0.75rem; }
+.quote-list { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.quote-card {
+  --search-border: rgb(var(--border));
+  --search-muted: rgb(var(--foreground) / 0.62);
+  --search-faint: rgb(var(--muted-foreground));
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem 1.15rem 0.85rem;
+  border: 1px solid rgb(var(--border));
+  border-radius: calc(var(--radius) + 8px);
+  background: rgb(var(--card));
+  color: rgb(var(--card-foreground));
+}
+.quote-card .search-hit-verse { gap: 0.6rem; margin: 0; }
+.quote-card .search-hit-meta { gap: 0.25rem 0.5rem; flex-wrap: wrap; }
+.quote-source { color: inherit; text-decoration: none; }
+.quote-source:hover .quote-poet { text-decoration: underline; text-underline-offset: 3px; }
+.quote-source:focus-visible { outline: 2px solid rgb(var(--ring) / 0.7); outline-offset: 2px; border-radius: 0.3rem; }
+.quote-confirm { display: inline-flex; gap: 0.25rem; }
+.quotes-more { justify-self: center; border-radius: 999px !important; min-width: 9rem; }
+
+/* Badges: .app-list rows; earned ones carry the primary (accent) colour on their icon. */
+.badge-list [data-earned="true"] .app-row-icon { background: rgb(var(--primary)); color: rgb(var(--primary-foreground)); }
+.badge-list [data-earned="false"] .app-row { opacity: 0.6; }
+.badge-date { flex-shrink: 0; white-space: nowrap; }

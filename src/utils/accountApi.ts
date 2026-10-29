@@ -1,6 +1,8 @@
 import type { AvatarKey } from "@/components/ProfileAvatar";
 import type { CollectionEntry } from "@/utils/collectionLibrary";
 import type { PoemLibraryEntry } from "@/utils/poemLibrary";
+import type { Badge, BannerKey, Streak } from "@/utils/progressApi";
+import type { Quote } from "@/utils/quotesApi";
 
 // Thin client for the Go accounts service (backend/), reached same-origin
 // through the /api/account rewrite in next.config.js.
@@ -15,6 +17,12 @@ export interface AccountUser {
   avatar: AvatarKey | "";
   /** False for accounts made before recovery codes existed. */
   hasRecoveryCode: boolean;
+  /** Profile appearance; see updateAppearance. */
+  bio: string;
+  banner: BannerKey | "";
+  /** "#rrggbb", or "" for the theme default. */
+  accent: string;
+  background: string;
 }
 
 /**
@@ -37,6 +45,16 @@ export interface PublicProfile {
   /** Only public accounts are counted on either side. */
   followerCount: number;
   followingCount: number;
+  bio: string;
+  banner: BannerKey | "";
+  accent: string;
+  background: string;
+  streak: Pick<Streak, "current" | "best" | "today">;
+  /** Earned badges, newest first. */
+  badges: Badge[];
+  /** Newest 20; page further with fetchUserQuotes. */
+  quotes: Quote[];
+  quoteCount: number;
 }
 
 export interface AccountData {
@@ -58,7 +76,8 @@ export class AccountError extends Error {
 
 const FALLBACK_ERROR = "ارتباط با سرور برقرار نشد. دوباره امتحان کنید.";
 
-const request = async <T>(
+/** Shared by the other account-service clients (progressApi, quotesApi, moshaereApi). */
+export const request = async <T>(
   path: string,
   init: RequestInit & { json?: unknown } = {},
 ): Promise<T> => {
@@ -102,7 +121,12 @@ export interface FollowedUser {
 }
 
 export const fetchAccount = () =>
-  request<{ user: AccountUser; data: AccountData; follows: FollowCounts }>("me");
+  request<{
+    user: AccountUser;
+    data: AccountData;
+    follows: FollowCounts;
+    progress: { streak: Streak; badges: Badge[] };
+  }>("me");
 
 // Following is between people. Poets are not followed: see usePreferredPoet.
 
@@ -173,6 +197,14 @@ export const createRecoveryCode = (password: string) =>
 
 export const updateProfile = (profile: { username: string; displayName: string; avatar: AvatarKey | "" }) =>
   request<{ user: AccountUser }>("profile", { method: "PUT", json: profile });
+
+/** Bio, banner and colours; a separate call so profile edits never wipe them. */
+export const updateAppearance = (appearance: {
+  bio: string;
+  banner: BannerKey | "";
+  accent: string;
+  background: string;
+}) => request<{ user: AccountUser }>("appearance", { method: "PUT", json: appearance });
 
 /** The shareable address of a profile, e.g. /@hadi (rewritten to /u/hadi). */
 export const publicProfilePath = (username: string) => `/@${username}`;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { FaArrowRight } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,10 @@ interface AppPageProps {
   backHref?: string;
   width?: "narrow" | "default" | "wide";
   className?: string;
+  /** Inline style on the page root, e.g. scoped colour tokens (profile pages). */
+  style?: CSSProperties;
+  /** Skip the large title block when the page draws its own header (the title still shows in the bar). */
+  hideHeader?: boolean;
   children: ReactNode;
 }
 
@@ -32,6 +36,8 @@ export default function AppPage({
   backHref = "/",
   width = "default",
   className,
+  style,
+  hideHeader = false,
   children,
 }: AppPageProps) {
   const router = useRouter();
@@ -53,7 +59,7 @@ export default function AppPage({
   };
 
   return (
-    <div className={["app-page", className].filter(Boolean).join(" ")} dir="rtl">
+    <div className={["app-page", className].filter(Boolean).join(" ")} style={style} dir="rtl">
       <header className={`app-page-bar${isScrolled ? " is-scrolled" : ""}`}>
         <Button
           variant="ghost"
@@ -71,11 +77,13 @@ export default function AppPage({
       </header>
 
       <main className={`app-page-main app-page-main--${width}`}>
-        <div className="app-page-header">
-          <h1>{title}</h1>
-          {subtitle && <p className="app-page-subtitle">{subtitle}</p>}
-          {headerExtra && <div className="app-page-header-extra">{headerExtra}</div>}
-        </div>
+        {!hideHeader && (
+          <div className="app-page-header">
+            <h1>{title}</h1>
+            {subtitle && <p className="app-page-subtitle">{subtitle}</p>}
+            {headerExtra && <div className="app-page-header-extra">{headerExtra}</div>}
+          </div>
+        )}
         {children}
       </main>
     </div>

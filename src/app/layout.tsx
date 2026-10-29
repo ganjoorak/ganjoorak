@@ -19,6 +19,7 @@ import RouteTransition from "@/components/RouteTransition";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import AccountSync from "@/components/AccountSync";
+import Toaster from "@/components/toast/Toaster";
 import "samim-font/dist/font-face.css";
 import "tanha-font/dist/font-face.css";
 import "shabnam-font/dist/font-face.css";
@@ -106,6 +107,7 @@ export default function RootLayout({
           <PwaInstallPrompt />
           <ServiceWorkerRegistration />
           <AccountSync />
+          <Toaster />
         </SettingsProvider>
         <Analytics />
         <SpeedInsights />

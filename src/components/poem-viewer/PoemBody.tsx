@@ -45,6 +45,10 @@ export default function PoemBody({
     titleParts.length > 2 ? titleParts.slice(1, -1) : [];
   const allLines = poem.plainText.split("\n");
   const filledLines = allLines.filter((line) => line.trim());
+  // data-line-index is the index into poemToLines (blank lines dropped), which is what quotes refer to.
+  // Modern poems render blank lines too, so their index must skip them; the others render filledLines.
+  let counted = 0;
+  const lineIndexAt = allLines.map((line) => (line.trim() ? counted++ : undefined));
   const segments = isModern
     ? null
     : buildPoemSegments(filledLines, poem.lineKinds);
@@ -111,7 +115,11 @@ export default function PoemBody({
           transition={{ duration: 0.3 }}
         >
           {allLines.map((line, index) => (
-            <div key={index} className={verseClass(index)}>
+            <div
+              key={index}
+              className={verseClass(index)}
+              data-line-index={lineIndexAt[index]}
+            >
               {showLineNumbers && (
                 <span className="verse-number">{index + 1}</span>
               )}
@@ -131,13 +139,16 @@ export default function PoemBody({
           };
           return segment.type === "prose" ? (
             <motion.div key={`p-${segment.index}`} className="prose-block" {...entrance}>
-              <p className={`${verseClass(segment.index)} prose-paragraph`}>
+              <p
+                className={`${verseClass(segment.index)} prose-paragraph`}
+                data-line-index={segment.index}
+              >
                 <span className="verse-text">{segment.line}</span>
               </p>
             </motion.div>
           ) : segment.type === "centered" ? (
             <motion.div key={`c-${segment.index}`} className="verse-centered" {...entrance}>
-              <div className={verseClass(segment.index)}>
+              <div className={verseClass(segment.index)} data-line-index={segment.index}>
                 <span className="verse-text">{segment.line}</span>
               </div>
             </motion.div>
@@ -149,7 +160,7 @@ export default function PoemBody({
               {...entrance}
             >
               {segment.lines.map(({ line, index }) => (
-                <div key={index} className={verseClass(index)}>
+                <div key={index} className={verseClass(index)} data-line-index={index}>
                   <span className="verse-text">{line}</span>
                 </div>
               ))}
@@ -170,6 +181,7 @@ export default function PoemBody({
               <div
                 key={lineIndex}
                 className={verseClass(index * 2 + lineIndex)}
+                data-line-index={index * 2 + lineIndex}
               >
                 <span className="verse-text">{line}</span>
               </div>

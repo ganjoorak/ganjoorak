@@ -15,6 +15,7 @@ import Menu, { MenuButton, SearchButton } from "@/components/Menu";
 import SettingsDialog from "@/components/SettingsDialog";
 import GlobalSearchDialog from "@/components/GlobalSearchDialog";
 import SharePoemDialog from "@/components/SharePoemDialog";
+import PoemSelectionMenu from "@/components/poem-viewer/PoemSelectionMenu";
 import MobileAudioControl from "@/components/MobileAudioControl";
 import PullNextSheet from "@/components/PullNextSheet";
 import AudioPlayerBar from "@/components/poem-viewer/AudioPlayerBar";
@@ -30,6 +31,7 @@ import { usePullToNext } from "@/hooks/usePullToNext";
 import { useSettings } from "@/context/SettingsContext";
 import { useUpdateNotification } from "@/hooks/useUpdateNotification";
 import { usePoemLibrary } from "@/hooks/usePoemLibrary";
+import { useReadTracker } from "@/hooks/useReadTracker";
 
 interface PoemViewerProps {
   poem: Poem;
@@ -101,6 +103,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  // Lines picked in the selection toolbar for the share card; null opens the dialog with its default pick.
+  const [shareSelection, setShareSelection] = useState<number[] | null>(null);
   const [navigationDirection, setNavigationDirection] = useState(0);
   // Set when a pull-to-next commits: the poem with this id (or "*" for an unknown target) lands without any
   // entrance/exit animation, because the pull sheet already shows it exactly where it will be.
@@ -124,6 +128,11 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   const showTitleSection = poemViewerVisibility.titleSection;
   const { hasNewUpdates, markAsRead } = useUpdateNotification();
   const { isFavorite, toggleFavorite } = usePoemLibrary(poem);
+  useReadTracker({ poem });
+  const openShare = useCallback((range?: { from: number; to: number }) => {
+    setShareSelection(range ? Array.from({ length: range.to - range.from + 1 }, (_, i) => range.from + i) : null);
+    setIsShareOpen(true);
+  }, []);
   const player = useRecitationPlayer(poem);
   const { hasVerseSync, currentHighlightedVerse } = useVerseSync(
     poem,
@@ -227,6 +236,8 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       if (isShareOpen) {
         return;
       }
+      // Shift+arrows extend a text selection.
+      if (e.shiftKey) return;
 
       if (!poemTextRef.current) return;
 
@@ -357,7 +368,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
             isPoetPage && onTogglePoetInfo ? undefined : `/${poem.poetSlug}`,
           onPoetClick:
             isPoetPage && onTogglePoetInfo ? onTogglePoetInfo : undefined,
-          onShare: () => setIsShareOpen(true),
+          onShare: () => openShare(),
           onOpenSearch: () => setIsSearchOpen(true),
           isZenLocked,
           onToggleZenLock,
@@ -378,6 +389,13 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
         poetSlug={poetSlug}
+        initialSelected={shareSelection ?? undefined}
+      />
+      <PoemSelectionMenu
+        poem={poem}
+        containerRef={containerRef}
+        disabled={isShareOpen || isMenuOpen || isSettingsOpen || isSearchOpen}
+        onShareCard={(from, to) => openShare({ from, to })}
       />
 
       {showNavigationControls && (
@@ -488,7 +506,7 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
           onToggleFavorite={toggleFavorite}
           isPoetPage={isPoetPage}
           onTogglePoetInfo={onTogglePoetInfo}
-          onShare={() => setIsShareOpen(true)}
+          onShare={() => openShare()}
         />
       )}
       {(pullToNext ?? !isLast) && (

@@ -1,0 +1,403 @@
+/* Home «stories» chip (FollowingStoriesChip) and the full-screen viewer (StoryViewer).
+   Colours are app tokens; a person's own accent (--story-accent) only tints the ring and the progress bars. */
+
+/* ------------------------------------------------------------------ chip
+   A floating button of the home feed's right-hand column (menu, search, scroll lock): the same outline
+   Button surface (border, background, shadow-sm), the same 2.75rem width and edge inset, so it reads as the
+   next button in that column. Because it is a vertical capsule it is no wider than its neighbours and
+   never covers more of the verses than they do. Phones: it stacks on top of the lock button; from
+   `md` up (where the column runs down from the top-right) it hangs below the lock button. */
+
+.gk-story-chip {
+    --story-chip-ring: 1.9rem;
+    position: fixed;
+    z-index: 1000;
+    top: 11.5rem;
+    right: 1rem;
+    left: auto;
+    bottom: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: auto;
+    padding: 0.35rem 0;
+    color: rgb(var(--foreground));
+    cursor: pointer;
+    transition: opacity 0.25s ease, transform 0.2s ease, background-color 0.22s ease, box-shadow 0.28s ease;
+}
+
+.gk-story-chip__stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* A ring in the person's accent (the app's primary by default); the background-coloured border of the
+   avatar is the gap between the ring and the picture. Later avatars tuck under the one before. */
+.gk-story-chip__ring {
+    --story-accent: rgb(var(--primary));
+    position: relative;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: var(--story-chip-ring);
+    height: var(--story-chip-ring);
+    padding: 2px;
+    border-radius: 9999px;
+    background: var(--story-accent);
+    box-shadow: 0 0 0 1.5px rgb(var(--background));
+}
+
+.gk-story-chip__ring + .gk-story-chip__ring {
+    margin-top: calc(var(--story-chip-ring) * -0.36);
+}
+
+.gk-story-chip__ring:nth-child(1) {
+    z-index: 3;
+}
+
+.gk-story-chip__ring:nth-child(2) {
+    z-index: 2;
+}
+
+.gk-story-chip__ring:nth-child(3) {
+    z-index: 1;
+}
+
+.gk-story-chip__avatar.profile-avatar {
+    width: 100%;
+    height: 100%;
+    border: 1.5px solid rgb(var(--background));
+    box-shadow: none;
+}
+
+/* «+۲»: a small badge on the corner when more than three people have something new. */
+.gk-story-chip__count {
+    position: absolute;
+    inset-block-end: -0.3rem;
+    inset-inline-start: -0.3rem;
+    z-index: 4;
+    min-width: 1.15rem;
+    padding: 0.1rem 0.25rem;
+    border-radius: 9999px;
+    background: rgb(var(--primary));
+    color: rgb(var(--primary-foreground));
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    pointer-events: none;
+}
+
+.gk-story-chip:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+/* Phones: the column stacks up from the bottom edge (see shadcn.css: 2.75rem buttons, 0.5rem gaps),
+   menu / search / lock, so the chip is the fourth one up. */
+@media (max-width: 768px) {
+    .gk-story-chip {
+        top: auto;
+        right: calc(var(--mobile-floating-right, 0.625rem) + env(safe-area-inset-right));
+        bottom: calc(
+            var(--mobile-floating-bottom, 1rem) + var(--mobile-audio-offset, 0rem) + env(safe-area-inset-bottom)
+            + 3 * (var(--mobile-floating-size, 2.75rem) + var(--mobile-floating-gap, 0.5rem))
+        );
+    }
+}
+
+/* Short desktop windows: the prev/next arrows sit at the middle of the right edge and would meet a
+   three-avatar chip hanging from the top, so it drops to the bottom corner, which is free there
+   (the action column is on the left, the recitation bar in the centre). */
+@media (min-width: 769px) and (max-height: 660px) {
+    .gk-story-chip {
+        top: auto;
+        bottom: calc(1rem + env(safe-area-inset-bottom));
+    }
+}
+
+/* The same moments as the neighbours: gone in zen mode and behind a drawer or dialog, and on phones it
+   slides away with the columns while the poem scrolls down (useHideOnScroll). */
+.poem-zen-mode .gk-story-chip,
+body:has(.menu-drawer) .gk-story-chip,
+body:has(.settings-backdrop) .gk-story-chip,
+body:has([data-slot="dialog-popup"]) .gk-story-chip {
+    opacity: 0;
+    pointer-events: none;
+}
+
+@media (max-width: 600px) {
+    :root .gk-story-chip {
+        transition: opacity 200ms ease, translate 200ms ease;
+    }
+
+    :root.floating-controls-hidden .gk-story-chip {
+        opacity: 0;
+        translate: 0 1rem;
+        pointer-events: none;
+    }
+}
+
+@media (max-width: 600px) and (prefers-reduced-motion: reduce) {
+    :root .gk-story-chip {
+        transition: none;
+    }
+
+    :root.floating-controls-hidden .gk-story-chip {
+        translate: none;
+    }
+}
+
+/* ------------------------------------------------------------------ viewer
+   Same overlay as the share dialog: the dialog backdrop (black 45%, blurred) behind a card that is
+   full screen on phones and a centred bordered card from `sm` up. */
+
+.gk-story {
+    --story-accent: rgb(var(--foreground));
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    display: grid;
+    place-items: center;
+    background: rgb(0 0 0 / 0.45);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    touch-action: none;
+    overscroll-behavior: contain;
+    transition:
+        transform 0.22s cubic-bezier(0.32, 0.72, 0, 1),
+        opacity 0.22s ease;
+    animation: gk-story-in 0.2s ease-out;
+}
+
+@keyframes gk-story-in {
+    from {
+        opacity: 0;
+    }
+}
+
+.gk-story__card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    overflow: hidden;
+    background: rgb(var(--card));
+    color: rgb(var(--card-foreground));
+}
+
+@media (min-width: 640px) {
+    .gk-story__card {
+        width: min(100%, 28rem);
+        height: min(calc(100dvh - 2rem), 44rem);
+        padding: 0;
+        border: 1px solid rgb(var(--border));
+        border-radius: 1rem;
+        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    }
+}
+
+.gk-story__bars {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.75rem 1rem 0;
+}
+
+.gk-story__bar {
+    position: relative;
+    flex: 1 1 0;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: rgb(var(--muted));
+}
+
+.gk-story__bar-fill {
+    position: absolute;
+    inset: 0;
+    background: var(--story-accent);
+    transform-origin: right center;
+    transform: scaleX(0);
+}
+
+.gk-story__bar-fill[data-state="done"] {
+    transform: scaleX(1);
+}
+
+.gk-story__bar-fill[data-state="active"] {
+    animation: gk-story-fill 7000ms linear forwards;
+}
+
+.gk-story__bar-fill[data-paused] {
+    animation-play-state: paused;
+}
+
+@keyframes gk-story-fill {
+    to {
+        transform: scaleX(1);
+    }
+}
+
+/* Like the share dialog's header: person on one side, round ghost close button on the other, a hairline under it. */
+.gk-story__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem 0.5rem 0.75rem;
+    border-bottom: 1px solid rgb(var(--border));
+}
+
+.gk-story__person {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.gk-story__avatar.profile-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+.gk-story__who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.gk-story__name {
+    overflow: hidden;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gk-story__time {
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: rgb(var(--muted-foreground));
+}
+
+.gk-story__close {
+    flex: 0 0 auto;
+    border-radius: 9999px;
+}
+
+.gk-story__close svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.gk-story__person:focus-visible,
+.gk-story__zone:focus-visible {
+    outline: 2px solid rgb(var(--ring) / 0.7);
+    outline-offset: 2px;
+}
+
+.gk-story__stage {
+    position: relative;
+    display: grid;
+    flex: 1 1 auto;
+    place-items: center;
+    min-height: 0;
+    padding-inline: 1rem;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* Invisible tap zones: real buttons so keyboard and screen readers can move too. */
+.gk-story__zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
+    width: 50%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* RTL: the first (previous) zone is on the right, the next one on the left. */
+.gk-story__zone--start {
+    right: 0;
+}
+
+.gk-story__zone--end {
+    left: 0;
+}
+
+.gk-story__quote {
+    width: 100%;
+    max-height: 100%;
+    margin: 0;
+    overflow: hidden;
+    pointer-events: none;
+    text-align: center;
+    animation: gk-story-quote-in 0.3s ease-out;
+}
+
+@keyframes gk-story-quote-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+.gk-story__line {
+    margin: 0 0 0.45rem;
+    font-size: clamp(1.2rem, 5.4vw, 1.6rem);
+    line-height: 1.9;
+    text-wrap: balance;
+}
+
+.gk-story__line[data-couplet-end] {
+    margin-bottom: 1.3rem;
+}
+
+.gk-story__footer {
+    display: flex;
+    justify-content: center;
+    padding: 0.75rem 1rem 1rem;
+    border-top: 1px solid rgb(var(--border));
+}
+
+.gk-story__source {
+    max-width: 100%;
+    overflow: hidden;
+    border-radius: 9999px;
+    text-overflow: ellipsis;
+}
+
+.gk-story__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gk-story,
+    .gk-story__quote {
+        animation: none;
+        transition: none;
+    }
+
+    /* The timer stays, but the bar jumps instead of sweeping. */
+    .gk-story__bar-fill[data-state="active"] {
+        animation-timing-function: steps(1, end);
+    }
+}

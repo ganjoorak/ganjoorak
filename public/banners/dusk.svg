@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" preserveAspectRatio="xMidYMid slice">
+<defs>
+<linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2a6b"/><stop offset=".4" stop-color="#8a3f86"/><stop offset=".72" stop-color="#e2674f"/><stop offset="1" stop-color="#f6b25a"/></linearGradient>
+<radialGradient id="g" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd27a" stop-opacity=".9"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1500" height="500" fill="url(#s)"/>
+<circle cx="450" cy="350" r="250" fill="url(#g)"/>
+<circle cx="450" cy="350" r="78" fill="#ffd98f"/>
+<g fill="#fff" opacity=".8"><circle cx="1100" cy="60" r="2"/><circle cx="1250" cy="110" r="1.6"/><circle cx="900" cy="40" r="1.4"/><circle cx="1380" cy="50" r="2"/><circle cx="780" cy="100" r="1.4"/></g>
+<path d="M0 395 C200 370 420 400 650 385 S1050 360 1250 385 S1450 380 1500 375 V500 H0Z" fill="#6b2d6e" opacity=".8"/>
+<path d="M0 440 C260 415 500 450 760 435 S1180 410 1500 440 V500 H0Z" fill="#3a1f58"/>
+<g fill="#2a1744"><path d="M1130 460 c-16-50-16-120 0-200 c16 80 16 150 0 200z"/><path d="M1185 462 c-12-38-12-90 0-150 c12 60 12 112 0 150z"/><path d="M1085 462 c-10-30-10-70 0-110 c10 40 10 80 0 110z"/><path d="M1290 466 c-9-26-9-60 0-96 c9 36 9 70 0 96z"/></g>
+<g fill="#2a1744"><path d="M0 500V430h40v-30l20-24 20 24v30h36v70z"/><path d="M135 500v-60h28v-26l14-18 14 18v26h28v60z"/></g>
+</svg>
