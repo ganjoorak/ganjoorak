@@ -17,9 +17,10 @@ import {
 import AppPage from "@/components/AppPage";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import RecoveryCodePanel from "@/components/RecoveryCodePanel";
-import { PoemLibraryList, useLibraryVersion } from "@/components/PoemLibraryPage";
+import { CollectionList, PoemLibraryList, useLibraryVersion } from "@/components/PoemLibraryPage";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import FollowUserButton from "@/components/FollowUserButton";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
@@ -36,8 +37,10 @@ import {
   setProfileVisibility,
   signUp,
   type AccountUser,
+  type FollowCounts,
   type PublicProfile,
 } from "@/utils/accountApi";
+import { readLovedCollections } from "@/utils/collectionLibrary";
 import { readFavorites, readHistory, type PoemLibraryEntry } from "@/utils/poemLibrary";
 import "../styles/PoemLibrary.css";
 
@@ -387,7 +390,7 @@ export const LoginPage = () => {
           </Card>
 
           <p className="auth-benefits">
-            نشان‌شده‌ها، شاعران دنبال‌شده و تاریخچهٔ خواندن، روی همهٔ دستگاه‌هایتان
+            نشان‌شده‌ها، شاعران مورد علاقه و تاریخچهٔ خواندن، روی همهٔ دستگاه‌هایتان
             می‌ماند.
           </p>
         </div>
@@ -422,7 +425,11 @@ const persianNumber = new Intl.NumberFormat("fa-IR");
 const READING_WINDOW_MS = 20 * 60 * 1000;
 const OWNER_FAVORITES_SHOWN = 5;
 
-type ProfileSummary = Omit<PublicProfile, "favoriteCount"> & { favoriteCount?: number };
+type ProfileSummary = Omit<PublicProfile, "favoriteCount" | "followerCount" | "followingCount"> & {
+  favoriteCount?: number;
+  followerCount?: number;
+  followingCount?: number;
+};
 
 const ProfilePoem = ({ entry, live }: { entry: PoemLibraryEntry; live?: boolean }) => (
   <Link
@@ -442,9 +449,25 @@ const ProfilePoem = ({ entry, live }: { entry: PoemLibraryEntry; live?: boolean 
   </Link>
 );
 
+/** Counts are public; only the owner may open the lists behind them. */
+const FollowCount = ({ href, count, label }: { href?: string; count: number; label: string }) => {
+  const content = (
+    <>
+      <strong>{persianNumber.format(count)}</strong> {label}
+    </>
+  );
+  return href ? (
+    <Link href={href} className="account-hero-follow-link">
+      {content}
+    </Link>
+  ) : (
+    <span>{content}</span>
+  );
+};
+
 /**
  * The profile body shared by the owner's /profile and the public /@username:
- * the poem being read now, the last poem, and liked poems. Followed poets and
+ * the poem being read now, the last poem, and liked poems. Preferred poets and
  * the full history stay private.
  */
 const ProfileView = ({
@@ -478,6 +501,13 @@ const ProfileView = ({
             {" · "}
             عضو از {persianDateFormatter.format(new Date(profile.createdAt))}
           </span>
+          {profile.followerCount !== undefined && profile.followingCount !== undefined && (
+            <span className="account-hero-follows">
+              <FollowCount href={isOwner ? "/following?tab=followers" : undefined} count={profile.followerCount} label="دنبال‌کننده" />
+              {" · "}
+              <FollowCount href={isOwner ? "/following" : undefined} count={profile.followingCount} label="دنبال‌شده" />
+            </span>
+          )}
         </div>
         {heroActions}
       </Card>
@@ -511,6 +541,18 @@ const ProfileView = ({
               </EmptyDescription>
             </Empty>
           )}
+        </section>
+      )}
+
+      {(profile.lovedCollections.length > 0 || isOwner) && (
+        <section className="app-section" aria-labelledby="profile-books">
+          <h2 id="profile-books" className="app-section-title">
+            <span>کتاب‌های دوست‌داشتنی</span>
+          </h2>
+          <CollectionList
+            entries={profile.lovedCollections}
+            emptyMessage="هنوز کتابی را دوست نداشته‌اید. در صفحهٔ هر شاعر روی قلبِ کنار مجموعه بزنید."
+          />
         </section>
       )}
 
@@ -577,6 +619,7 @@ const ShareProfileButton = ({ profile }: { profile: Pick<PublicProfile, "usernam
 export const ProfilePage = () => {
   const router = useRouter();
   const [user, setUser] = useState<AccountUser | null>(null);
+  const [follows, setFollows] = useState<FollowCounts | null>(null);
   const [error, setError] = useState("");
   const [visibilityError, setVisibilityError] = useState("");
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
@@ -588,9 +631,10 @@ export const ProfilePage = () => {
 
   useEffect(() => {
     fetchAccount()
-      .then(({ user: account }) => {
+      .then(({ user: account, follows: counts }) => {
         setOpenedAt(Date.now());
         setUser(account);
+        setFollows(counts);
       })
       .catch((caught) => {
         if (caught instanceof AccountError && caught.status === 401) {
@@ -622,6 +666,9 @@ export const ProfilePage = () => {
     nowReading: isReadingNow ? history[0] : null,
     lastPoem: history[isReadingNow ? 1 : 0] ?? null,
     favorites,
+    lovedCollections: isReady ? readLovedCollections() : [],
+    followerCount: follows?.followers,
+    followingCount: follows?.following,
   };
   const profilePath = publicProfilePath(user.username);
 
@@ -705,10 +752,16 @@ export const ProfilePage = () => {
 /** /@username, rendered on the server for visitors and link previews. */
 export const PublicProfilePage = ({ profile }: { profile: PublicProfile }) => {
   const [isOwner, setIsOwner] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  // The server rendered the count; a follow made here moves it without a reload.
+  const [followerCount, setFollowerCount] = useState(profile.followerCount);
 
   useEffect(() => {
     fetchAccount()
-      .then(({ user }) => setIsOwner(user.username === profile.username))
+      .then(({ user }) => {
+        setSignedIn(true);
+        setIsOwner(user.username === profile.username);
+      })
       .catch(() => undefined);
   }, [profile.username]);
 
@@ -725,9 +778,21 @@ export const PublicProfilePage = ({ profile }: { profile: PublicProfile }) => {
       }
     >
       <ProfileView
-        profile={profile}
+        profile={{ ...profile, followerCount }}
         isOwner={false}
-        heroActions={<ShareProfileButton profile={profile} />}
+        heroActions={
+          <div className="account-hero-actions">
+            {!isOwner && (
+              <FollowUserButton
+                username={profile.username}
+                displayName={profile.displayName}
+                signedIn={signedIn}
+                onChange={(following) => setFollowerCount((count) => count + (following ? 1 : -1))}
+              />
+            )}
+            <ShareProfileButton profile={profile} />
+          </div>
+        }
       />
     </AppPage>
   );

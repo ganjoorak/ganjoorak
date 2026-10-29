@@ -36,7 +36,11 @@ func (u *User) scanTargets() []any {
 	return []any{&u.ID, &u.Username, &u.DisplayName, &u.CreatedAt, &u.IsPublic, &u.Avatar, &u.HasRecoveryCode}
 }
 
-var errUsernameTaken = errors.New("username taken")
+var (
+	errUsernameTaken = errors.New("username taken")
+	errSelfFollow    = errors.New("cannot follow yourself")
+	errFollowLimit   = errors.New("follow limit reached")
+)
 
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
@@ -64,6 +68,14 @@ CREATE TABLE IF NOT EXISTS feedback (
 	username TEXT NOT NULL DEFAULT '',
 	created_at INTEGER NOT NULL
 );
+-- Who follows whom. Keyed by user id, so renaming an account keeps its follows.
+CREATE TABLE IF NOT EXISTS follows (
+	follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	followee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	created_at INTEGER NOT NULL,
+	PRIMARY KEY (follower_id, followee_id)
+);
+CREATE INDEX IF NOT EXISTS follows_followee ON follows(followee_id, created_at);
 `
 
 // Columns added after the first release, applied once to older databases.
@@ -299,9 +311,9 @@ func (s *Store) publicProfile(ctx context.Context, username string) (PublicProfi
 	var raw string
 	var readingAt int64
 	err := s.db.QueryRowContext(ctx, `
-		SELECT username, display_name, avatar, created_at, data, reading_at
+		SELECT id, username, display_name, avatar, created_at, data, reading_at
 		FROM users WHERE username = ? AND is_public = 1`, username).
-		Scan(&u.Username, &u.DisplayName, &u.Avatar, &u.CreatedAt, &raw, &readingAt)
+		Scan(&u.ID, &u.Username, &u.DisplayName, &u.Avatar, &u.CreatedAt, &raw, &readingAt)
 	if err != nil {
 		return PublicProfile{}, err
 	}
@@ -309,5 +321,105 @@ func (s *Store) publicProfile(ctx context.Context, username string) (PublicProfi
 	if err := json.Unmarshal([]byte(raw), &data); err != nil {
 		return PublicProfile{}, err
 	}
-	return buildPublicProfile(u, sanitizeAccountData(data), readingAt, time.Now().UnixMilli()), nil
+	profile := buildPublicProfile(u, sanitizeAccountData(data), readingAt, time.Now().UnixMilli())
+	profile.FollowerCount, profile.FollowingCount, err = s.followCounts(ctx, u.ID)
+	return profile, err
+}
+
+// --- follows -------------------------------------------------------------------
+
+// FollowUser is one row of a followers / following list.
+type FollowUser struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+	Avatar      string `json:"avatar"`
+	FollowedAt  int64  `json:"followedAt"`
+}
+
+// followUser returns sql.ErrNoRows for unknown and private accounts, so the two
+// look the same from outside, as with publicProfile. Following twice is fine.
+func (s *Store) followUser(ctx context.Context, followerID int64, username string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var targetID int64
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE username = ? AND is_public = 1`, username).Scan(&targetID); err != nil {
+		return err
+	}
+	if targetID == followerID {
+		return errSelfFollow
+	}
+	var already, total int
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COUNT(*) FILTER (WHERE followee_id = ?), COUNT(*) FROM follows WHERE follower_id = ?`,
+		targetID, followerID).Scan(&already, &total); err != nil {
+		return err
+	}
+	if already > 0 {
+		return nil
+	}
+	if total >= maxFollowing {
+		return errFollowLimit
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, ?)`,
+		followerID, targetID, time.Now().UnixMilli()); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// unfollowUser works for private accounts too, so a follow never gets stuck.
+func (s *Store) unfollowUser(ctx context.Context, followerID int64, username string) error {
+	_, err := s.db.ExecContext(ctx, `
+		DELETE FROM follows WHERE follower_id = ?
+		AND followee_id = (SELECT id FROM users WHERE username = ?)`, followerID, username)
+	return err
+}
+
+func (s *Store) isFollowing(ctx context.Context, followerID int64, username string) (bool, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM follows f JOIN users u ON u.id = f.followee_id
+		WHERE f.follower_id = ? AND u.username = ?`, followerID, username).Scan(&count)
+	return count > 0, err
+}
+
+// followCounts counts only public accounts on the other side: a private
+// account does not appear in anyone's counts or lists.
+func (s *Store) followCounts(ctx context.Context, userID int64) (followers, following int, err error) {
+	err = s.db.QueryRowContext(ctx, `
+		SELECT
+			(SELECT COUNT(*) FROM follows f JOIN users u ON u.id = f.follower_id WHERE f.followee_id = ?1 AND u.is_public = 1),
+			(SELECT COUNT(*) FROM follows f JOIN users u ON u.id = f.followee_id WHERE f.follower_id = ?1 AND u.is_public = 1)`,
+		userID).Scan(&followers, &following)
+	return
+}
+
+// followList is who follows userID (followers) or whom userID follows, newest first.
+func (s *Store) followList(ctx context.Context, userID int64, followers bool) ([]FollowUser, error) {
+	other, own := "follower_id", "followee_id"
+	if !followers {
+		other, own = own, other
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT u.username, u.display_name, u.avatar, f.created_at
+		FROM follows f JOIN users u ON u.id = f.`+other+`
+		WHERE f.`+own+` = ? AND u.is_public = 1
+		ORDER BY f.created_at DESC, f.rowid DESC LIMIT ?`, userID, maxFollowList)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	list := []FollowUser{}
+	for rows.Next() {
+		var f FollowUser
+		if err := rows.Scan(&f.Username, &f.DisplayName, &f.Avatar, &f.FollowedAt); err != nil {
+			return nil, err
+		}
+		list = append(list, f)
+	}
+	return list, rows.Err()
 }

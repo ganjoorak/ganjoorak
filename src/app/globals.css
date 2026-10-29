@@ -1063,7 +1063,7 @@ body:has(.menu-drawer) .global-search-button {
 }
 
 /* The switch is always dir="rtl": the second option sits left of the first. */
-.feed-mode-switch[data-mode="following"] .feed-mode-thumb {
+.feed-mode-switch[data-mode="preferred"] .feed-mode-thumb {
     transform: translateX(-100%);
 }
 

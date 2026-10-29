@@ -174,6 +174,28 @@ const customApi = {
   },
 
   /**
+   * Get a random poem of one book (the `collection` title the poems carry) of a local poet
+   */
+  async getRandomPoemFromCollection(poetSlug: PoetSlug, collection: string): Promise<Poem> {
+    try {
+      const poetData = await customApi._getPoetData(poetSlug);
+      const inBook = (poetData.poems as Array<{ collection?: string }>).filter(
+        (poem) => typeof poem.collection === "string" && poem.collection.trim() === collection,
+      );
+      if (inBook.length === 0) {
+        throw new Error(`No poems in collection ${collection}`);
+      }
+      return await customApi.mapLocalPoemToPoem(
+        inBook[Math.floor(Math.random() * inBook.length)],
+        poetSlug,
+      );
+    } catch (error) {
+      logger.error("Error fetching random poem from local collection:", error);
+      throw new Error("متأسفانه در دریافت شعر تصادفی مشکلی پیش آمد. لطفاً دوباره تلاش کنید");
+    }
+  },
+
+  /**
    * Get a poem by ID from the local collection
    */
   async getPoemById(id: number, poetSlug: PoetSlug): Promise<Poem> {

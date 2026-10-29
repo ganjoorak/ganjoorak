@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -24,8 +25,11 @@ import (
 // Same caps as src/utils/poemLibrary.ts so the server and devices agree.
 const (
 	maxFavorites    = 200
+	maxCollections  = 100
 	maxHistory      = 30
-	maxFollowed     = 500
+	maxPreferred    = 500
+	maxFollowing    = 1000
+	maxFollowList   = 1000
 	maxInterests    = 50
 	maxDisplayName  = 50
 	minPasswordLen  = 8
@@ -34,10 +38,10 @@ const (
 )
 
 var (
-	usernamePattern  = regexp.MustCompile(`^[a-z0-9_]{3,32}$`)
-	followKeyPattern = regexp.MustCompile(`^[a-z]+:[\p{L}\p{N}_.\-]+$`)
-	interestPattern  = regexp.MustCompile(`^[a-z]{1,32}$`)
-	validSources     = map[string]bool{"ganjoor": true, "custom": true, "echolalia": true}
+	usernamePattern = regexp.MustCompile(`^[a-z0-9_]{3,32}$`)
+	poetKeyPattern  = regexp.MustCompile(`^[a-z]+:[\p{L}\p{N}_.\-]+$`)
+	interestPattern = regexp.MustCompile(`^[a-z]{1,32}$`)
+	validSources    = map[string]bool{"ganjoor": true, "custom": true, "echolalia": true}
 )
 
 type Entry struct {
@@ -52,11 +56,45 @@ type Entry struct {
 	SavedAt  int64  `json:"savedAt"`
 }
 
+// CollectionEntry is a loved book of a poet. Ganjoor books are categories
+// (CategoryID); local ones have no id and are told apart by poet and title.
+type CollectionEntry struct {
+	Key        string `json:"key"`
+	Source     string `json:"source"`
+	CategoryID int64  `json:"categoryId"`
+	PoetSlug   string `json:"poetSlug"`
+	PoetName   string `json:"poetName"`
+	Title      string `json:"title"`
+	Href       string `json:"href"`
+	SavedAt    int64  `json:"savedAt"`
+}
+
 type AccountData struct {
-	Favorites        []Entry  `json:"favorites"`
-	History          []Entry  `json:"history"`
-	FollowedPoetKeys []string `json:"followedPoetKeys"`
-	InterestKeys     []string `json:"interestKeys"`
+	Favorites []Entry `json:"favorites"`
+	History   []Entry `json:"history"`
+	// Poet collections ("books") the reader loves. They show on the public
+	// profile and feed the reader's personal feed.
+	LovedCollections []CollectionEntry `json:"lovedCollections"`
+	// Poets the reader prefers, as "source:slug". Only shapes their own feed;
+	// nobody is notified, so it is not a follow (see follows in store.go).
+	PreferredPoetKeys []string `json:"preferredPoetKeys"`
+	InterestKeys      []string `json:"interestKeys"`
+}
+
+// UnmarshalJSON still reads followedPoetKeys, the name this list had while
+// poets could be "followed": stored rows and older clients use it.
+func (d *AccountData) UnmarshalJSON(raw []byte) error {
+	type plain AccountData
+	var in struct {
+		plain
+		FollowedPoetKeys []string `json:"followedPoetKeys"`
+	}
+	if err := json.Unmarshal(raw, &in); err != nil {
+		return err
+	}
+	*d = AccountData(in.plain)
+	d.PreferredPoetKeys = append(d.PreferredPoetKeys, in.FollowedPoetKeys...)
+	return nil
 }
 
 type SignupInput struct {
@@ -317,9 +355,13 @@ func hashSessionToken(token string) string {
 
 // --- synced data -------------------------------------------------------------
 
+// Hrefs are rendered as links on the profile page: same-origin paths only.
+func safeHref(href string) bool {
+	return len(href) >= 2 && len(href) <= 300 && href[0] == '/' && href[1] != '/' && href[1] != '\\'
+}
+
 func sanitizeEntry(e Entry) (Entry, bool) {
-	// Rendered as a link on the profile page: same-origin paths only.
-	if len(e.Href) < 2 || len(e.Href) > 300 || e.Href[0] != '/' || e.Href[1] == '/' || e.Href[1] == '\\' {
+	if !safeHref(e.Href) {
 		return e, false
 	}
 	key := cleanText(e.Key, 200)
@@ -364,6 +406,55 @@ func sanitizeEntries(entries []Entry, max int) []Entry {
 	return out
 }
 
+func sanitizeCollection(c CollectionEntry) (CollectionEntry, bool) {
+	key := cleanText(c.Key, 200)
+	title := cleanText(c.Title, 200)
+	if !safeHref(c.Href) || key == "" || title == "" || c.SavedAt <= 0 {
+		return c, false
+	}
+	source := c.Source
+	if source != "custom" {
+		// A Ganjoor book is only usable with its category id.
+		source = "ganjoor"
+		if c.CategoryID <= 0 {
+			return c, false
+		}
+	} else {
+		c.CategoryID = 0
+	}
+	return CollectionEntry{
+		Key:        key,
+		Source:     source,
+		CategoryID: c.CategoryID,
+		PoetSlug:   cleanText(c.PoetSlug, 100),
+		PoetName:   cleanText(c.PoetName, 100),
+		Title:      title,
+		Href:       c.Href,
+		SavedAt:    c.SavedAt,
+	}, true
+}
+
+// sanitizeCollections keeps the newest copy of each key, newest first, capped.
+func sanitizeCollections(items []CollectionEntry, max int) []CollectionEntry {
+	clean := make([]CollectionEntry, 0, len(items))
+	for _, raw := range items {
+		if item, ok := sanitizeCollection(raw); ok {
+			clean = append(clean, item)
+		}
+	}
+	sort.SliceStable(clean, func(i, j int) bool { return clean[i].SavedAt > clean[j].SavedAt })
+	seen := make(map[string]bool, len(clean))
+	out := make([]CollectionEntry, 0, len(clean))
+	for _, item := range clean {
+		if seen[item.Key] || len(out) == max {
+			continue
+		}
+		seen[item.Key] = true
+		out = append(out, item)
+	}
+	return out
+}
+
 func sanitizeKeys(keys []string, max int, pattern *regexp.Regexp) []string {
 	seen := make(map[string]bool, len(keys))
 	out := make([]string, 0, len(keys))
@@ -379,10 +470,11 @@ func sanitizeKeys(keys []string, max int, pattern *regexp.Regexp) []string {
 
 func sanitizeAccountData(d AccountData) AccountData {
 	return AccountData{
-		Favorites:        sanitizeEntries(d.Favorites, maxFavorites),
-		History:          sanitizeEntries(d.History, maxHistory),
-		FollowedPoetKeys: sanitizeKeys(d.FollowedPoetKeys, maxFollowed, followKeyPattern),
-		InterestKeys:     sanitizeKeys(d.InterestKeys, maxInterests, interestPattern),
+		Favorites:         sanitizeEntries(d.Favorites, maxFavorites),
+		History:           sanitizeEntries(d.History, maxHistory),
+		LovedCollections:  sanitizeCollections(d.LovedCollections, maxCollections),
+		PreferredPoetKeys: sanitizeKeys(d.PreferredPoetKeys, maxPreferred, poetKeyPattern),
+		InterestKeys:      sanitizeKeys(d.InterestKeys, maxInterests, interestPattern),
 	}
 }
 
@@ -392,10 +484,11 @@ func sanitizeAccountData(d AccountData) AccountData {
 // upgrade to per-item tombstones if users notice.
 func mergeAccountData(a, b AccountData) AccountData {
 	return sanitizeAccountData(AccountData{
-		Favorites:        append(append([]Entry{}, a.Favorites...), b.Favorites...),
-		History:          append(append([]Entry{}, a.History...), b.History...),
-		FollowedPoetKeys: append(append([]string{}, a.FollowedPoetKeys...), b.FollowedPoetKeys...),
-		InterestKeys:     append(append([]string{}, a.InterestKeys...), b.InterestKeys...),
+		Favorites:         append(append([]Entry{}, a.Favorites...), b.Favorites...),
+		History:           append(append([]Entry{}, a.History...), b.History...),
+		LovedCollections:  append(append([]CollectionEntry{}, a.LovedCollections...), b.LovedCollections...),
+		PreferredPoetKeys: append(append([]string{}, a.PreferredPoetKeys...), b.PreferredPoetKeys...),
+		InterestKeys:      append(append([]string{}, a.InterestKeys...), b.InterestKeys...),
 	})
 }
 
@@ -407,10 +500,12 @@ func mergeAccountData(a, b AccountData) AccountData {
 const (
 	readingWindow      = 20 * time.Minute
 	maxPublicFavorites = 50
+	maxPublicBooks     = 50
 )
 
 // PublicProfile is everything /@username shows to anyone. It is built from an
-// allow-list of fields: no followed poets, no full history, no session data.
+// allow-list of fields: no preferred poets, no full history, no session data.
+// The follower counts are filled in by the store, which owns the follows table.
 type PublicProfile struct {
 	Username      string  `json:"username"`
 	DisplayName   string  `json:"displayName"`
@@ -420,6 +515,10 @@ type PublicProfile struct {
 	LastPoem      *Entry  `json:"lastPoem"`
 	Favorites     []Entry `json:"favorites"`
 	FavoriteCount int     `json:"favoriteCount"`
+	// Loved books, newest first, capped like Favorites.
+	LovedCollections []CollectionEntry `json:"lovedCollections"`
+	FollowerCount    int               `json:"followerCount"`
+	FollowingCount   int               `json:"followingCount"`
 }
 
 func buildPublicProfile(u User, d AccountData, readingAt, now int64) PublicProfile {
@@ -436,6 +535,13 @@ func buildPublicProfile(u User, d AccountData, readingAt, now int64) PublicProfi
 	}
 	if p.Favorites == nil {
 		p.Favorites = []Entry{}
+	}
+	p.LovedCollections = d.LovedCollections
+	if len(p.LovedCollections) > maxPublicBooks {
+		p.LovedCollections = p.LovedCollections[:maxPublicBooks]
+	}
+	if p.LovedCollections == nil {
+		p.LovedCollections = []CollectionEntry{}
 	}
 	history := d.History
 	if len(history) > 0 && readingAt > 0 && now-readingAt < readingWindow.Milliseconds() {

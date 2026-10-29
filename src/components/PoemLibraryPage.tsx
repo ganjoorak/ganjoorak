@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { FaBookmark, FaChevronLeft, FaHeart, FaHistory, FaRegBookmark, FaRegHeart, FaTimes } from "react-icons/fa";
+import { FaBook, FaBookmark, FaChevronLeft, FaHeart, FaHistory, FaRegBookmark, FaRegHeart, FaTimes } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -13,11 +13,12 @@ import {
   removeFavorite,
   type PoemLibraryEntry,
 } from "@/utils/poemLibrary";
+import { readLovedCollections, removeLovedCollection, type CollectionEntry } from "@/utils/collectionLibrary";
 import "../styles/PoemLibrary.css";
 import { Empty, EmptyDescription, EmptyIcon } from "@/components/ui/empty";
 import { Tabs, TabsIndicator, TabsList, TabsTab } from "@/components/ui/tabs";
 
-type LibraryTab = "favorites" | "history";
+type LibraryTab = "favorites" | "books" | "history";
 
 const persianNumber = new Intl.NumberFormat("fa-IR");
 const persianDateFormatter = new Intl.DateTimeFormat("fa-IR", {
@@ -119,6 +120,61 @@ export const PoemLibraryList = ({
   );
 };
 
+/** Loved books (saved page and profile): each opens its poet's page. */
+export const CollectionList = ({
+  entries,
+  emptyMessage,
+  emptyAction,
+  onRemove,
+}: {
+  entries: CollectionEntry[];
+  emptyMessage: string;
+  emptyAction?: ReactNode;
+  onRemove?: (key: string) => void;
+}) => {
+  if (entries.length === 0) {
+    return (
+      <Empty>
+        <EmptyIcon>
+          <FaBook />
+        </EmptyIcon>
+        <EmptyDescription>{emptyMessage}</EmptyDescription>
+        {emptyAction}
+      </Empty>
+    );
+  }
+  return (
+    <ul className="app-list library-list">
+      {entries.map((entry) => (
+        <li key={entry.key} className="library-item">
+          <Link href={entry.href} className="app-row library-link" prefetch={false}>
+            <span className="app-row-icon" aria-hidden="true">
+              <FaBook />
+            </span>
+            <span className="app-row-body">
+              <span className="app-row-title library-title">{entry.title}</span>
+              <span className="app-row-meta">{entry.poetName}</span>
+            </span>
+            {!onRemove && <FaChevronLeft className="app-row-chevron" aria-hidden="true" />}
+          </Link>
+          {onRemove && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="library-remove"
+              onClick={() => onRemove(entry.key)}
+              aria-label={`برداشتن «${entry.title}» از دوست‌داشته‌ها`}
+            >
+              <FaTimes aria-hidden="true" />
+            </Button>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+};
+
 /** Re-reads localStorage-backed lists after mount and on library changes. */
 export const useLibraryVersion = () => {
   const [version, setVersion] = useState(0);
@@ -144,17 +200,19 @@ const PoemLibraryPage = () => {
   void refreshKey;
   const favorites = isReady ? readFavorites() : [];
   const history = isReady ? readHistory() : [];
+  const books = isReady ? readLovedCollections() : [];
   const refresh = () => setRefreshKey((value) => value + 1);
 
   const tabs = [
     { id: "favorites" as const, label: "ذخیره‌شده‌ها", icon: <FaBookmark aria-hidden="true" />, count: favorites.length },
+    { id: "books" as const, label: "کتاب‌ها", icon: <FaBook aria-hidden="true" />, count: books.length },
     { id: "history" as const, label: "اخیراً دیده‌شده", icon: <FaHistory aria-hidden="true" />, count: history.length },
   ];
 
   return (
     <AppPage
       title="نشان‌شده‌ها"
-      subtitle="شعرهایی که ذخیره کرده‌اید و آن‌هایی که اخیراً خوانده‌اید."
+      subtitle="شعرهایی که ذخیره کرده‌اید، کتاب‌هایی که دوست دارید و آن‌هایی که اخیراً خوانده‌اید."
       width="narrow"
       headerExtra={
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
@@ -193,6 +251,20 @@ const PoemLibraryPage = () => {
               }
               onRemove={(key) => {
                 removeFavorite(key);
+                refresh();
+              }}
+            />
+          ) : activeTab === "books" ? (
+            <CollectionList
+              entries={books}
+              emptyMessage="هنوز کتابی را دوست نداشته‌اید. در صفحهٔ هر شاعر روی قلبِ کنار مجموعه بزنید؛ شعر آن کتاب‌ها به فید «علاقه‌مندی‌ها» هم می‌آید."
+              emptyAction={
+                <Link href="/poets" className={buttonVariants({ variant: "secondary" })}>
+                  دیدن شاعران
+                </Link>
+              }
+              onRemove={(key) => {
+                removeLovedCollection(key);
                 refresh();
               }}
             />

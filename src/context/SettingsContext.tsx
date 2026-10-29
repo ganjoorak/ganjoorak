@@ -42,15 +42,15 @@ interface SettingsState {
   poemViewerVisibility: PoemViewerComponentVisibility;
   randomizePoems: boolean;
   askRandomizePoemsOnPoetPages: boolean;
-  followedPoetKeys: string[];
+  preferredPoetKeys: string[];
   interestKeys: string[];
   activeInterestKeys: string[];
   hasChosenInterests: boolean;
-  /** Home feed source: everything («همه») or only followed poets («دنبال‌شده‌ها»). */
+  /** Home feed source: everything («همه») or only the reader's preferred poets («علاقه‌مندی‌ها»). */
   feedMode: FeedMode;
 }
 
-export type FeedMode = "all" | "following";
+export type FeedMode = "all" | "preferred";
 
 interface SettingsContextValue {
   settings: SettingsState;
@@ -65,7 +65,7 @@ interface SettingsContextValue {
   ) => void;
   setRandomizePoems: (randomize: boolean) => void;
   setAskRandomizePoemsOnPoetPages: (ask: boolean) => void;
-  setFollowedPoetKeys: (keys: string[]) => void;
+  setPreferredPoetKeys: (keys: string[]) => void;
   setInterestKeys: (keys: string[]) => void;
   toggleActiveInterest: (key: string) => void;
   clearActiveInterests: () => void;
@@ -195,7 +195,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   poemViewerVisibility: DEFAULT_POEM_VIEWER_VISIBILITY,
   randomizePoems: true,
   askRandomizePoemsOnPoetPages: true,
-  followedPoetKeys: [],
+  preferredPoetKeys: [],
   interestKeys: [],
   activeInterestKeys: [],
   hasChosenInterests: false,
@@ -250,11 +250,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
           typeof parsed.askRandomizePoemsOnPoetPages === "boolean"
             ? parsed.askRandomizePoemsOnPoetPages
             : DEFAULT_SETTINGS.askRandomizePoemsOnPoetPages;
-        const nextFollowedPoetKeys = Array.isArray(parsed.followedPoetKeys)
-          ? parsed.followedPoetKeys.filter(
+        // Poets used to be «followed»; the list kept its keys under the old name.
+        const storedPoetKeys =
+          parsed.preferredPoetKeys ??
+          (parsed as { followedPoetKeys?: unknown }).followedPoetKeys;
+        const nextPreferredPoetKeys = Array.isArray(storedPoetKeys)
+          ? storedPoetKeys.filter(
               (key): key is string => typeof key === "string" && key.length > 0,
             )
-          : DEFAULT_SETTINGS.followedPoetKeys;
+          : DEFAULT_SETTINGS.preferredPoetKeys;
         const nextInterestKeys = sanitizeInterestKeys(parsed.interestKeys);
         const legacyActiveInterestKey = (
           parsed as Partial<SettingsState> & { activeInterestKey?: unknown }
@@ -270,13 +274,16 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
             ? parsed.hasChosenInterests
             : nextInterestKeys.length > 0;
 
-        // Before r14 the followed list was the home feed filter, so readers who had
-        // one keep that feed by starting in «دنبال‌شده‌ها».
+        // Before r14 the poet list was the home feed filter, so readers who had
+        // one keep that feed by starting in «علاقه‌مندی‌ها». The mode was called
+        // "following" until poets stopped being followed.
+        const storedFeedMode =
+          (parsed.feedMode as string) === "following" ? "preferred" : parsed.feedMode;
         const nextFeedMode: FeedMode =
-          parsed.feedMode === "all" || parsed.feedMode === "following"
-            ? parsed.feedMode
-            : nextFollowedPoetKeys.length > 0
-              ? "following"
+          storedFeedMode === "all" || storedFeedMode === "preferred"
+            ? storedFeedMode
+            : nextPreferredPoetKeys.length > 0
+              ? "preferred"
               : "all";
 
         setSettings((prev) => ({
@@ -289,7 +296,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
           poemViewerVisibility: nextVisibility,
           randomizePoems: nextRandomizePoems,
           askRandomizePoemsOnPoetPages: nextAskRandomizePoemsOnPoetPages,
-          followedPoetKeys: nextFollowedPoetKeys,
+          preferredPoetKeys: nextPreferredPoetKeys,
           interestKeys: nextInterestKeys,
           activeInterestKeys: nextActiveInterestKeys,
           hasChosenInterests: nextHasChosenInterests,
@@ -402,11 +409,11 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     setSettings((prev) => ({ ...prev, askRandomizePoemsOnPoetPages: ask }));
   }, []);
 
-  const setFollowedPoetKeys = useCallback((keys: string[]) => {
+  const setPreferredPoetKeys = useCallback((keys: string[]) => {
     const uniqueKeys = Array.from(
       new Set(keys.filter((key) => typeof key === "string" && key.length > 0)),
     );
-    setSettings((prev) => ({ ...prev, followedPoetKeys: uniqueKeys }));
+    setSettings((prev) => ({ ...prev, preferredPoetKeys: uniqueKeys }));
   }, []);
 
   const setInterestKeys = useCallback((keys: string[]) => {
@@ -454,7 +461,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       setPoemViewerVisibility,
       setRandomizePoems,
       setAskRandomizePoemsOnPoetPages,
-      setFollowedPoetKeys,
+      setPreferredPoetKeys,
       setInterestKeys,
       toggleActiveInterest,
       clearActiveInterests,
@@ -471,7 +478,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       setPoemViewerVisibility,
       setRandomizePoems,
       setAskRandomizePoemsOnPoetPages,
-      setFollowedPoetKeys,
+      setPreferredPoetKeys,
       setInterestKeys,
       toggleActiveInterest,
       clearActiveInterests,

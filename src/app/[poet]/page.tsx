@@ -11,7 +11,9 @@ import PoetProfile, {
   PoetProfileSection,
   type PoetProfileRow,
 } from "@/components/PoetProfile";
-import { buildPoetFollowKey } from "@/hooks/useFollowPoet";
+import { buildPoetKey } from "@/hooks/usePreferredPoet";
+import { useLovedCollections } from "@/hooks/useLovedCollections";
+import { buildCollectionKey } from "@/utils/collectionLibrary";
 import PoetSearchPanel from "@/components/PoetSearchPanel";
 import ganjoorApi from "@/api/GanjoorApi";
 import customApi from "@/api/CustomApi";
@@ -137,6 +139,7 @@ const buildCategoryRows = (
 function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
   const { settings, setRandomizePoems, setAskRandomizePoemsOnPoetPages } =
     useSettings();
+  const { isLoved, toggle: toggleLovedBook } = useLovedCollections();
   const [randomizeChoice, setRandomizeChoice] = useState<boolean | null>(null);
   const shouldAskRandomizeChoice = settings.askRandomizePoemsOnPoetPages;
   const randomizePoems = randomizeChoice ?? settings.randomizePoems;
@@ -640,7 +643,7 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
       <PoetProfile
         poet={catalog.poet}
         isOpen={isInfoOpen}
-        followKey={buildPoetFollowKey("ganjoor", slug)}
+        poetKey={buildPoetKey("ganjoor", slug)}
         stats={[
           {
             label: "مجموعه",
@@ -669,8 +672,24 @@ function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
                 categoryCache,
                 selectedCategoryId,
                 loadingCategoryId,
-              )}
+              ).map((row) => ({
+                ...row,
+                isLoved: isLoved(buildCollectionKey("ganjoor", slug, row.id)),
+              }))}
               onSelect={handleSelectCategory}
+              onToggleLove={(categoryId) => {
+                const category = topLevelCategories.find((item) => item.id === categoryId);
+                if (!category) return;
+                toggleLovedBook({
+                  key: buildCollectionKey("ganjoor", slug, categoryId),
+                  source: "ganjoor",
+                  categoryId,
+                  poetSlug: slug,
+                  poetName: catalog.poet.nickname || catalog.poet.name,
+                  title: category.title,
+                  href: `/${slug}`,
+                });
+              }}
             />
           ) : (
             <p className="poet-profile-empty">
@@ -1007,7 +1026,7 @@ function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
       <PoetProfile
         poet={poet}
         isOpen={isInfoOpen}
-        followKey={buildPoetFollowKey("echolalia", poetSlug)}
+        poetKey={buildPoetKey("echolalia", poetSlug)}
         stats={[{ label: "شعر", value: formatPersianNumber(summaries.length) }]}
         onResume={currentPoem ? () => setIsInfoOpen(false) : undefined}
         onRandom={handleRandomPoem}
@@ -1172,6 +1191,7 @@ function ResolvedRemotePoetPage({
 function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
   const { settings, setRandomizePoems, setAskRandomizePoemsOnPoetPages } =
     useSettings();
+  const { isLoved, toggle: toggleLovedBook } = useLovedCollections();
   const [randomizeChoice, setRandomizeChoice] = useState<boolean | null>(null);
   const shouldAskRandomizeChoice = settings.askRandomizePoemsOnPoetPages;
   const randomizePoems = randomizeChoice ?? settings.randomizePoems;
@@ -1496,7 +1516,7 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
       <PoetProfile
         poet={poetInfo}
         isOpen={isInfoOpen}
-        followKey={buildPoetFollowKey("custom", poetSlug)}
+        poetKey={buildPoetKey("custom", poetSlug)}
         stats={[
           ...(collectionCount > 0
             ? [{ label: "مجموعه", value: formatPersianNumber(collectionCount) }]
@@ -1523,8 +1543,25 @@ function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
                 isSelected: Boolean(
                   currentPoem && group.poems.some((summary) => summary.id === currentPoem.id),
                 ),
+                // The untitled leftovers group is not a book.
+                isLoved: group.title
+                  ? isLoved(buildCollectionKey("custom", poetSlug, group.title))
+                  : undefined,
               }))}
               onSelect={handleSelectCollection}
+              onToggleLove={(groupIndex) => {
+                const title = collectionGroups[groupIndex]?.title;
+                if (!title || !poetInfo) return;
+                toggleLovedBook({
+                  key: buildCollectionKey("custom", poetSlug, title),
+                  source: "custom",
+                  categoryId: 0,
+                  poetSlug,
+                  poetName: poetInfo.nickname || poetInfo.name,
+                  title,
+                  href: `/${poetSlug}`,
+                });
+              }}
             />
           </PoetProfileSection>
         ) : (

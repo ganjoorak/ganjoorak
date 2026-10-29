@@ -12,7 +12,7 @@ interface FeedModeSwitchProps {
 
 const OPTIONS: { value: FeedMode; label: string }[] = [
   { value: "all", label: "همه" },
-  { value: "following", label: "دنبال‌شده‌ها" },
+  { value: "preferred", label: "علاقه‌مندی‌ها" },
 ];
 
 const EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
@@ -28,7 +28,7 @@ let lastTop: number | null = null;
 
 const thumbOffset = (mode: FeedMode) =>
   // The switch is always dir="rtl": the second option sits left of the first.
-  mode === "following" ? "translateX(-100%)" : "translateX(0)";
+  mode === "preferred" ? "translateX(-100%)" : "translateX(0)";
 
 /** Compact segmented control that picks the home feed source. */
 const FeedModeSwitch = ({ mode, onChange, isLoading = false }: FeedModeSwitchProps) => {

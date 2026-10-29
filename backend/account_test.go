@@ -77,22 +77,22 @@ func TestSanitizeAndMerge(t *testing.T) {
 			{Key: "y", ID: 1, Href: "//evil.example", SavedAt: 1},
 			{Key: "z", ID: 1, Href: "/poem/1", SavedAt: 1, Source: "nope"},
 		},
-		FollowedPoetKeys: []string{"ganjoor:hafez", "ganjoor:hafez", "<script>", "custom:شاعر"},
-		InterestKeys:     []string{"love", "LOVE", "wine"},
+		PreferredPoetKeys: []string{"ganjoor:hafez", "ganjoor:hafez", "<script>", "custom:شاعر"},
+		InterestKeys:      []string{"love", "LOVE", "wine"},
 	}
 	clean := sanitizeAccountData(dirty)
 	if len(clean.Favorites) != 2 || clean.Favorites[1].Source != "ganjoor" {
 		t.Fatalf("unsafe links kept or source not defaulted: %+v", clean.Favorites)
 	}
-	if strings.Join(clean.FollowedPoetKeys, ",") != "ganjoor:hafez,custom:شاعر" {
-		t.Fatalf("followed keys %v", clean.FollowedPoetKeys)
+	if strings.Join(clean.PreferredPoetKeys, ",") != "ganjoor:hafez,custom:شاعر" {
+		t.Fatalf("preferred keys %v", clean.PreferredPoetKeys)
 	}
 	if strings.Join(clean.InterestKeys, ",") != "love,wine" {
 		t.Fatalf("interest keys %v", clean.InterestKeys)
 	}
 
-	device := AccountData{Favorites: []Entry{entry("a", 5), entry("b", 2)}, FollowedPoetKeys: []string{"ganjoor:saadi"}}
-	account := AccountData{Favorites: []Entry{entry("a", 1), entry("c", 3)}, FollowedPoetKeys: []string{"ganjoor:hafez"}}
+	device := AccountData{Favorites: []Entry{entry("a", 5), entry("b", 2)}, PreferredPoetKeys: []string{"ganjoor:saadi"}}
+	account := AccountData{Favorites: []Entry{entry("a", 1), entry("c", 3)}, PreferredPoetKeys: []string{"ganjoor:hafez"}}
 	merged := mergeAccountData(account, device)
 	var keys []string
 	for _, e := range merged.Favorites {
@@ -101,8 +101,8 @@ func TestSanitizeAndMerge(t *testing.T) {
 	if strings.Join(keys, ",") != "a,c,b" || merged.Favorites[0].SavedAt != 5 {
 		t.Fatalf("merge should union, dedupe to newest and sort newest first: %v", merged.Favorites)
 	}
-	if len(merged.FollowedPoetKeys) != 2 {
-		t.Fatalf("followed poets not unioned: %v", merged.FollowedPoetKeys)
+	if len(merged.PreferredPoetKeys) != 2 {
+		t.Fatalf("preferred poets not unioned: %v", merged.PreferredPoetKeys)
 	}
 
 	many := make([]Entry, 0, maxHistory+10)
@@ -188,7 +188,7 @@ func TestHTTPFlow(t *testing.T) {
 	}
 
 	// Public profile: no cookie, allow-listed fields only, "now reading" after a new history head.
-	do("PUT", "/api/account/data", `{"merge":false,"data":{"favorites":[{"key":"ganjoor:hafez:1","id":1,"href":"/poem/1","savedAt":10}],"history":[{"key":"ganjoor:hafez:2","id":2,"href":"/poem/2","savedAt":20}],"followedPoetKeys":["ganjoor:saadi"]}}`, cookie)
+	do("PUT", "/api/account/data", `{"merge":false,"data":{"favorites":[{"key":"ganjoor:hafez:1","id":1,"href":"/poem/1","savedAt":10}],"history":[{"key":"ganjoor:hafez:2","id":2,"href":"/poem/2","savedAt":20}],"preferredPoetKeys":["ganjoor:saadi"]}}`, cookie)
 	public := do("GET", "/api/account/users/Hafez", "", "")
 	var pub struct{ Profile PublicProfile }
 	if err := json.Unmarshal(public.Body.Bytes(), &pub); err != nil || public.Code != http.StatusOK {
@@ -197,7 +197,7 @@ func TestHTTPFlow(t *testing.T) {
 	if pub.Profile.NowReading == nil || pub.Profile.NowReading.ID != 2 || pub.Profile.FavoriteCount != 1 {
 		t.Fatalf("unexpected public profile %+v", pub.Profile)
 	}
-	for _, private := range []string{"saadi", "followedPoetKeys", "history", "interest", "isPublic"} {
+	for _, private := range []string{"saadi", "preferredPoetKeys", "followedPoetKeys", "history", "interest", "isPublic"} {
 		if strings.Contains(public.Body.String(), private) {
 			t.Fatalf("public profile leaks %q: %s", private, public.Body)
 		}
@@ -226,9 +226,9 @@ func TestHTTPFlow(t *testing.T) {
 func TestPublicProfile(t *testing.T) {
 	u := User{Username: "hafez", DisplayName: "حافظ"}
 	d := AccountData{
-		Favorites:        []Entry{entry("f", 1)},
-		History:          []Entry{entry("new", 9), entry("old", 5)},
-		FollowedPoetKeys: []string{"ganjoor:saadi"},
+		Favorites:         []Entry{entry("f", 1)},
+		History:           []Entry{entry("new", 9), entry("old", 5)},
+		PreferredPoetKeys: []string{"ganjoor:saadi"},
 	}
 	now := int64(100 * 60_000)
 	live := buildPublicProfile(u, d, now-60_000, now)
@@ -474,5 +474,165 @@ func TestFeedback(t *testing.T) {
 	do(`{"kind":"other","message":"سوم"}`, "")
 	if res := do(`{"kind":"other","message":"چهارم"}`, ""); res.Code != http.StatusTooManyRequests {
 		t.Fatalf("rate limit: %d", res.Code)
+	}
+}
+
+// TestLegacyFollowedPoetKeys covers rows and clients from before poets were "preferred" rather than followed.
+func TestLegacyFollowedPoetKeys(t *testing.T) {
+	var d AccountData
+	if err := json.Unmarshal([]byte(`{"followedPoetKeys":["ganjoor:saadi"],"preferredPoetKeys":["ganjoor:hafez"]}`), &d); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(sanitizeAccountData(d).PreferredPoetKeys, ","); got != "ganjoor:hafez,ganjoor:saadi" {
+		t.Fatalf("legacy key not read: %q", got)
+	}
+	out, _ := json.Marshal(d)
+	if strings.Contains(string(out), "followedPoetKeys") {
+		t.Fatalf("legacy name must not be written back: %s", out)
+	}
+}
+
+func TestFollowUsers(t *testing.T) {
+	store, err := openStore(filepath.Join(t.TempDir(), "accounts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.db.Close()
+	handler := newServer(store).routes()
+
+	do := func(method, path, body, cookie string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		if body != "" {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		if cookie != "" {
+			req.Header.Set("Cookie", cookie)
+		}
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+	signup := func(username string) string {
+		res := do("POST", "/api/account/signup", `{"username":"`+username+`","password":"long enough pass"}`, "")
+		if res.Code != http.StatusCreated {
+			t.Fatalf("signup %s: %d %s", username, res.Code, res.Body)
+		}
+		return strings.SplitN(res.Header().Get("Set-Cookie"), ";", 2)[0]
+	}
+	counts := func(username string) (int, int) {
+		var pub struct{ Profile PublicProfile }
+		res := do("GET", "/api/account/users/"+username, "", "")
+		if err := json.Unmarshal(res.Body.Bytes(), &pub); err != nil || res.Code != http.StatusOK {
+			t.Fatalf("profile %s: %d %s", username, res.Code, res.Body)
+		}
+		return pub.Profile.FollowerCount, pub.Profile.FollowingCount
+	}
+	hafez, saadi, rumi := signup("hafez"), signup("saadi"), signup("rumi")
+
+	if res := do("PUT", "/api/account/follow/saadi", "", ""); res.Code != http.StatusUnauthorized {
+		t.Fatalf("follow without session: %d", res.Code)
+	}
+	if res := do("PUT", "/api/account/follow/hafez", "", hafez); res.Code != http.StatusBadRequest {
+		t.Fatalf("following yourself: %d", res.Code)
+	}
+	if res := do("PUT", "/api/account/follow/nobody", "", hafez); res.Code != http.StatusNotFound {
+		t.Fatalf("following an unknown user: %d", res.Code)
+	}
+
+	for range 2 { // following twice is the same as once
+		if res := do("PUT", "/api/account/follow/Saadi", "", hafez); res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"following":true`) {
+			t.Fatalf("follow: %d %s", res.Code, res.Body)
+		}
+	}
+	do("PUT", "/api/account/follow/saadi", "", rumi)
+	do("PUT", "/api/account/follow/rumi", "", saadi)
+	if followers, following := counts("saadi"); followers != 2 || following != 1 {
+		t.Fatalf("saadi counts: %d followers, %d following", followers, following)
+	}
+	if res := do("GET", "/api/account/follow/saadi", "", hafez); !strings.Contains(res.Body.String(), `"following":true`) {
+		t.Fatalf("follow state: %s", res.Body)
+	}
+	if res := do("GET", "/api/account/follow/hafez", "", saadi); !strings.Contains(res.Body.String(), `"following":false`) {
+		t.Fatalf("follow state: %s", res.Body)
+	}
+
+	var list struct{ Users []FollowUser }
+	res := do("GET", "/api/account/followers", "", saadi)
+	if err := json.Unmarshal(res.Body.Bytes(), &list); err != nil || len(list.Users) != 2 || list.Users[0].Username != "rumi" {
+		t.Fatalf("followers newest first: %d %s", res.Code, res.Body)
+	}
+	for _, private := range []string{"password", "createdAt", "isPublic"} {
+		if strings.Contains(res.Body.String(), private) {
+			t.Fatalf("follower list leaks %q: %s", private, res.Body)
+		}
+	}
+	res = do("GET", "/api/account/following", "", hafez)
+	if err := json.Unmarshal(res.Body.Bytes(), &list); err != nil || len(list.Users) != 1 || list.Users[0].Username != "saadi" {
+		t.Fatalf("following: %d %s", res.Code, res.Body)
+	}
+	if res := do("GET", "/api/account/followers", "", ""); res.Code != http.StatusUnauthorized {
+		t.Fatalf("lists are private to their owner: %d", res.Code)
+	}
+
+	// A private account drops out of counts and lists, and cannot be followed anew.
+	do("PUT", "/api/account/visibility", `{"isPublic":false}`, rumi)
+	if followers, _ := counts("saadi"); followers != 1 {
+		t.Fatalf("private follower still counted: %d", followers)
+	}
+	if res := do("PUT", "/api/account/follow/rumi", "", hafez); res.Code != http.StatusNotFound {
+		t.Fatalf("following a private account: %d", res.Code)
+	}
+	// ...but an existing follow can still be undone.
+	if res := do("DELETE", "/api/account/follow/rumi", "", saadi); res.Code != http.StatusOK {
+		t.Fatalf("unfollow private: %d", res.Code)
+	}
+	if res := do("DELETE", "/api/account/follow/saadi", "", hafez); !strings.Contains(res.Body.String(), `"following":false`) {
+		t.Fatalf("unfollow: %d %s", res.Code, res.Body)
+	}
+	if followers, _ := counts("saadi"); followers != 0 {
+		t.Fatalf("follower count after unfollow: %d", followers)
+	}
+
+	me := do("GET", "/api/account/me", "", saadi)
+	if !strings.Contains(me.Body.String(), `"follows":{"followers":0,"following":0}`) {
+		t.Fatalf("me should carry follow counts: %s", me.Body)
+	}
+}
+
+func TestLovedCollections(t *testing.T) {
+	book := func(key string, id int64, savedAt int64) CollectionEntry {
+		return CollectionEntry{Key: key, Source: "ganjoor", CategoryID: id, PoetSlug: "hafez", Title: "دیوان", Href: "/hafez", SavedAt: savedAt}
+	}
+	dirty := AccountData{LovedCollections: []CollectionEntry{
+		book("ganjoor:hafez:1", 1, 5),
+		book("ganjoor:hafez:1", 1, 9), // newer copy of the same book wins
+		book("ganjoor:hafez:nocat", 0, 3),
+		{Key: "x", Source: "ganjoor", CategoryID: 2, Title: "t", Href: "//evil.example", SavedAt: 1},
+		{Key: "custom:rahmani:یاد", Source: "custom", CategoryID: 77, PoetSlug: "rahmani", Title: "یاد", Href: "/rahmani", SavedAt: 7},
+		{Key: "notitle", Source: "custom", Href: "/rahmani", SavedAt: 1},
+	}}
+	clean := sanitizeAccountData(dirty).LovedCollections
+	if len(clean) != 2 || clean[0].SavedAt != 9 || clean[1].Source != "custom" || clean[1].CategoryID != 0 {
+		t.Fatalf("books not sanitized: %+v", clean)
+	}
+
+	merged := mergeAccountData(
+		AccountData{LovedCollections: []CollectionEntry{book("a", 1, 1)}},
+		AccountData{LovedCollections: []CollectionEntry{book("b", 2, 2)}},
+	)
+	if len(merged.LovedCollections) != 2 || merged.LovedCollections[0].Key != "b" {
+		t.Fatalf("books not unioned: %+v", merged.LovedCollections)
+	}
+
+	many := make([]CollectionEntry, 0, maxPublicBooks+5)
+	for i := range maxPublicBooks + 5 {
+		many = append(many, book(string(rune('a'+i)), int64(i+1), int64(i+1)))
+	}
+	profile := buildPublicProfile(User{Username: "hafez"}, AccountData{LovedCollections: many}, 0, 1)
+	if len(profile.LovedCollections) != maxPublicBooks {
+		t.Fatalf("public books not capped: %d", len(profile.LovedCollections))
+	}
+	if empty := buildPublicProfile(User{}, AccountData{}, 0, 1); empty.LovedCollections == nil {
+		t.Fatal("empty books must serialize as []")
 	}
 }

@@ -20,6 +20,7 @@ import {
   FaMoon,
   FaPlus,
   FaQuestionCircle,
+  FaRegStar,
   FaRegNewspaper,
   FaSearch,
   FaSlidersH,
@@ -124,7 +125,7 @@ const Menu: React.FC<MenuProps> = ({
   const lastPathnameRef = useRef(pathname);
   const [view, setView] = useState<"main" | "more" | "feedback">("main");
 
-  const followedCount = settings.followedPoetKeys?.length ?? 0;
+  const preferredCount = settings.preferredPoetKeys?.length ?? 0;
 
   const discoverItems = useMemo<MenuLinkItem[]>(
     () => [
@@ -140,14 +141,15 @@ const Menu: React.FC<MenuProps> = ({
       { kind: "link", href: "/saved", icon: <FaBookmark />, label: "نشان‌شده‌ها" },
       {
         kind: "link",
-        href: "/following",
-        icon: <FaUserCheck />,
-        label: "شاعران دنبال‌شده",
-        count: followedCount > 0 ? persianNumber.format(followedCount) : undefined,
+        href: "/preferred-poets",
+        icon: <FaRegStar />,
+        label: "شاعران مورد علاقه",
+        count: preferredCount > 0 ? persianNumber.format(preferredCount) : undefined,
       },
+      { kind: "link", href: "/following", icon: <FaUserCheck />, label: "دنبال‌شده‌ها" },
       { kind: "link", href: "/profile", icon: <FaUserCircle />, label: "حساب کاربری" },
     ],
-    [followedCount],
+    [preferredCount],
   );
 
   const moreItems = useMemo<MenuItem[]>(

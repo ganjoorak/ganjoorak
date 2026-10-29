@@ -5,17 +5,19 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
   FaArrowRight,
-  FaCheck,
+  FaHeart,
+  FaRegHeart,
+  FaStar,
   FaChevronLeft,
   FaLink,
   FaRandom,
   FaShareAlt,
   FaSpinner,
-  FaUserPlus,
+  FaRegStar,
 } from "react-icons/fa";
 import PoetImage from "@/components/PoetImage";
 import { Button } from "@/components/ui/button";
-import { useFollowPoet } from "@/hooks/useFollowPoet";
+import { usePreferredPoet } from "@/hooks/usePreferredPoet";
 import type { Poet } from "@/types/poet";
 import "../styles/PoetProfile.css";
 
@@ -69,7 +71,7 @@ export interface PoetProfileStat {
 interface PoetProfileProps {
   poet: Poet;
   isOpen: boolean;
-  followKey: string;
+  poetKey: string;
   stats: PoetProfileStat[];
   /** Present once a poem is on screen: lets the reader jump back to it. */
   onResume?: () => void;
@@ -81,7 +83,7 @@ interface PoetProfileProps {
 export default function PoetProfile({
   poet,
   isOpen,
-  followKey,
+  poetKey,
   stats,
   onResume,
   onRandom,
@@ -93,7 +95,7 @@ export default function PoetProfile({
   const [isScrolled, setIsScrolled] = useState(false);
   const [isBioExpanded, setIsBioExpanded] = useState(false);
   const [shareState, setShareState] = useState<"idle" | "copied">("idle");
-  const { isFollowing, toggleFollow } = useFollowPoet(followKey);
+  const { isPreferred, togglePreferred } = usePreferredPoet(poetKey);
 
   const displayName = poet.nickname || poet.name;
   const { years, century } = describeLifetime(poet);
@@ -246,13 +248,13 @@ export default function PoetProfile({
 
               <div className="poet-profile-actions">
                 <Button
-                  variant={isFollowing ? "secondary" : "default"}
-                  className="poet-profile-follow"
-                  aria-pressed={isFollowing}
-                  onClick={toggleFollow}
+                  variant={isPreferred ? "secondary" : "default"}
+                  className="poet-profile-prefer"
+                  aria-pressed={isPreferred}
+                  onClick={togglePreferred}
                 >
-                  {isFollowing ? <FaCheck /> : <FaUserPlus />}
-                  {isFollowing ? "دنبال می‌کنید" : "دنبال کردن"}
+                  {isPreferred ? <FaStar /> : <FaRegStar />}
+                  {isPreferred ? "مورد علاقه" : "علاقه‌مندم"}
                 </Button>
                 <div className="poet-profile-quick">
                   <Button
@@ -329,16 +331,21 @@ export interface PoetProfileRow {
   count?: number;
   isSelected?: boolean;
   isLoading?: boolean;
+  /** Whether the reader loves this book; the heart shows on top-level rows that set it. */
+  isLoved?: boolean;
   children?: PoetProfileRow[];
 }
 
 export function PoetProfileList({
   rows,
   onSelect,
+  onToggleLove,
   depth = 0,
 }: {
   rows: PoetProfileRow[];
   onSelect: (id: number) => void;
+  /** Adds a heart to each top-level row (a book the reader can love). */
+  onToggleLove?: (id: number) => void;
   depth?: number;
 }) {
   if (rows.length === 0) return null;
@@ -346,6 +353,7 @@ export function PoetProfileList({
     <ul className={depth === 0 ? "poet-profile-list" : "poet-profile-sublist"}>
       {rows.map((row) => (
         <li key={row.id}>
+          <div className="poet-profile-line">
           <button
             type="button"
             className={`poet-profile-row${row.isSelected ? " is-selected" : ""}`}
@@ -377,6 +385,22 @@ export function PoetProfileList({
               </span>
             )}
           </button>
+          {depth === 0 && onToggleLove && row.isLoved !== undefined && (
+            <button
+              type="button"
+              className={`poet-profile-love${row.isLoved ? " is-loved" : ""}`}
+              aria-pressed={row.isLoved === true}
+              aria-label={
+                row.isLoved
+                  ? `برداشتن «${row.title}» از دوست‌داشته‌ها`
+                  : `دوست داشتن «${row.title}»`
+              }
+              onClick={() => onToggleLove(row.id)}
+            >
+              {row.isLoved ? <FaHeart aria-hidden="true" /> : <FaRegHeart aria-hidden="true" />}
+            </button>
+          )}
+          </div>
           {row.children && row.children.length > 0 && (
             <PoetProfileList
               rows={row.children}

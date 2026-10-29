@@ -9,6 +9,7 @@ import {
   readHistory,
   writeLibrary,
 } from "@/utils/poemLibrary";
+import { readLovedCollections, writeLovedCollections } from "@/utils/collectionLibrary";
 import { logger } from "@/utils/logger";
 
 // Several feed swipes in a row become one request.
@@ -21,7 +22,7 @@ const PUSH_DELAY_MS = 3000;
  * Logged out, the first request answers 401 and nothing else happens.
  */
 export default function AccountSync() {
-  const { settings, isHydrated, setFollowedPoetKeys, setInterestKeys } =
+  const { settings, isHydrated, setPreferredPoetKeys, setInterestKeys } =
     useSettings();
   const [isSynced, setIsSynced] = useState(false);
   const settingsRef = useRef(settings);
@@ -30,7 +31,8 @@ export default function AccountSync() {
   const readLocalData = (): AccountData => ({
     favorites: readFavorites(),
     history: readHistory(),
-    followedPoetKeys: settingsRef.current.followedPoetKeys,
+    lovedCollections: readLovedCollections(),
+    preferredPoetKeys: settingsRef.current.preferredPoetKeys,
     interestKeys: settingsRef.current.hasChosenInterests
       ? settingsRef.current.interestKeys
       : [],
@@ -47,7 +49,8 @@ export default function AccountSync() {
           return;
         }
         writeLibrary(data.favorites, data.history);
-        setFollowedPoetKeys(data.followedPoetKeys);
+        writeLovedCollections(data.lovedCollections);
+        setPreferredPoetKeys(data.preferredPoetKeys);
         if (data.interestKeys.length > 0) {
           setInterestKeys(data.interestKeys);
         }
@@ -100,7 +103,7 @@ export default function AccountSync() {
         clearTimeout(timer);
       }
     };
-  }, [isSynced, settings.followedPoetKeys, settings.interestKeys]);
+  }, [isSynced, settings.preferredPoetKeys, settings.interestKeys]);
 
   return null;
 }

@@ -191,10 +191,10 @@
   font-weight: 600;
   color: rgb(var(--muted-foreground));
 }
-.following-item { display: flex; align-items: center; padding-inline-end: 0.85rem; }
-.following-link { flex: 1 1 auto; min-width: 0; text-decoration: none; }
-.following-unfollow { flex-shrink: 0; border-radius: 999px !important; }
-.following-read { width: 100%; margin-bottom: 1.5rem; border-radius: 999px !important; }
+.preferred-item { display: flex; align-items: center; padding-inline-end: 0.85rem; }
+.preferred-link { flex: 1 1 auto; min-width: 0; text-decoration: none; }
+.preferred-remove { flex-shrink: 0; border-radius: 999px !important; }
+.preferred-read { width: 100%; margin-bottom: 1.5rem; border-radius: 999px !important; }
 
 /* r16 auth (login page: split form + verse panel). */
 .auth-page {
@@ -510,4 +510,26 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .library-panel { animation: none; }
+}
+
+/* Following people: counts in the profile hero, the /following lists. */
+.account-hero-follows { display: block; }
+.account-hero-follows strong { color: rgb(var(--foreground)); font-weight: 700; }
+.account-hero-follow-link { color: inherit; text-decoration: none; }
+.account-hero-follow-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.follow-error { flex-basis: 100%; font-size: 0.75rem; color: rgb(var(--destructive)); text-align: end; }
+.follow-item { display: flex; align-items: center; padding-inline-end: 0.85rem; }
+.follow-link { flex: 1 1 auto; min-width: 0; text-decoration: none; }
+.follow-remove { flex-shrink: 0; border-radius: 999px !important; }
+.follow-avatar { width: 2.5rem; height: 2.5rem; }
+.follow-tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding-inline: 0.3rem;
+  border-radius: 999px;
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
+  font-size: 0.68rem;
 }

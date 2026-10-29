@@ -1,4 +1,4 @@
-/* /poets (r15): search, tabs, filter chips, avatar grid/list with follow. */
+/* /poets (r15): search, tabs, filter chips, avatar grid/list with preferred-poet toggles. */
 .poets-controls { display: grid; gap: 0.75rem; }
 .poets-search { position: relative; }
 .poets-search-clear {
@@ -119,8 +119,8 @@
   font-size: 0.72rem;
   color: rgb(var(--muted-foreground));
 }
-.poets-tile .poets-follow { width: 100%; border-radius: 999px; }
-.poets-follow svg { width: 0.65rem; height: 0.65rem; }
+.poets-tile .poets-prefer { width: 100%; border-radius: 999px; }
+.poets-prefer svg { width: 0.65rem; height: 0.65rem; }
 
 .poets-list-item {
   display: flex;
@@ -129,7 +129,7 @@
   padding-inline-end: 0.85rem;
 }
 .poets-list-link { flex: 1 1 auto; min-width: 0; text-decoration: none; }
-.poets-list-item .poets-follow { flex-shrink: 0; border-radius: 999px; }
+.poets-list-item .poets-prefer { flex-shrink: 0; border-radius: 999px; }
 
 .poets-tabs > [role="tab"] { padding-inline: 0.5rem; }
 

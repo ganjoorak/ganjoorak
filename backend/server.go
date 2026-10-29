@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"mime"
 	"net"
@@ -60,6 +61,11 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/account/recovery-code", s.handleRecoveryCode)
 	mux.HandleFunc("POST /api/account/reset", s.handleReset)
 	mux.HandleFunc("GET /api/account/users/{username}", s.handlePublicProfile)
+	mux.HandleFunc("GET /api/account/follow/{username}", s.handleFollowState)
+	mux.HandleFunc("PUT /api/account/follow/{username}", s.handleFollow)
+	mux.HandleFunc("DELETE /api/account/follow/{username}", s.handleUnfollow)
+	mux.HandleFunc("GET /api/account/following", s.handleFollowList(false))
+	mux.HandleFunc("GET /api/account/followers", s.handleFollowList(true))
 	mux.HandleFunc("POST /api/account/feedback", s.handleFeedback)
 	return mux
 }
@@ -166,7 +172,16 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 		internalError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"user": user, "data": data})
+	followers, following, err := s.store.followCounts(r.Context(), user.ID)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user":    user,
+		"data":    data,
+		"follows": map[string]int{"followers": followers, "following": following},
+	})
 }
 
 func (s *server) handleData(w http.ResponseWriter, r *http.Request) {
@@ -385,6 +400,72 @@ func (s *server) handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"profile": profile})
+}
+
+// Following is a state change with no body, which a browser cannot send
+// cross-site without a CORS preflight we never allow, so there is no JSON
+// content-type check as in decodeJSON; SameSite=Lax keeps the cookie off such requests anyway.
+
+func (s *server) handleFollowState(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.currentUser(w, r)
+	if !ok {
+		return
+	}
+	following, err := s.store.isFollowing(r.Context(), user.ID, normalizeUsername(r.PathValue("username")))
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"following": following})
+}
+
+func (s *server) handleFollow(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.currentUser(w, r)
+	if !ok {
+		return
+	}
+	err := s.store.followUser(r.Context(), user.ID, normalizeUsername(r.PathValue("username")))
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		writeError(w, http.StatusNotFound, profileNotFoundMessage)
+	case errors.Is(err, errSelfFollow):
+		writeError(w, http.StatusBadRequest, "نمی‌توانید خودتان را دنبال کنید.")
+	case errors.Is(err, errFollowLimit):
+		writeError(w, http.StatusConflict, fmt.Sprintf("حداکثر %d نفر را می‌توان دنبال کرد.", maxFollowing))
+	case err != nil:
+		internalError(w, err)
+	default:
+		writeJSON(w, http.StatusOK, map[string]any{"following": true})
+	}
+}
+
+func (s *server) handleUnfollow(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.currentUser(w, r)
+	if !ok {
+		return
+	}
+	if err := s.store.unfollowUser(r.Context(), user.ID, normalizeUsername(r.PathValue("username"))); err != nil {
+		internalError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"following": false})
+}
+
+// handleFollowList serves the signed-in user's own followers or following.
+// Other people's lists are not public; only the counts are.
+func (s *server) handleFollowList(followers bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := s.currentUser(w, r)
+		if !ok {
+			return
+		}
+		users, err := s.store.followList(r.Context(), user.ID, followers)
+		if err != nil {
+			internalError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"users": users})
+	}
 }
 
 // handleFeedback stores a message from the feedback form. Signing in is

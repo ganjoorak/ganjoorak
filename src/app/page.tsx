@@ -11,7 +11,7 @@ import { Poem } from '@/types/poem';
 import { Poet, isValidPoetSlug } from '@/types/poet';
 import { useSettings } from '@/context/SettingsContext';
 import { logger } from '@/utils/logger';
-import { FaRandom, FaSearch, FaTimes, FaUserPlus, FaUsers } from 'react-icons/fa';
+import { FaRandom, FaRegStar, FaSearch, FaTimes } from 'react-icons/fa';
 import Link from 'next/link';
 import FeedModeSwitch from '@/components/FeedModeSwitch';
 import FeedModeEmpty from '@/components/FeedModeEmpty';
@@ -26,6 +26,8 @@ import type { FeedMode } from '@/context/SettingsContext';
 import poetSourceIndex from '@/data/poet-source-index.json';
 import { fetchSimilarPoem } from '@/utils/interestFeed';
 import { fetchRandomGanjoorPoem, fetchRandomPoemByPoetId } from '@/utils/poemIndex';
+import { useLovedCollections } from '@/hooks/useLovedCollections';
+import { fetchRandomPoemFromCollection } from '@/utils/collectionFeed';
 
 const INITIAL_POEMS_COUNT = 12;
 const PREFETCH_THRESHOLD = 5;
@@ -118,7 +120,7 @@ const indexedPoetSources = poetSourceIndex.sourcesBySlug as Record<
     PoetSourceIndexEntry | undefined
 >;
 
-const parseFollowedPoetKey = (key: string): { source: FeedPoetSource; slug: string } | null => {
+const parsePreferredPoetKey = (key: string): { source: FeedPoetSource; slug: string } | null => {
     const separatorIndex = key.indexOf(':');
     const source = separatorIndex >= 0 ? key.slice(0, separatorIndex) : 'ganjoor';
     const slug = separatorIndex >= 0 ? key.slice(separatorIndex + 1) : key;
@@ -284,7 +286,7 @@ function FeedPoetDialog({
             <DialogPopup dir="rtl" showCloseButton={false} className="text-right sm:max-w-3xl">
                 <DialogHeader>
                     <div className="flex items-center justify-between gap-4">
-                        <DialogTitle>شاعران دنبال‌شده</DialogTitle>
+                        <DialogTitle>شاعران مورد علاقه</DialogTitle>
                         <Button variant="ghost" size="icon" className="size-11" onClick={onClose} aria-label="بستن">
                             <FaTimes />
                         </Button>
@@ -394,13 +396,15 @@ export default function Home() {
     const {
         settings,
         isHydrated: areSettingsHydrated,
-        setFollowedPoetKeys,
+        setPreferredPoetKeys,
         setFeedMode,
     } = useSettings();
     const feedMode = settings.feedMode;
-    const isFollowingMode = feedMode === 'following';
-    const hasNoFollows = settings.followedPoetKeys.length === 0;
-    const isFollowingEmpty = isFollowingMode && hasNoFollows;
+    const isPreferredMode = feedMode === 'preferred';
+    // The «علاقه‌مندی‌ها» feed draws from preferred poets and loved books alike.
+    const { collections: lovedCollections } = useLovedCollections();
+    const hasNoPreferred = settings.preferredPoetKeys.length === 0 && lovedCollections.length === 0;
+    const isPreferredEmpty = isPreferredMode && hasNoPreferred;
     const [poems, setPoems] = useState<Poem[]>([]);
     const [availablePoets, setAvailablePoets] = useState<Poet[]>([]);
     const [loading, setLoading] = useState(true);
@@ -452,10 +456,13 @@ export default function Home() {
         setCurrentPoemIndex(pendingIndex);
     }, [poems.length]);
 
-    const followedKeySignature = settings.followedPoetKeys.join('|');
-    // «همه» never depends on follows.
-    const feedSignature = isFollowingMode
-        ? `following::${followedKeySignature}`
+    const preferredKeySignature = [
+        ...settings.preferredPoetKeys,
+        ...lovedCollections.map((collection) => collection.key),
+    ].join('|');
+    // «همه» never depends on preferred poets.
+    const feedSignature = isPreferredMode
+        ? `preferred::${preferredKeySignature}`
         : 'all';
 
     useEffect(() => {
@@ -521,18 +528,25 @@ export default function Home() {
         };
     }, [areSettingsHydrated, currentPoem]);
 
-    const fetchRandomPoemFromFollowedPoets = useCallback(async () => {
-        const selectedKeys = settings.followedPoetKeys;
+    const fetchRandomPoemFromPreferredPoets = useCallback(async () => {
+        const selectedKeys = settings.preferredPoetKeys;
+        const sourceCount = selectedKeys.length + lovedCollections.length;
 
-        if (selectedKeys.length === 0) {
-            throw new Error('No followed poets');
+        if (sourceCount === 0) {
+            throw new Error('No preferred poets or books');
         }
 
-        const selectedKey = selectedKeys[Math.floor(Math.random() * selectedKeys.length)];
-        const poet = parseFollowedPoetKey(selectedKey);
+        // Every preferred poet and every loved book is one equal draw.
+        const pick = Math.floor(Math.random() * sourceCount);
+        if (pick >= selectedKeys.length) {
+            return fetchRandomPoemFromCollection(lovedCollections[pick - selectedKeys.length]);
+        }
+
+        const selectedKey = selectedKeys[pick];
+        const poet = parsePreferredPoetKey(selectedKey);
 
         if (!poet) {
-            throw new Error('Invalid followed poet selection');
+            throw new Error('Invalid preferred poet selection');
         }
 
         if (poet.source === 'custom') {
@@ -549,7 +563,7 @@ export default function Home() {
         const poetId = getIndexedGanjoorPoetId(poet.slug)
             ?? (await ganjoorApi.getPoetBySlug(poet.slug)).id;
         return fetchRandomPoemByPoetId(poetId);
-    }, [settings.followedPoetKeys]);
+    }, [settings.preferredPoetKeys, lovedCollections]);
 
     // «همه»: the open feed across every poet, with some poems similar to the saved favorites.
     const fetchRandomPoemFromAll = useCallback(async () => {
@@ -567,8 +581,8 @@ export default function Home() {
         return fetchRandomGanjoorPoem();
     }, []);
 
-    const fetchRandomPoemFromFollowedPoet = isFollowingMode
-        ? fetchRandomPoemFromFollowedPoets
+    const fetchRandomPoemFromPreferredPoet = isPreferredMode
+        ? fetchRandomPoemFromPreferredPoets
         : fetchRandomPoemFromAll;
 
     const fetchPoemBatch = useCallback(async (count: number) => {
@@ -577,7 +591,7 @@ export default function Home() {
         for (let i = 0; i < count; i += POEM_FETCH_CONCURRENCY) {
             const batchSize = Math.min(POEM_FETCH_CONCURRENCY, count - i);
             const batchResults = await Promise.allSettled(
-                Array.from({ length: batchSize }, () => fetchRandomPoemFromFollowedPoet()),
+                Array.from({ length: batchSize }, () => fetchRandomPoemFromPreferredPoet()),
             );
 
             batchResults.forEach((result) => {
@@ -590,7 +604,7 @@ export default function Home() {
         }
 
         return fetchedPoems;
-    }, [fetchRandomPoemFromFollowedPoet]);
+    }, [fetchRandomPoemFromPreferredPoet]);
 
     const appendPoems = useCallback((newPoems: Poem[], version: number) => {
         if (newPoems.length === 0 || feedVersionRef.current !== version) {
@@ -648,7 +662,7 @@ export default function Home() {
 
         try {
             setLoading(true);
-            const firstPoem = await fetchRandomPoemFromFollowedPoet();
+            const firstPoem = await fetchRandomPoemFromPreferredPoet();
 
             if (feedVersionRef.current !== version) {
                 return;
@@ -669,14 +683,14 @@ export default function Home() {
             if (feedVersionRef.current === version) {
                 logger.error('Failed to fetch initial poem:', err);
                 setError(
-                    isFollowingMode
-                        ? 'شعری از شاعران دنبال‌شده بارگیری نشد. لطفاً دوباره تلاش کنید.'
+                    isPreferredMode
+                        ? 'شعری از شاعران مورد علاقه بارگیری نشد. لطفاً دوباره تلاش کنید.'
                         : 'متأسفانه در بارگیری شعرها مشکلی پیش آمد. لطفاً دوباره تلاش کنید.',
                 );
                 setLoading(false);
             }
         }
-    }, [appendPoems, fetchPoemBatch, fetchRandomPoemFromFollowedPoet, isFollowingMode]);
+    }, [appendPoems, fetchPoemBatch, fetchRandomPoemFromPreferredPoet, isPreferredMode]);
 
     useEffect(() => {
         if (!areSettingsHydrated) {
@@ -694,7 +708,7 @@ export default function Home() {
 
         cachedInterestKeyRef.current = feedSignature;
 
-        if (isFollowingEmpty) {
+        if (isPreferredEmpty) {
             // Nothing to fetch; the empty state links to /poets.
             feedVersionRef.current += 1;
             fetchMorePromiseRef.current = null;
@@ -713,14 +727,14 @@ export default function Home() {
         areSettingsHydrated,
         feedSignature,
         fetchInitialPoems,
-        isFollowingEmpty,
+        isPreferredEmpty,
         poems.length,
     ]);
 
     useEffect(() => {
         const shouldFetchMore =
             !loading &&
-            !isFollowingEmpty &&
+            !isPreferredEmpty &&
             currentPoemIndex >= poems.length - PREFETCH_THRESHOLD &&
             poems.length > 0 &&
             !isFetchingMore;
@@ -733,14 +747,14 @@ export default function Home() {
         poems.length,
         loading,
         isFetchingMore,
-        isFollowingEmpty,
+        isPreferredEmpty,
         fetchMorePoems,
     ]);
 
     const handleSaveFeedPoets = (keys: string[]) => {
-        setFollowedPoetKeys(keys);
+        setPreferredPoetKeys(keys);
         if (keys.length > 0) {
-            handleChangeFeedMode('following');
+            handleChangeFeedMode('preferred');
         }
         setIsFeedDialogOpen(false);
         if (shouldClearFeedQuery) {
@@ -793,17 +807,17 @@ export default function Home() {
         />
     );
 
-    if (isFollowingEmpty && areSettingsHydrated) {
+    if (isPreferredEmpty && areSettingsHydrated) {
         return (
             <FeedModeEmpty
                 switcher={feedModeSwitch}
-                icon={<FaUsers />}
-                title="هنوز شاعری را دنبال نمی‌کنید"
-                description="شاعران را دنبال کنید تا این فید فقط از شعرهای آن‌ها پر شود. فید «همه» همچنان از همهٔ شاعران است."
+                icon={<FaRegStar />}
+                title="هنوز شاعر یا کتاب مورد علاقه‌ای ندارید"
+                description="شاعری را به علاقه‌مندی‌ها بیفزایید یا کتابی را دوست بدارید تا این فید فقط از شعرهای آن‌ها پر شود. فید «همه» همچنان از همهٔ شاعران است."
                 actions={(
                     <>
                         <Link href="/poets" className={buttonVariants({ size: 'lg' })}>
-                            <FaUserPlus aria-hidden="true" />
+                            <FaRegStar aria-hidden="true" />
                             دیدن شاعران
                         </Link>
                         <button
@@ -819,12 +833,12 @@ export default function Home() {
         );
     }
 
-    if (error && !currentPoem && isFollowingMode) {
+    if (error && !currentPoem && isPreferredMode) {
         return (
             <FeedModeEmpty
                 switcher={feedModeSwitch}
-                icon={<FaUsers />}
-                title="فید دنبال‌شده‌ها بارگیری نشد"
+                icon={<FaRegStar />}
+                title="فید علاقه‌مندی‌ها بارگیری نشد"
                 description={error}
                 actions={(
                     <>
@@ -861,7 +875,7 @@ export default function Home() {
             {isFeedDialogOpen && (
                 <FeedPoetDialog
                     poets={availablePoets}
-                    selectedKeys={settings.followedPoetKeys}
+                    selectedKeys={settings.preferredPoetKeys}
                     onSave={handleSaveFeedPoets}
                     onClose={() => {
                         setIsFeedDialogOpen(false);

@@ -1,168 +1,181 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { FaBookOpen, FaChevronLeft, FaSlidersH, FaUserPlus, FaUsers } from "react-icons/fa";
+import { useRouter } from "next/navigation";
+import { FaChevronLeft, FaRegStar, FaUsers } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { useFollowedPoetKeys } from "@/hooks/useFollowPoet";
-import { useSettings } from "@/context/SettingsContext";
-import {
-  findDirectoryPoet,
-  getDirectoryPoetDisplayName,
-  loadPoetDirectory,
-  subscribePoetDirectory,
-} from "@/utils/poetDirectory";
-import "../styles/PoemLibrary.css";
+import ProfileAvatar from "@/components/ProfileAvatar";
+import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyIcon } from "@/components/ui/empty";
-import PoetPlaceholder from "@/components/PoetPlaceholder";
-import { isPlaceholderPoetImage } from "@/utils/poetImages";
+import { FormError } from "@/components/ui/form-error";
+import { Tabs, TabsIndicator, TabsList, TabsTab } from "@/components/ui/tabs";
+import {
+  AccountError,
+  fetchFollowList,
+  publicProfilePath,
+  unfollowUser,
+  type FollowedUser,
+} from "@/utils/accountApi";
+import "../styles/PoemLibrary.css";
 
-const SOURCE_LABELS: Record<string, string> = {
-  ganjoor: "گنجور",
-  custom: "گنجورک",
-  echolalia: "اکولالیا",
-};
+type FollowTab = "following" | "followers";
 
 const persianNumber = new Intl.NumberFormat("fa-IR");
 
-const FollowingPage = () => {
-  const [, setDirectoryVersion] = useState(0);
-  const { keys, unfollow } = useFollowedPoetKeys();
-  const { setFeedMode } = useSettings();
+const EMPTY_TEXT: Record<FollowTab, string> = {
+  following:
+    "هنوز کسی را دنبال نمی‌کنید. در نمایهٔ هر کس «دنبال کردن» را بزنید تا اینجا جمع شوند.",
+  followers: "هنوز کسی شما را دنبال نمی‌کند. پیوند نمایهٔ خود را با دوستانتان به اشتراک بگذارید.",
+};
+
+/**
+ * The people the reader follows and the people following them. Poets live on
+ * /preferred-poets: they cannot be followed, only preferred.
+ */
+const FollowingPage = ({ initialTab }: { initialTab: FollowTab }) => {
+  const router = useRouter();
+  const [tab, setTab] = useState<FollowTab>(initialTab);
+  // Each list loads once; null means "not loaded yet".
+  const [lists, setLists] = useState<Record<FollowTab, FollowedUser[] | null>>({
+    following: null,
+    followers: null,
+  });
+  const [error, setError] = useState("");
+  const [removing, setRemoving] = useState<string | null>(null);
+
+  const load = useCallback(
+    (kind: FollowTab) => {
+      fetchFollowList(kind)
+        .then((users) => setLists((current) => ({ ...current, [kind]: users })))
+        .catch((caught) => {
+          if (caught instanceof AccountError && caught.status === 401) {
+            router.replace("/login");
+          } else {
+            setError(caught instanceof AccountError ? caught.message : "خطایی رخ داد.");
+          }
+        });
+    },
+    [router],
+  );
 
   useEffect(() => {
-    const unsubscribe = subscribePoetDirectory(() =>
-      setDirectoryVersion((value) => value + 1),
-    );
-    void loadPoetDirectory();
-    return unsubscribe;
-  }, []);
+    load("following");
+    load("followers");
+  }, [load]);
 
-  const poets = keys.map((key) => {
-    const separator = key.indexOf(":");
-    const source = separator > 0 ? key.slice(0, separator) : "ganjoor";
-    const slug = key.slice(separator + 1);
-    const poet = findDirectoryPoet(slug);
-    return {
-      key,
-      slug,
-      source,
-      name: poet ? getDirectoryPoetDisplayName(poet) : slug,
-      fullName: poet && poet.nickname && poet.nickname !== poet.name ? poet.name : null,
-      imageUrl: poet?.imageUrl ?? null,
-      href: `/${poet?.urlSlug ?? slug}`,
-    };
-  });
+  const handleUnfollow = async (username: string) => {
+    setError("");
+    setRemoving(username);
+    try {
+      await unfollowUser(username);
+      setLists((current) => ({
+        ...current,
+        following: current.following?.filter((user) => user.username !== username) ?? null,
+      }));
+    } catch (caught) {
+      setError(caught instanceof AccountError ? caught.message : "خطایی رخ داد.");
+    } finally {
+      setRemoving(null);
+    }
+  };
+
+  const users = lists[tab];
+  const tabs: { id: FollowTab; label: string }[] = [
+    { id: "following", label: "دنبال‌شده‌ها" },
+    { id: "followers", label: "دنبال‌کننده‌ها" },
+  ];
 
   return (
     <AppPage
-      title="شاعران دنبال‌شده"
-      backHref="/poets"
+      title="دنبال‌شده‌ها"
+      backHref="/profile"
       width="narrow"
-      subtitle={
-        keys.length > 0
-          ? `${persianNumber.format(keys.length)} شاعر. حالت «دنبال‌شده‌ها» در صفحهٔ اصلی فقط از همین شاعران شعر می‌آورد.`
-          : "شاعرانی که دنبال می‌کنید اینجا جمع می‌شوند و حالت «دنبال‌شده‌ها» در صفحهٔ اصلی از آن‌ها شعر می‌آورد."
-      }
-      actions={
-        keys.length > 0 ? (
-          <Link
-            href="/poets"
-            className={buttonVariants({ variant: "ghost", size: "icon-lg", className: "app-page-bar-icon" })}
-            aria-label="افزودن شاعر"
-          >
-            <FaUserPlus />
-          </Link>
-        ) : null
+      subtitle="کسانی که دنبال می‌کنید و کسانی که شما را دنبال می‌کنند. فقط نمایه‌های عمومی دیده می‌شوند."
+      headerExtra={
+        <Tabs value={tab} onValueChange={(value) => setTab(value as FollowTab)}>
+          <TabsList className="relative" aria-label="دنبال‌شده‌ها و دنبال‌کننده‌ها">
+            <TabsIndicator />
+            {tabs.map((item) => (
+              <TabsTab
+                key={item.id}
+                value={item.id}
+                className="relative data-active:bg-transparent data-active:shadow-none"
+              >
+                {item.label}
+                {lists[item.id] !== null && lists[item.id]!.length > 0 && (
+                  <span className="follow-tab-count">{persianNumber.format(lists[item.id]!.length)}</span>
+                )}
+              </TabsTab>
+            ))}
+          </TabsList>
+        </Tabs>
       }
     >
-      {poets.length > 0 ? (
-        <>
-          <Link
-            href="/"
-            className={buttonVariants({ size: "lg", className: "following-read" })}
-            onClick={() => setFeedMode("following")}
-          >
-            <FaBookOpen aria-hidden="true" />
-            خواندن از دنبال‌شده‌ها
-          </Link>
+      {error && <FormError>{error}</FormError>}
 
-          <section className="app-section">
-            <h2 className="app-section-title">شاعران</h2>
-            <ul className="app-list">
-              {poets.map((poet) => (
-                <li key={poet.key} className="following-item">
-                  <Link href={poet.href} className="app-row following-link" prefetch={false}>
-                    <span className="app-avatar" aria-hidden="true">
-                      {!poet.imageUrl || isPlaceholderPoetImage(poet.imageUrl) ? (
-                        <PoetPlaceholder seed={poet.key} />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={poet.imageUrl} alt="" loading="lazy" />
-                      )}
-                    </span>
-                    <span className="app-row-body">
-                      <span className="app-row-title">{poet.name}</span>
-                      <span className="app-row-meta">
-                        {[poet.fullName, SOURCE_LABELS[poet.source]].filter(Boolean).join(" · ")}
-                      </span>
-                    </span>
-                    <FaChevronLeft className="app-row-chevron" aria-hidden="true" />
-                  </Link>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="following-unfollow"
-                    onClick={() => unfollow(poet.key)}
-                    aria-label={`لغو دنبال کردن ${poet.name}`}
-                  >
-                    لغو دنبال
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="app-section">
-            <h2 className="app-section-title">بیشتر</h2>
-            <ul className="app-list">
-              <li>
-                <Link href="/poets" className="app-row">
-                  <span className="app-row-icon" aria-hidden="true"><FaUserPlus /></span>
-                  <span className="app-row-body">
-                    <span className="app-row-title">پیدا کردن شاعر تازه</span>
-                    <span className="app-row-meta">فهرست همهٔ شاعران با جست‌وجو</span>
+      {users === null ? (
+        !error && (
+          <Empty role="status">
+            <EmptyDescription>در حال بارگذاری…</EmptyDescription>
+          </Empty>
+        )
+      ) : users.length > 0 ? (
+        <ul className="app-list">
+          {users.map((user) => (
+            <li key={user.username} className="follow-item">
+              <Link href={publicProfilePath(user.username)} className="app-row follow-link" prefetch={false}>
+                <ProfileAvatar username={user.username} avatar={user.avatar} className="follow-avatar" decorative />
+                <span className="app-row-body">
+                  <span className="app-row-title">{user.displayName}</span>
+                  <span className="app-row-meta" dir="ltr">
+                    @{user.username}
                   </span>
-                  <FaChevronLeft className="app-row-chevron" aria-hidden="true" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/?feed=1" className="app-row">
-                  <span className="app-row-icon" aria-hidden="true"><FaSlidersH /></span>
-                  <span className="app-row-body">
-                    <span className="app-row-title">ویرایش گروهی</span>
-                    <span className="app-row-meta">انتخاب چند شاعر یکجا در صفحهٔ اصلی</span>
-                  </span>
-                  <FaChevronLeft className="app-row-chevron" aria-hidden="true" />
-                </Link>
-              </li>
-            </ul>
-          </section>
-        </>
+                </span>
+                <FaChevronLeft className="app-row-chevron" aria-hidden="true" />
+              </Link>
+              {tab === "following" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="follow-remove"
+                  disabled={removing === user.username}
+                  onClick={() => handleUnfollow(user.username)}
+                  aria-label={`لغو دنبال کردن ${user.displayName}`}
+                >
+                  لغو دنبال
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
       ) : (
         <Empty>
           <EmptyIcon>
             <FaUsers />
           </EmptyIcon>
-          <EmptyDescription>هنوز شاعری را دنبال نمی‌کنید. در فهرست شاعران یا صفحهٔ هر شاعر «دنبال کردن» را بزنید.</EmptyDescription>
-          <Link href="/poets" className={buttonVariants({ size: "lg" })}>
-            <FaUserPlus aria-hidden="true" />
-            دیدن شاعران
-          </Link>
+          <EmptyDescription>{EMPTY_TEXT[tab]}</EmptyDescription>
         </Empty>
       )}
+
+      <section className="app-section">
+        <h2 className="app-section-title">بیشتر</h2>
+        <ul className="app-list">
+          <li>
+            <Link href="/preferred-poets" className="app-row">
+              <span className="app-row-icon" aria-hidden="true">
+                <FaRegStar />
+              </span>
+              <span className="app-row-body">
+                <span className="app-row-title">شاعران مورد علاقه</span>
+                <span className="app-row-meta">شاعرانی که فید «علاقه‌مندی‌ها» از آن‌ها شعر می‌آورد</span>
+              </span>
+              <FaChevronLeft className="app-row-chevron" aria-hidden="true" />
+            </Link>
+          </li>
+        </ul>
+      </section>
     </AppPage>
   );
 };

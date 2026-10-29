@@ -113,9 +113,9 @@
 .poet-profile-stats dd { font-size: 1.05rem; font-weight: 700; line-height: 1.4; }
 .poet-profile-stats dt { font-size: 0.72rem; color: rgb(var(--muted-foreground)); }
 
-/* Follow and «شعر تصادفی» side by side, like a profile header. */
+/* «علاقه‌مندم» and «شعر تصادفی» side by side, like a profile header. */
 .poet-profile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-.poet-profile-follow {
+.poet-profile-prefer {
   height: 2.75rem !important;
   width: 100%;
   border-radius: calc(var(--radius) + 2px) !important;
@@ -183,6 +183,20 @@
   margin: 0 1rem 0.5rem 0;
   border-inline-start: 2px solid rgb(var(--border));
 }
+
+.poet-profile-line { display: flex; align-items: stretch; }
+.poet-profile-line > .poet-profile-row { flex: 1 1 auto; min-width: 0; width: auto; }
+.poet-profile-love {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  color: rgb(var(--muted-foreground));
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.poet-profile-love:hover { background: rgb(var(--muted) / 0.7); color: rgb(var(--foreground)); }
+.poet-profile-love.is-loved { color: rgb(var(--primary)); }
+.poet-profile-love svg { width: 0.95rem; height: 0.95rem; }
 
 .poet-profile-row {
   display: flex;

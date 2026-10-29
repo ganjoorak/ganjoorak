@@ -1,4 +1,5 @@
 import type { AvatarKey } from "@/components/ProfileAvatar";
+import type { CollectionEntry } from "@/utils/collectionLibrary";
 import type { PoemLibraryEntry } from "@/utils/poemLibrary";
 
 // Thin client for the Go accounts service (backend/), reached same-origin
@@ -18,7 +19,7 @@ export interface AccountUser {
 
 /**
  * What anyone sees at /@username (GET /api/account/users/:username). The
- * service builds it from an allow-list: no followed poets, no full history.
+ * service builds it from an allow-list: no preferred poets, no full history.
  */
 export interface PublicProfile {
   username: string;
@@ -31,12 +32,18 @@ export interface PublicProfile {
   /** Newest liked poems, capped by the service; see favoriteCount. */
   favorites: PoemLibraryEntry[];
   favoriteCount: number;
+  /** Books the owner loves, newest first, capped by the service. */
+  lovedCollections: CollectionEntry[];
+  /** Only public accounts are counted on either side. */
+  followerCount: number;
+  followingCount: number;
 }
 
 export interface AccountData {
   favorites: PoemLibraryEntry[];
   history: PoemLibraryEntry[];
-  followedPoetKeys: string[];
+  lovedCollections: CollectionEntry[];
+  preferredPoetKeys: string[];
   interestKeys: string[];
 }
 
@@ -80,8 +87,38 @@ const request = async <T>(
   return body;
 };
 
+/** Public accounts only, on the other side of each count; see followCounts in the backend. */
+export interface FollowCounts {
+  followers: number;
+  following: number;
+}
+
+/** One row of the owner's followers / following list. */
+export interface FollowedUser {
+  username: string;
+  displayName: string;
+  avatar: AvatarKey | "";
+  followedAt: number;
+}
+
 export const fetchAccount = () =>
-  request<{ user: AccountUser; data: AccountData }>("me");
+  request<{ user: AccountUser; data: AccountData; follows: FollowCounts }>("me");
+
+// Following is between people. Poets are not followed: see usePreferredPoet.
+
+/** 401 when signed out. */
+export const fetchFollowState = (username: string) =>
+  request<{ following: boolean }>(`follow/${encodeURIComponent(username)}`).then((body) => body.following);
+
+export const followUser = (username: string) =>
+  request<{ following: boolean }>(`follow/${encodeURIComponent(username)}`, { method: "PUT" });
+
+export const unfollowUser = (username: string) =>
+  request<{ following: boolean }>(`follow/${encodeURIComponent(username)}`, { method: "DELETE" });
+
+/** The signed-in user's own lists; other people's are not public, only their counts. */
+export const fetchFollowList = (kind: "following" | "followers") =>
+  request<{ users: FollowedUser[] }>(kind).then((body) => body.users);
 
 /** The recovery code in the answer is shown to the user once and never again. */
 export const signUp = (username: string, password: string, displayName: string) =>

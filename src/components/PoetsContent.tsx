@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState, type ReactNode, type WheelEvent } from "react";
-import { FaCheck, FaListUl, FaPlus, FaSearch, FaThLarge, FaTimes } from "react-icons/fa";
+import { FaListUl, FaPlus, FaRegStar, FaSearch, FaStar, FaThLarge, FaTimes } from "react-icons/fa";
 import { Century, Poet } from "@/types/poet";
 import PoetImage from "@/components/PoetImage";
 import AppPage from "@/components/AppPage";
 import { Button } from "@/components/ui/button";
-import { buildPoetFollowKey, useFollowPoet } from "@/hooks/useFollowPoet";
+import { buildPoetKey, usePreferredPoet } from "@/hooks/usePreferredPoet";
 import { useSettings } from "@/context/SettingsContext";
 import "@/styles/Poets.css";
 import { Empty, EmptyDescription, EmptyIcon } from "@/components/ui/empty";
@@ -27,7 +27,7 @@ const FALLBACK_FEATURED_GANJOOR_SLUGS = [
   "sanaee",
 ];
 
-type PoetsTab = "featured" | "classic" | "modern" | "following";
+type PoetsTab = "featured" | "classic" | "modern" | "preferred";
 type PoetsView = "grid" | "list";
 
 interface PoetEntry {
@@ -38,7 +38,7 @@ interface PoetEntry {
   group: string;
   href: string;
   isExternal: boolean;
-  followKey: string | null;
+  poetKey: string | null;
   searchText: string;
 }
 
@@ -73,27 +73,27 @@ const toEntry = (poet: Poet, group: string): PoetEntry => {
     group,
     href,
     isExternal,
-    followKey: !isExternal && slug ? buildPoetFollowKey(poet.source ?? "ganjoor", slug) : null,
+    poetKey: !isExternal && slug ? buildPoetKey(poet.source ?? "ganjoor", slug) : null,
     searchText: normalize(`${poet.nickname ?? ""} ${poet.name} ${slug}`),
   };
 };
 
 const byName = (a: PoetEntry, b: PoetEntry) => a.name.localeCompare(b.name, "fa");
 
-function FollowToggle({ followKey, name }: { followKey: string; name: string }) {
-  const { isFollowing, toggleFollow } = useFollowPoet(followKey);
+function PreferredToggle({ poetKey, name }: { poetKey: string; name: string }) {
+  const { isPreferred, togglePreferred } = usePreferredPoet(poetKey);
   return (
     <Button
       type="button"
       size="sm"
-      variant={isFollowing ? "secondary" : "outline"}
-      className="poets-follow"
-      aria-pressed={isFollowing}
-      aria-label={isFollowing ? `لغو دنبال کردن ${name}` : `دنبال کردن ${name}`}
-      onClick={toggleFollow}
+      variant={isPreferred ? "secondary" : "outline"}
+      className="poets-prefer"
+      aria-pressed={isPreferred}
+      aria-label={isPreferred ? `حذف ${name} از علاقه‌مندی‌ها` : `افزودن ${name} به علاقه‌مندی‌ها`}
+      onClick={togglePreferred}
     >
-      {isFollowing ? <FaCheck aria-hidden="true" /> : <FaPlus aria-hidden="true" />}
-      {isFollowing ? "دنبال‌شده" : "دنبال کردن"}
+      {isPreferred ? <FaStar aria-hidden="true" /> : <FaRegStar aria-hidden="true" />}
+      {isPreferred ? "مورد علاقه" : "علاقه‌مندم"}
     </Button>
   );
 }
@@ -144,7 +144,7 @@ function PoetCollection({ entries, view }: { entries: PoetEntry[]; view: PoetsVi
                 </span>
               </span>
             </PoetLink>
-            {entry.followKey && <FollowToggle followKey={entry.followKey} name={entry.name} />}
+            {entry.poetKey && <PreferredToggle poetKey={entry.poetKey} name={entry.name} />}
           </li>
         ))}
       </ul>
@@ -168,7 +168,7 @@ function PoetCollection({ entries, view }: { entries: PoetEntry[]; view: PoetsVi
             <span className="poets-tile-name">{entry.name}</span>
             <span className="poets-tile-meta">{entry.fullName ?? entry.group}</span>
           </PoetLink>
-          {entry.followKey && <FollowToggle followKey={entry.followKey} name={entry.name} />}
+          {entry.poetKey && <PreferredToggle poetKey={entry.poetKey} name={entry.name} />}
         </li>
       ))}
     </ul>
@@ -252,12 +252,12 @@ export default function PoetsContent({
   }, [centuries, customPoets, modernPoets]);
 
   const allEntries = useMemo(() => [...classic, ...modern], [classic, modern]);
-  const followed = useMemo(
+  const preferred = useMemo(
     () =>
       allEntries.filter(
-        (entry) => entry.followKey && settings.followedPoetKeys.includes(entry.followKey),
+        (entry) => entry.poetKey && settings.preferredPoetKeys.includes(entry.poetKey),
       ),
-    [allEntries, settings.followedPoetKeys],
+    [allEntries, settings.preferredPoetKeys],
   );
 
   const filters: PoetFilterOption[] =
@@ -272,7 +272,7 @@ export default function PoetsContent({
         ? classic
         : tab === "modern"
           ? modern
-          : followed;
+          : preferred;
   const visible = normalizedQuery
     ? allEntries.filter((entry) => entry.searchText.includes(normalizedQuery))
     : activeFilter === ALL_FILTER_ID
@@ -283,7 +283,7 @@ export default function PoetsContent({
     { id: "featured", label: "محبوب", count: featured.length },
     { id: "classic", label: "کهن", count: classic.length },
     { id: "modern", label: "نو و جهان", count: modern.length },
-    { id: "following", label: "دنبال‌شده", count: followed.length },
+    { id: "preferred", label: "علاقه‌مندی‌ها", count: preferred.length },
   ];
 
   const handleChipWheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -318,7 +318,7 @@ export default function PoetsContent({
   return (
     <AppPage
       title="شاعران"
-      subtitle={`${persianNumber.format(allEntries.length)} شاعر از گنجور و اکولالیا. دنبالشان کنید تا در فید «دنبال‌شده‌ها» بیایند.`}
+      subtitle={`${persianNumber.format(allEntries.length)} شاعر از گنجور و اکولالیا. علاقه‌مندی‌هایتان را نشان کنید تا فید «علاقه‌مندی‌ها» از آن‌ها پر شود.`}
       width="wide"
       className="poets-page"
       headerExtra={
@@ -363,7 +363,7 @@ export default function PoetsContent({
                   className="relative data-active:bg-transparent data-active:shadow-none"
                 >
                   {item.label}
-                  {item.id === "following" && item.count > 0 && (
+                  {item.id === "preferred" && item.count > 0 && (
                     <span className="poets-tab-count">{persianNumber.format(item.count)}</span>
                   )}
                 </TabsTab>
@@ -419,11 +419,11 @@ export default function PoetsContent({
           <EmptyDescription>
             {normalizedQuery
               ? "شاعری با این نام پیدا نشد."
-              : tab === "following"
-                ? "هنوز شاعری را دنبال نمی‌کنید. روی «دنبال کردن» هر شاعر بزنید."
+              : tab === "preferred"
+                ? "هنوز شاعری را به علاقه‌مندی‌ها نیفزوده‌اید. روی «علاقه‌مندم» هر شاعر بزنید."
                 : "فهرست این بخش دریافت نشد. کمی بعد دوباره سر بزنید."}
           </EmptyDescription>
-          {tab === "following" && !normalizedQuery && (
+          {tab === "preferred" && !normalizedQuery && (
             <Button variant="secondary" onClick={() => setTab("featured")}>
               دیدن شاعران محبوب
             </Button>
