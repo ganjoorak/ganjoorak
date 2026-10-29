@@ -11,13 +11,15 @@ import { useLovedCollections } from "@/hooks/useLovedCollections";
 import { buildCollectionKey } from "@/utils/collectionLibrary";
 import PoetSearchPanel from "@/components/PoetSearchPanel";
 import ganjoorApi from "@/api/GanjoorApi";
-import type { Poem } from "@/types/poem";
 import type { GanjoorCategory, GanjoorPoetCatalog } from "@/types/ganjoor";
 import { useSettings } from "@/context/SettingsContext";
 import { logger } from "@/utils/logger";
 import { fetchRandomPoemByPoetId } from "@/utils/poemIndex";
 import RandomizePoemsPrompt from "@/components/RandomizePoemsPrompt";
+import { usePoemSequence } from "@/components/poet-page/usePoemSequence";
 import { buildCategoryRows, createPoemOrder, formatPersianNumber, indexCategories } from "@/components/poet-page/poetPageUtils";
+
+const fetchGanjoorPoem = (poemId: number) => ganjoorApi.getPoemById(poemId);
 
 export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId?: number }) {
   const { settings, setRandomizePoems, setAskRandomizePoemsOnPoetPages } =
@@ -46,14 +48,30 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
 
-  const [poemOrder, setPoemOrder] = useState<number[]>([]);
-  const [currentPoemIndex, setCurrentPoemIndex] = useState(0);
-  const [currentPoem, setCurrentPoem] = useState<Poem | null>(null);
-  const [poemError, setPoemError] = useState<string | null>(null);
-  const [poemLoading, setPoemLoading] = useState(false);
-
-  const poemCacheRef = useRef<Record<number, Poem>>({});
-  const poemOrderRef = useRef<number[]>([]);
+  const sequence = usePoemSequence(fetchGanjoorPoem, {
+    loadError: "متأسفانه در دریافت شعر مشکلی پیش آمد. لطفاً دوباره تلاش کنید.",
+    label: "Ganjoor",
+  });
+  const {
+    order: poemOrder,
+    orderRef: poemOrderRef,
+    index: currentPoemIndex,
+    poem: currentPoem,
+    loading: poemLoading,
+    setLoading: setPoemLoading,
+    error: poemError,
+    setError: setPoemError,
+    nextPoem,
+    reset: resetSequence,
+    clear: clearSequence,
+    remember,
+    setOrder: setPoemOrder,
+    loadAt: loadPoemAtIndex,
+    play,
+    showOnly,
+    goNext,
+    goPrevious,
+  } = sequence;
   const shouldAutoCloseInfoRef = useRef(false);
   const [isRandomMode, setIsRandomMode] = useState(false);
   const [isRandomLoading, setIsRandomLoading] = useState(false);
@@ -74,12 +92,7 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
       setLoadedCategoryIds(new Set());
       setSelectedCategoryId(null);
       setCategoryError(null);
-      setPoemOrder([]);
-      setCurrentPoem(null);
-      setPoemError(null);
-      setCurrentPoemIndex(0);
-      poemCacheRef.current = {};
-      poemOrderRef.current = [];
+      resetSequence();
 
       try {
         const fetchedCatalog = await ganjoorApi.getPoetCatalog(slug, poetId);
@@ -112,7 +125,7 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
     return () => {
       cancelled = true;
     };
-  }, [slug, poetId, reloadKey]);
+  }, [slug, poetId, reloadKey, resetSequence]);
 
   const cachedCategory = selectedCategoryId
     ? categoryCache[selectedCategoryId]
@@ -121,64 +134,12 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
     ? loadedCategoryIds.has(selectedCategoryId)
     : false;
 
-  const fetchPoemById = useCallback(async (poemId: number) => {
-    if (poemCacheRef.current[poemId]) {
-      return poemCacheRef.current[poemId];
-    }
-    const poemData = await ganjoorApi.getPoemById(poemId);
-    poemCacheRef.current[poemId] = poemData;
-    return poemData;
-  }, []);
-
-  const loadPoemAtIndex = useCallback(
-    async (index: number, orderOverride?: number[]) => {
-      const order = orderOverride ?? poemOrderRef.current;
-      if (!order.length || index < 0 || index >= order.length) {
-        return;
-      }
-
-      setPoemLoading(true);
-      setPoemError(null);
-      try {
-        const poemId = order[index];
-        const poemData = await fetchPoemById(poemId);
-        setCurrentPoem(poemData);
-        setCurrentPoemIndex(index);
-      } catch (error) {
-        logger.error("Error loading poem:", error);
-        setPoemError(
-          "متأسفانه در دریافت شعر مشکلی پیش آمد. لطفاً دوباره تلاش کنید.",
-        );
-      } finally {
-        setPoemLoading(false);
-      }
-    },
-    [fetchPoemById],
-  );
-
-  useEffect(() => {
-    if (!currentPoem) return;
-    const order = poemOrderRef.current;
-    if (!order.length) return;
-
-    [currentPoemIndex + 1, currentPoemIndex - 1].forEach((index) => {
-      const poemId = order[index];
-      if (!poemId || poemCacheRef.current[poemId]) return;
-      fetchPoemById(poemId).catch((error) => {
-        logger.error("Error preloading Ganjoor poem:", error);
-      });
-    });
-  }, [currentPoem, currentPoemIndex, fetchPoemById, poemOrder]);
-
   useEffect(() => {
     if (!selectedCategoryId) return;
     let cancelled = false;
 
     const clearPoems = () => {
-      poemOrderRef.current = [];
-      setPoemOrder([]);
-      setCurrentPoem(null);
-      setCurrentPoemIndex(0);
+      clearSequence();
       setPoemError(null);
     };
 
@@ -191,10 +152,7 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
       const poemIds = (categoryData.poems ?? []).map((poem) => poem.id);
 
       if (poemIds.length === 0) {
-        poemOrderRef.current = [];
-        setPoemOrder([]);
-        setCurrentPoem(null);
-        setCurrentPoemIndex(0);
+        clearSequence();
         setPoemError("در این مجموعه شعری ثبت نشده است.");
         return;
       }
@@ -207,10 +165,7 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
       const order = createPoemOrder(poemIds, randomizePoems);
       if (cancelled) return;
 
-      poemOrderRef.current = order;
-      setPoemOrder(order);
-
-      await loadPoemAtIndex(0, order);
+      await play(order);
     };
 
     const hasCachedChildren = (cachedCategory?.children?.length ?? 0) > 0;
@@ -253,10 +208,7 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
         setCategoryError(
           "متأسفانه در دریافت مجموعهٔ اشعار مشکلی پیش آمد. لطفاً دوباره تلاش کنید.",
         );
-        setPoemOrder([]);
-        poemOrderRef.current = [];
-        setCurrentPoem(null);
-        setCurrentPoemIndex(0);
+        clearSequence();
       } finally {
         if (!cancelled) {
           setCategoryLoading(false);
@@ -276,7 +228,9 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
     randomizeChoice,
     randomizePoems,
     shouldAskRandomizeChoice,
-    loadPoemAtIndex,
+    play,
+    clearSequence,
+    setPoemError,
   ]);
 
   const handleSelectCategory = useCallback(
@@ -297,15 +251,12 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
       setIsRandomMode(false);
       setCategoryLoading(needsCategoryLoad);
       setCategoryError(null);
+      clearSequence();
       setPoemError(null);
-      setPoemOrder([]);
-      poemOrderRef.current = [];
-      setCurrentPoem(null);
-      setCurrentPoemIndex(0);
       shouldAutoCloseInfoRef.current = true;
       setSelectedCategoryId(categoryId);
     },
-    [categoryCache, loadedCategoryIds, selectedCategoryId],
+    [categoryCache, clearSequence, loadedCategoryIds, selectedCategoryId, setPoemError],
   );
 
   const handleRetryCatalog = () => setReloadKey((prev) => prev + 1);
@@ -325,10 +276,6 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
     setCategoryError(null);
   }, [selectedCategoryId]);
 
-  const handleRetryPoem = useCallback(() => {
-    loadPoemAtIndex(currentPoemIndex);
-  }, [currentPoemIndex, loadPoemAtIndex]);
-
   const handleRandomizeChoice = useCallback(
     (shouldRandomize: boolean, rememberChoice: boolean) => {
       setRandomizePoems(shouldRandomize);
@@ -338,7 +285,7 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
       setRandomizeChoice(shouldRandomize);
       setPoemError(null);
     },
-    [setAskRandomizePoemsOnPoetPages, setRandomizePoems],
+    [setAskRandomizePoemsOnPoetPages, setPoemError, setRandomizePoems],
   );
 
   const selectedCategory = cachedCategory ?? null;
@@ -367,9 +314,9 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
       throw new Error("Poet catalog is not loaded");
     }
     const poem = await fetchRandomPoemByPoetId(catalog.poet.id);
-    poemCacheRef.current[poem.id] = poem;
+    remember(poem);
     return poem;
-  }, [catalog]);
+  }, [catalog, remember]);
 
   const appendRandomPoem = useCallback(async () => {
     const poem = await fetchRandomPoetPoem();
@@ -378,10 +325,9 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
       return order;
     }
     const next = [...order, poem.id];
-    poemOrderRef.current = next;
     setPoemOrder(next);
     return next;
-  }, [fetchRandomPoetPoem]);
+  }, [fetchRandomPoetPoem, poemOrderRef, setPoemOrder]);
 
   // Random mode: keep one random poem queued so the pull-to-next sheet has
   // something to preview.
@@ -395,22 +341,18 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
       .finally(() => {
         randomPrefetchRef.current = false;
       });
-  }, [appendRandomPoem, currentPoem, currentPoemIndex, isRandomMode]);
+  }, [appendRandomPoem, currentPoem, currentPoemIndex, isRandomMode, poemOrderRef]);
 
   const handleRandomPoem = useCallback(async () => {
     setIsRandomLoading(true);
     try {
       const poem = await fetchRandomPoetPoem();
       shouldAutoCloseInfoRef.current = false;
-      poemOrderRef.current = [poem.id];
-      setPoemOrder([poem.id]);
+      showOnly(poem);
       setRandomizeChoice(true);
       setIsRandomMode(true);
       setSelectedCategoryId(null);
       setCategoryError(null);
-      setPoemError(null);
-      setCurrentPoem(poem);
-      setCurrentPoemIndex(0);
       setIsInfoOpen(false);
     } catch (error) {
       logger.error("Error loading random poet poem:", error);
@@ -418,19 +360,14 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
     } finally {
       setIsRandomLoading(false);
     }
-  }, [fetchRandomPoetPoem]);
+  }, [fetchRandomPoetPoem, showOnly]);
 
   const handleNext = useCallback(() => {
     const order = poemOrderRef.current;
     if (!order.length) return;
     const nextIndex = currentPoemIndex + 1;
 
-    if (nextIndex < order.length) {
-      loadPoemAtIndex(nextIndex);
-      return;
-    }
-
-    if (isRandomMode) {
+    if (nextIndex >= order.length && isRandomMode) {
       setPoemLoading(true);
       appendRandomPoem()
         .then((next) => loadPoemAtIndex(nextIndex, next))
@@ -441,29 +378,17 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
       return;
     }
 
-    if (randomizePoems && order.length > 0) {
-      const reshuffled = createPoemOrder(order, true);
-      poemOrderRef.current = reshuffled;
-      setPoemOrder(reshuffled);
-      loadPoemAtIndex(0, reshuffled);
-    }
+    goNext(randomizePoems);
   }, [
     appendRandomPoem,
     currentPoemIndex,
+    goNext,
     isRandomMode,
-    randomizePoems,
     loadPoemAtIndex,
+    poemOrderRef,
+    randomizePoems,
+    setPoemLoading,
   ]);
-
-  const handlePrevious = useCallback(() => {
-    const order = poemOrderRef.current;
-    if (!order.length) return;
-    const prevIndex = currentPoemIndex - 1;
-
-    if (prevIndex >= 0) {
-      loadPoemAtIndex(prevIndex);
-    }
-  }, [currentPoemIndex, loadPoemAtIndex]);
 
   const topLevelCategories = useMemo(() => {
     if (!catalog) return [];
@@ -477,12 +402,7 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
   }, [catalog, categoryCache]);
 
   const isFirstPoem = currentPoemIndex <= 0;
-  const isLastPoem =
-    !isRandomMode &&
-    !randomizePoems &&
-    (poemOrder.length === 0 || currentPoemIndex >= poemOrder.length - 1);
-  const nextPoemId = poemOrder[currentPoemIndex + 1];
-  const nextPoem = nextPoemId ? poemCacheRef.current[nextPoemId] : undefined;
+  const isLastPoem = !isRandomMode && !randomizePoems && sequence.isAtEnd;
   const showPoemLoadingOverlay = poemLoading && !currentPoem;
   const loadingCategoryId =
     selectedCategoryId !== null && (categoryLoading || poemLoading)
@@ -603,7 +523,7 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
               {poemOrder.length > 0 && (
                 <button
                   type="button"
-                  onClick={handleRetryPoem}
+                  onClick={sequence.retry}
                   className="rounded bg-neutral-700 px-4 py-2 text-sm text-neutral-50 hover:bg-neutral-600"
                 >
                   تلاش مجدد
@@ -617,7 +537,7 @@ export default function GanjoorPoetPage({ slug, poetId }: { slug: string; poetId
               poem={currentPoem}
               nextPoem={nextPoem}
               onNext={handleNext}
-              onPrevious={handlePrevious}
+              onPrevious={goPrevious}
               isFirst={isFirstPoem}
               isLast={isLastPoem}
               isPreparingNextPoem={poemLoading && !nextPoem && !isLastPoem}

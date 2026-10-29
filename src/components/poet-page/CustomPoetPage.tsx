@@ -10,12 +10,12 @@ import { useLovedCollections } from "@/hooks/useLovedCollections";
 import { buildCollectionKey } from "@/utils/collectionLibrary";
 import PoetSearchPanel from "@/components/PoetSearchPanel";
 import customApi from "@/api/CustomApi";
-import type { Poem } from "@/types/poem";
 import type { Poet } from "@/types/poet";
 import { PoetSlug } from "@/types/poet";
 import { useSettings } from "@/context/SettingsContext";
 import { logger } from "@/utils/logger";
 import RandomizePoemsPrompt from "@/components/RandomizePoemsPrompt";
+import { usePoemSequence } from "@/components/poet-page/usePoemSequence";
 import { type LocalPoemSummary, createPoemOrder, formatPersianNumber, groupByCollection } from "@/components/poet-page/poetPageUtils";
 
 export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
@@ -31,19 +31,39 @@ export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
   const [poemIds, setPoemIds] = useState<number[]>([]);
   const [poemSummaries, setPoemSummaries] = useState<LocalPoemSummary[]>([]);
   const [collectionMeta, setCollectionMeta] = useState<Array<{ title: string; year?: string }>>([]);
-  const [poemOrder, setPoemOrder] = useState<number[]>([]);
-  const [currentPoemIndex, setCurrentPoemIndex] = useState(0);
-  const [currentPoem, setCurrentPoem] = useState<Poem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [poemError, setPoemError] = useState<string | null>(null);
-  const [poemLoading, setPoemLoading] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   const poemMapRef = useRef<Record<number, any>>({});
-  const poemCacheRef = useRef<Record<number, Poem>>({});
-  const poemOrderRef = useRef<number[]>([]);
   const skipNextPoemOrderEffectRef = useRef(false);
+
+  const fetchCustomPoem = useCallback(
+    async (poemId: number) => {
+      const localPoem = poemMapRef.current[poemId];
+      if (!localPoem) {
+        throw new Error("شعر یافت نشد");
+      }
+      return customApi.mapLocalPoemToPoem(localPoem, poetSlug);
+    },
+    [poetSlug],
+  );
+  const sequence = usePoemSequence(fetchCustomPoem, {
+    loadError: "متأسفانه در دریافت شعر مشکلی پیش آمد.",
+    label: "custom",
+  });
+  const {
+    index: currentPoemIndex,
+    poem: currentPoem,
+    loading: poemLoading,
+    error: poemError,
+    setError: setPoemError,
+    nextPoem,
+    reset: resetSequence,
+    clear: clearSequence,
+    play,
+    goPrevious,
+  } = sequence;
 
   useEffect(() => {
     let cancelled = false;
@@ -52,16 +72,11 @@ export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
       setRandomizeChoice(null);
       setLoading(true);
       setError(null);
-      setPoemError(null);
       setIsInfoOpen(true);
       setPoemIds([]);
       setPoemSummaries([]);
-      setPoemOrder([]);
-      poemOrderRef.current = [];
-      setCurrentPoem(null);
-      setCurrentPoemIndex(0);
+      resetSequence();
       poemMapRef.current = {};
-      poemCacheRef.current = {};
 
       try {
         const [info, dataset] = await Promise.all([
@@ -115,62 +130,7 @@ export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
     return () => {
       cancelled = true;
     };
-  }, [poetSlug, reloadKey]);
-
-  const loadCustomPoem = useCallback(
-    async (poemId: number) => {
-      if (poemCacheRef.current[poemId]) {
-        return poemCacheRef.current[poemId];
-      }
-      const localPoem = poemMapRef.current[poemId];
-      if (!localPoem) {
-        throw new Error("شعر یافت نشد");
-      }
-      const mapped = await customApi.mapLocalPoemToPoem(localPoem, poetSlug);
-      poemCacheRef.current[poemId] = mapped;
-      return mapped;
-    },
-    [poetSlug],
-  );
-
-  const loadPoemAtIndex = useCallback(
-    async (index: number, orderOverride?: number[]) => {
-      const order = orderOverride ?? poemOrderRef.current;
-      if (!order.length || index < 0 || index >= order.length) {
-        return;
-      }
-
-      setPoemLoading(true);
-      setPoemError(null);
-
-      try {
-        const poemId = order[index];
-        const poemData = await loadCustomPoem(poemId);
-        setCurrentPoem(poemData);
-        setCurrentPoemIndex(index);
-      } catch (err) {
-        logger.error("Error loading custom poem:", err);
-        setPoemError("متأسفانه در دریافت شعر مشکلی پیش آمد.");
-      } finally {
-        setPoemLoading(false);
-      }
-    },
-    [loadCustomPoem],
-  );
-
-  useEffect(() => {
-    if (!currentPoem) return;
-    const order = poemOrderRef.current;
-    if (!order.length) return;
-
-    [currentPoemIndex + 1, currentPoemIndex - 1].forEach((index) => {
-      const poemId = order[index];
-      if (!poemId || poemCacheRef.current[poemId]) return;
-      loadCustomPoem(poemId).catch((error) => {
-        logger.error("Error preloading custom poem:", error);
-      });
-    });
-  }, [currentPoem, currentPoemIndex, loadCustomPoem, poemOrder]);
+  }, [poetSlug, reloadKey, resetSequence]);
 
   useEffect(() => {
     if (shouldAskRandomizeChoice && randomizeChoice === null) {
@@ -181,62 +141,22 @@ export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
       return;
     }
     if (!poemIds.length) {
-      setPoemOrder([]);
-      poemOrderRef.current = [];
-      setCurrentPoem(null);
+      clearSequence();
       return;
     }
 
-    const order = createPoemOrder(poemIds, randomizePoems);
-    poemOrderRef.current = order;
-    setPoemOrder(order);
-
-    if (order.length === 0) {
-      setCurrentPoem(null);
-      setPoemError("شعری برای این شاعر ثبت نشده است.");
-      return;
-    }
-
-    loadPoemAtIndex(0, order);
+    play(createPoemOrder(poemIds, randomizePoems));
   }, [
+    clearSequence,
+    play,
     poemIds,
     randomizeChoice,
     randomizePoems,
     shouldAskRandomizeChoice,
-    loadPoemAtIndex,
   ]);
 
-  const handleNext = useCallback(() => {
-    const order = poemOrderRef.current;
-    if (!order.length) return;
-    const nextIndex = currentPoemIndex + 1;
-
-    if (nextIndex < order.length) {
-      loadPoemAtIndex(nextIndex);
-      return;
-    }
-
-    if (randomizePoems && order.length > 0) {
-      const reshuffled = createPoemOrder(order, true);
-      poemOrderRef.current = reshuffled;
-      setPoemOrder(reshuffled);
-      loadPoemAtIndex(0, reshuffled);
-    }
-  }, [currentPoemIndex, randomizePoems, loadPoemAtIndex]);
-
-  const handlePrevious = useCallback(() => {
-    const order = poemOrderRef.current;
-    if (!order.length) return;
-    const prevIndex = currentPoemIndex - 1;
-
-    if (prevIndex >= 0) {
-      loadPoemAtIndex(prevIndex);
-    }
-  }, [currentPoemIndex, loadPoemAtIndex]);
-
-  const handleRetryPoem = useCallback(() => {
-    loadPoemAtIndex(currentPoemIndex);
-  }, [currentPoemIndex, loadPoemAtIndex]);
+  const { goNext } = sequence;
+  const handleNext = useCallback(() => goNext(randomizePoems), [goNext, randomizePoems]);
 
   const handleRetryPoet = () => setReloadKey((prev) => prev + 1);
 
@@ -245,12 +165,9 @@ export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
     if (!order.length) return;
     skipNextPoemOrderEffectRef.current = randomizeChoice !== true;
     setRandomizeChoice(true);
-    poemOrderRef.current = order;
-    setPoemOrder(order);
-    setPoemError(null);
     setIsInfoOpen(false);
-    loadPoemAtIndex(0, order);
-  }, [loadPoemAtIndex, poemIds, randomizeChoice]);
+    play(order);
+  }, [play, poemIds, randomizeChoice]);
 
   const collectionGroups = useMemo(
     () =>
@@ -268,14 +185,11 @@ export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
       if (index < 0) return;
 
       skipNextPoemOrderEffectRef.current = true;
-      poemOrderRef.current = order;
-      setPoemOrder(order);
-      setPoemError(null);
       setIsInfoOpen(false);
       setRandomizeChoice(false);
-      loadPoemAtIndex(index, order);
+      play(order, index);
     },
-    [loadPoemAtIndex, poemSummaries],
+    [play, poemSummaries],
   );
 
   // Like a Ganjoor book: opening a collection reads its poems in order.
@@ -286,14 +200,11 @@ export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
       const order = group.poems.map((summary) => summary.id);
 
       skipNextPoemOrderEffectRef.current = true;
-      poemOrderRef.current = order;
-      setPoemOrder(order);
-      setPoemError(null);
       setIsInfoOpen(false);
       setRandomizeChoice(false);
-      loadPoemAtIndex(0, order);
+      play(order);
     },
-    [collectionGroups, loadPoemAtIndex],
+    [collectionGroups, play],
   );
 
   const handleRandomizeChoice = useCallback(
@@ -305,15 +216,11 @@ export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
       setRandomizeChoice(shouldRandomize);
       setPoemError(null);
     },
-    [setAskRandomizePoemsOnPoetPages, setRandomizePoems],
+    [setAskRandomizePoemsOnPoetPages, setPoemError, setRandomizePoems],
   );
 
   const isFirstPoem = currentPoemIndex <= 0;
-  const isLastPoem =
-    !randomizePoems &&
-    (poemOrder.length === 0 || currentPoemIndex >= poemOrder.length - 1);
-  const nextPoemId = poemOrder[currentPoemIndex + 1];
-  const nextPoem = nextPoemId ? poemCacheRef.current[nextPoemId] : undefined;
+  const isLastPoem = !randomizePoems && sequence.isAtEnd;
   const showPoemLoadingOverlay = poemLoading && !currentPoem;
   const containerClassName = [
     "poet-page",
@@ -429,10 +336,10 @@ export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
           {!showPoemLoadingOverlay && poemError && (
             <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
               <p className="text-sm text-neutral-300">{poemError}</p>
-              {poemOrder.length > 0 && (
+              {sequence.order.length > 0 && (
                 <button
                   type="button"
-                  onClick={handleRetryPoem}
+                  onClick={sequence.retry}
                   className="rounded bg-neutral-700 px-4 py-2 text-sm text-neutral-50 hover:bg-neutral-600"
                 >
                   تلاش مجدد
@@ -446,7 +353,7 @@ export default function CustomPoetPage({ poetSlug }: { poetSlug: PoetSlug }) {
               poem={currentPoem}
               nextPoem={nextPoem}
               onNext={handleNext}
-              onPrevious={handlePrevious}
+              onPrevious={goPrevious}
               isFirst={isFirstPoem}
               isLast={isLastPoem}
               isPreparingNextPoem={poemLoading && !nextPoem && !isLastPoem}

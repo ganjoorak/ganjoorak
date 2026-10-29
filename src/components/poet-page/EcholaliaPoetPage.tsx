@@ -9,12 +9,14 @@ import PoetProfile, { PoetProfileList, PoetProfileSection } from "@/components/P
 import { buildPoetKey } from "@/hooks/usePreferredPoet";
 import PoetSearchPanel from "@/components/PoetSearchPanel";
 import echolaliaApi, { type EcholaliaPoemSummary } from "@/api/EcholaliaApi";
-import type { Poem } from "@/types/poem";
 import type { Poet } from "@/types/poet";
 import { useSettings } from "@/context/SettingsContext";
 import { logger } from "@/utils/logger";
 import RandomizePoemsPrompt from "@/components/RandomizePoemsPrompt";
 import { createPoemOrder, formatPersianNumber } from "@/components/poet-page/poetPageUtils";
+import { usePoemSequence } from "@/components/poet-page/usePoemSequence";
+
+const fetchEcholaliaPoem = (poemId: number) => echolaliaApi.getPoemById(poemId);
 
 export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
   const { settings, setRandomizePoems, setAskRandomizePoemsOnPoetPages } =
@@ -25,19 +27,27 @@ export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
 
   const [poet, setPoet] = useState<Poet | null>(null);
   const [summaries, setSummaries] = useState<EcholaliaPoemSummary[]>([]);
-  const [poemOrder, setPoemOrder] = useState<number[]>([]);
-  const [currentPoemIndex, setCurrentPoemIndex] = useState(0);
-  const [currentPoem, setCurrentPoem] = useState<Poem | null>(null);
   const [isInfoOpen, setIsInfoOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [poemError, setPoemError] = useState<string | null>(null);
-  const [poemLoading, setPoemLoading] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-
-  const poemCacheRef = useRef<Record<number, Poem>>({});
-  const poemOrderRef = useRef<number[]>([]);
   const skipNextPoemOrderEffectRef = useRef(false);
+
+  const sequence = usePoemSequence(fetchEcholaliaPoem, {
+    loadError: "متأسفانه در دریافت شعر از اکولالیا مشکلی پیش آمد.",
+    label: "Echolalia",
+  });
+  const {
+    index: currentPoemIndex,
+    poem: currentPoem,
+    loading: poemLoading,
+    error: poemError,
+    setError: setPoemError,
+    nextPoem,
+    reset: resetSequence,
+    clear: clearSequence,
+    play,
+  } = sequence;
 
   useEffect(() => {
     let cancelled = false;
@@ -46,15 +56,10 @@ export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
       setRandomizeChoice(null);
       setLoading(true);
       setError(null);
-      setPoemError(null);
       setIsInfoOpen(true);
       setPoet(null);
       setSummaries([]);
-      setPoemOrder([]);
-      setCurrentPoem(null);
-      setCurrentPoemIndex(0);
-      poemCacheRef.current = {};
-      poemOrderRef.current = [];
+      resetSequence();
 
       try {
         const [poetInfo, poemSummaries] = await Promise.all([
@@ -80,53 +85,7 @@ export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [poetSlug, reloadKey]);
-
-  const loadPoemById = useCallback(async (poemId: number) => {
-    if (poemCacheRef.current[poemId]) {
-      return poemCacheRef.current[poemId];
-    }
-    const poem = await echolaliaApi.getPoemById(poemId);
-    poemCacheRef.current[poemId] = poem;
-    return poem;
-  }, []);
-
-  const loadPoemAtIndex = useCallback(
-    async (index: number, orderOverride?: number[]) => {
-      const order = orderOverride ?? poemOrderRef.current;
-      if (!order.length || index < 0 || index >= order.length) {
-        return;
-      }
-
-      setPoemLoading(true);
-      setPoemError(null);
-      try {
-        const poem = await loadPoemById(order[index]);
-        setCurrentPoem(poem);
-        setCurrentPoemIndex(index);
-      } catch (err) {
-        logger.error("Error loading Echolalia poem:", err);
-        setPoemError("متأسفانه در دریافت شعر از اکولالیا مشکلی پیش آمد.");
-      } finally {
-        setPoemLoading(false);
-      }
-    },
-    [loadPoemById],
-  );
-
-  useEffect(() => {
-    if (!currentPoem) return;
-    const order = poemOrderRef.current;
-    if (!order.length) return;
-
-    [currentPoemIndex + 1, currentPoemIndex - 1].forEach((index) => {
-      const poemId = order[index];
-      if (!poemId || poemCacheRef.current[poemId]) return;
-      loadPoemById(poemId).catch((error) => {
-        logger.error("Error preloading Echolalia poem:", error);
-      });
-    });
-  }, [currentPoem, currentPoemIndex, loadPoemById, poemOrder]);
+  }, [poetSlug, reloadKey, resetSequence]);
 
   useEffect(() => {
     if (shouldAskRandomizeChoice && randomizeChoice === null) {
@@ -140,47 +99,26 @@ export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
       summaries.map((poem) => poem.id),
       randomizePoems,
     );
-    poemOrderRef.current = order;
-    setPoemOrder(order);
 
     if (order.length === 0) {
-      setCurrentPoem(null);
+      clearSequence();
       setPoemError("شعری برای این شاعر ثبت نشده است.");
       return;
     }
 
-    loadPoemAtIndex(0, order);
+    play(order);
   }, [
-    loadPoemAtIndex,
+    clearSequence,
+    play,
     randomizeChoice,
     randomizePoems,
+    setPoemError,
     shouldAskRandomizeChoice,
     summaries,
   ]);
 
-  const handleNext = useCallback(() => {
-    const order = poemOrderRef.current;
-    const nextIndex = currentPoemIndex + 1;
-
-    if (nextIndex < order.length) {
-      loadPoemAtIndex(nextIndex);
-      return;
-    }
-
-    if (randomizePoems && order.length > 0) {
-      const reshuffled = createPoemOrder(order, true);
-      poemOrderRef.current = reshuffled;
-      setPoemOrder(reshuffled);
-      loadPoemAtIndex(0, reshuffled);
-    }
-  }, [currentPoemIndex, loadPoemAtIndex, randomizePoems]);
-
-  const handlePrevious = useCallback(() => {
-    const previousIndex = currentPoemIndex - 1;
-    if (previousIndex >= 0) {
-      loadPoemAtIndex(previousIndex);
-    }
-  }, [currentPoemIndex, loadPoemAtIndex]);
+  const { goNext, goPrevious } = sequence;
+  const handleNext = useCallback(() => goNext(randomizePoems), [goNext, randomizePoems]);
 
   const handleRandomizeChoice = useCallback(
     (shouldRandomize: boolean, rememberChoice: boolean) => {
@@ -191,7 +129,7 @@ export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
       setRandomizeChoice(shouldRandomize);
       setPoemError(null);
     },
-    [setAskRandomizePoemsOnPoetPages, setRandomizePoems],
+    [setAskRandomizePoemsOnPoetPages, setPoemError, setRandomizePoems],
   );
 
   const handleRandomPoem = useCallback(() => {
@@ -202,12 +140,9 @@ export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
     if (!order.length) return;
     skipNextPoemOrderEffectRef.current = randomizeChoice !== true;
     setRandomizeChoice(true);
-    poemOrderRef.current = order;
-    setPoemOrder(order);
-    setPoemError(null);
     setIsInfoOpen(false);
-    loadPoemAtIndex(0, order);
-  }, [loadPoemAtIndex, randomizeChoice, summaries]);
+    play(order);
+  }, [play, randomizeChoice, summaries]);
 
   const handleSelectSummary = useCallback(
     (poemId: number) => {
@@ -217,13 +152,10 @@ export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
 
       skipNextPoemOrderEffectRef.current = true;
       setRandomizeChoice(false);
-      poemOrderRef.current = order;
-      setPoemOrder(order);
-      setPoemError(null);
       setIsInfoOpen(false);
-      loadPoemAtIndex(index, order);
+      play(order, index);
     },
-    [loadPoemAtIndex, summaries],
+    [play, summaries],
   );
 
   if (loading) {
@@ -241,11 +173,7 @@ export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
   }
 
   const isFirstPoem = currentPoemIndex <= 0;
-  const isLastPoem =
-    !randomizePoems &&
-    (poemOrder.length === 0 || currentPoemIndex >= poemOrder.length - 1);
-  const nextPoemId = poemOrder[currentPoemIndex + 1];
-  const nextPoem = nextPoemId ? poemCacheRef.current[nextPoemId] : undefined;
+  const isLastPoem = !randomizePoems && sequence.isAtEnd;
   const showRandomizePrompt =
     !isInfoOpen && shouldAskRandomizeChoice && randomizeChoice === null;
 
@@ -296,10 +224,10 @@ export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
           {poemError && (
             <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
               <p className="text-sm text-neutral-300">{poemError}</p>
-              {poemOrder.length > 0 && (
+              {sequence.order.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => loadPoemAtIndex(currentPoemIndex)}
+                  onClick={sequence.retry}
                   className="rounded bg-neutral-700 px-4 py-2 text-sm text-neutral-50 hover:bg-neutral-600"
                 >
                   تلاش مجدد
@@ -312,7 +240,7 @@ export default function EcholaliaPoetPage({ poetSlug }: { poetSlug: string }) {
               poem={currentPoem}
               nextPoem={nextPoem}
               onNext={handleNext}
-              onPrevious={handlePrevious}
+              onPrevious={goPrevious}
               isFirst={isFirstPoem}
               isLast={isLastPoem}
               isPreparingNextPoem={poemLoading && !nextPoem && !isLastPoem}
