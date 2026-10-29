@@ -103,6 +103,7 @@
   font-size: 0.72rem;
   font-weight: 700;
 }
+
 .update-badge svg { width: 0.65rem; height: 0.65rem; }
 .update-latest .update-changes { color: rgb(var(--foreground) / 0.85); font-size: 0.93rem; }
 .update-row-title { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; width: 100%; }

@@ -1,0 +1,256 @@
+/* --- Filters ------------------------------------------------------------ */
+
+.search-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.search-segmented {
+  display: inline-flex;
+  gap: 0.1rem;
+  padding: 0.2rem;
+  border: 1px solid var(--search-border);
+  border-radius: 999px;
+  background: var(--search-surface);
+}
+
+.search-segment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.1rem;
+  padding: 0 0.85rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--search-muted);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.search-segment:hover {
+  color: rgb(var(--foreground));
+}
+
+.search-segment.is-active {
+  color: rgb(var(--primary-foreground));
+}
+
+.search-segment-thumb {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(var(--primary));
+}
+
+.search-segment-label {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.search-segment-label small {
+  font-size: 0.72rem;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.search-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0 0.95rem;
+  border: 1px solid var(--search-border);
+  border-radius: 999px;
+  background: var(--search-surface);
+  color: rgb(var(--foreground) / 0.85);
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.15s ease;
+}
+
+.search-chip:hover {
+  background: var(--search-surface-hover);
+  border-color: rgb(var(--foreground) / 0.2);
+}
+
+.search-chip:active {
+  transform: scale(0.97);
+}
+
+.search-chip.is-active {
+  border-color: rgb(var(--primary) / 0.55);
+  background: rgb(var(--primary) / 0.08);
+  color: rgb(var(--foreground));
+  font-weight: 600;
+}
+
+.search-chip.is-small {
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.84rem;
+}
+
+.search-chip > svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  opacity: 0.75;
+}
+
+.search-segment:focus-visible,
+.search-chip:focus-visible,
+.search-chip button:focus-visible,
+.search-text-button:focus-visible,
+.search-more:focus-visible,
+.search-hit-link:focus-visible,
+.search-poet-pill:focus-visible {
+  outline: 2px solid rgb(var(--primary) / 0.7);
+  outline-offset: 2px;
+}
+
+/* Poet filter */
+.search-poet-filter {
+  position: relative;
+}
+
+.search-poet-trigger .search-avatar {
+  margin-inline-start: -0.4rem;
+}
+
+.search-poet-trigger-chevron {
+  width: 0.6rem !important;
+  height: 0.6rem !important;
+  transition: rotate 0.2s ease;
+}
+
+.search-poet-trigger[aria-expanded="true"] .search-poet-trigger-chevron {
+  rotate: 180deg;
+}
+
+.search-poet-popover {
+  position: absolute;
+  inset-inline-start: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 40;
+  width: min(21rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid var(--search-border);
+  border-radius: calc(var(--radius) + 8px);
+  background: rgb(var(--popover));
+  color: rgb(var(--popover-foreground));
+  box-shadow: var(--search-shadow);
+  transform-origin: top;
+}
+
+.search-poet-search {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.95rem;
+  border-bottom: 1px solid var(--search-border);
+  color: var(--search-faint);
+}
+
+.search-poet-search svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.search-poet-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: rgb(var(--foreground));
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.search-poet-list {
+  max-height: min(20rem, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+}
+
+.search-poet-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: calc(var(--radius) + 2px);
+  cursor: pointer;
+}
+
+.search-poet-option.is-active {
+  background: var(--search-surface-hover);
+}
+
+.search-poet-option-name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.93rem;
+  line-height: 1.4;
+}
+
+.search-poet-option-name small {
+  color: var(--search-faint);
+  font-size: 0.74rem;
+}
+
+.search-poet-option.is-selected .search-poet-option-name {
+  font-weight: 700;
+}
+
+.search-poet-option-check {
+  width: 0.8rem;
+  color: rgb(var(--primary));
+}
+
+.search-poet-empty {
+  padding: 1rem;
+  color: var(--search-muted);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.search-avatar {
+  flex: none;
+  border-radius: 999px;
+  object-fit: cover;
+  background: rgb(var(--muted));
+}
+
+.search-avatar-fallback {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--search-muted);
+}
+
+.search-avatar-fallback svg {
+  width: 0.7rem;
+}

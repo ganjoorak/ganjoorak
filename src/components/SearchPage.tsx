@@ -76,7 +76,7 @@ import { buildPlan } from "@/components/search/searchPlan";
 import { PoetCombobox } from "@/components/search/PoetCombobox";
 import { Segmented } from "@/components/search/Segmented";
 import { SemanticCard } from "@/components/search/SemanticCard";
-import "@/styles/SearchPage.css";
+import "@/styles/searchStyles";
 
 interface SearchViewProps {
   variant: "page" | "dialog";

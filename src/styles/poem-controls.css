@@ -1,0 +1,208 @@
+.nav-button {
+    background: rgb(var(--foreground) / 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgb(var(--foreground));
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background-color: rgb(var(--foreground) / 0.1);
+}
+
+.nav-button::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgb(var(--foreground) / 0.3);
+    transform: scale(0);
+    transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-button:active:not(:disabled)::before {
+    transform: scale(1);
+    transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-button:hover:not(:disabled) {
+    background-color: rgb(var(--foreground) / 0.2);
+    box-shadow: 0 4px 12px rgb(var(--background) / 0.2);
+}
+
+.nav-button:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.nav-button:active:not(:disabled) {
+    background-color: rgb(var(--foreground) / 0.15);
+}
+
+.nav-button:disabled::before {
+    display: none;
+}
+
+.nav-button.intent::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgb(var(--foreground) / 0.3);
+    transform: scale(0);
+    animation: fillIntent 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes fillIntent {
+    from {
+        transform: scale(0);
+    }
+
+    to {
+        transform: scale(1);
+    }
+}
+
+.action-buttons {
+    position: fixed;
+    left: 1rem;
+    bottom: 3.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 10;
+    align-items: center;
+    transition: opacity 0.25s ease;
+}
+
+.action-button {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+        transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+        background-color 0.22s ease,
+        box-shadow 0.28s ease;
+}
+
+.action-button:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.02);
+}
+
+.action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.action-button:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+}
+
+.action-button svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.action-buttons.action-buttons--profile-persistent.is-hidden {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.action-buttons.action-buttons--profile-persistent.is-hidden .action-button {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(0.35rem) scale(0.96);
+}
+
+.action-buttons.action-buttons--profile-persistent.is-hidden .poet-profile {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (min-width: 769px) {
+    :root:has(.audio-player) .action-buttons {
+        bottom: 5.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .poem-text {
+        padding-bottom: calc(11rem + env(safe-area-inset-bottom));
+    }
+
+    .navigation-controls {
+        display: none;
+    }
+
+    .nav-button {
+        position: static;
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+
+    .action-buttons {
+        left: 1rem !important;
+        right: auto;
+        bottom: calc(6.25rem + env(safe-area-inset-bottom));
+        gap: 0.35rem;
+    }
+
+    .action-button {
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+
+    .action-button svg {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .navigation-controls.is-hidden,
+    .action-buttons.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .poem-text {
+        padding-bottom: calc(12rem + env(safe-area-inset-bottom));
+    }
+
+    .navigation-controls {
+        gap: 0.5rem;
+        padding: 0.3rem 0.65rem;
+        bottom: calc(4.75rem + env(safe-area-inset-bottom));
+    }
+
+    .nav-button {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+    }
+
+    .action-buttons {
+        bottom: calc(6rem + env(safe-area-inset-bottom));
+    }
+}
+
+.poet-info {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    z-index: 2;
+}

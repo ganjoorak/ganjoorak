@@ -1,0 +1,173 @@
+.feed-poet-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+    color: rgb(var(--foreground) / 0.68);
+    font-size: 0.9rem;
+}
+
+.feed-poet-summary strong {
+    color: rgb(var(--foreground) / 0.9);
+    font-weight: 700;
+}
+
+.feed-poet-category-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+.poem-eyebrow:has(.home-feed-eyebrow) {
+    display: block;
+    width: 100%;
+    margin-bottom: 0.85rem;
+}
+
+/* Home feed: «همه / دنبال‌شده‌ها» switch and interest chips share one row that
+   scrolls away with the title. */
+.home-feed-eyebrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.feed-mode-switch {
+    position: relative;
+    display: inline-grid;
+    grid-template-columns: 1fr 1fr;
+    flex: 0 0 auto;
+    padding: 3px;
+    border: 1px solid rgb(var(--foreground) / 0.12);
+    border-radius: 9999px;
+    background: rgb(var(--card) / 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    isolation: isolate;
+    transition: opacity 0.2s ease;
+}
+
+.feed-mode-switch.is-loading {
+    opacity: 0.7;
+}
+
+.feed-mode-thumb {
+    position: absolute;
+    z-index: -1;
+    inset-block: 3px;
+    inset-inline-start: 3px;
+    width: calc(50% - 3px);
+    border-radius: 9999px;
+    background: rgb(var(--foreground) / 0.92);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The switch is always dir="rtl": the second option sits left of the first. */
+.feed-mode-switch[data-mode="preferred"] .feed-mode-thumb {
+    transform: translateX(-100%);
+}
+
+.feed-mode-option {
+    min-height: 1.75rem;
+    padding: 0.2rem 0.85rem;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    color: rgb(var(--foreground) / 0.72);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.feed-mode-option:hover {
+    color: rgb(var(--foreground));
+}
+
+.feed-mode-option.is-active {
+    color: rgb(var(--background));
+}
+
+.feed-mode-option:focus-visible {
+    outline: 2px solid rgb(var(--ring) / 0.7);
+    outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .feed-mode-thumb {
+        transition: none;
+    }
+}
+
+.feed-mode-empty-page {
+    min-height: 100dvh;
+    background: rgb(var(--background));
+    color: rgb(var(--foreground));
+}
+
+.feed-mode-empty-shell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    width: min(100%, 32rem);
+    margin: 0 auto;
+    /* Same top offset as the switch above the poem title (.title-section), so
+       swapping between the poem view and this state doesn't move the switch. */
+    padding: calc(2rem + env(safe-area-inset-top)) 1.25rem 3rem;
+}
+
+@media (max-width: 768px) {
+    .feed-mode-empty-shell {
+        padding-top: calc(1rem + env(safe-area-inset-top));
+    }
+}
+
+@media (max-width: 480px) {
+    .feed-mode-empty-shell {
+        padding-top: calc(10px + 0.85rem + env(safe-area-inset-top));
+    }
+}
+
+.feed-mode-empty-card {
+    animation: feed-mode-empty-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes feed-mode-empty-in {
+    from {
+        opacity: 0;
+        transform: translateY(0.5rem);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .feed-mode-empty-card {
+        animation: none;
+    }
+}
+
+.interest-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: 0.5rem;
+}

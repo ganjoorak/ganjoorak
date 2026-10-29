@@ -11,7 +11,7 @@ import { isPlaceholderPoetImage } from "@/utils/poetImages";
 import type { PoemLibrarySource } from "@/utils/poemLibrary";
 import { getPoetHref } from "@/utils/searchClient";
 import { highlightRanges, parseQuery, type PoemHit } from "@/utils/searchMatch";
-import "@/styles/SearchPage.css";
+import "@/styles/searchStyles";
 
 /** Result rows shared by the search page, the search dialog and the poet page's search panel. */
 

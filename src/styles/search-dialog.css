@@ -1,0 +1,69 @@
+/* --- Dialog ------------------------------------------------------------- */
+
+.search-dialog {
+  overflow: hidden;
+}
+
+.search-dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--foreground) / 0.2) transparent;
+}
+
+.search-page-shell.is-dialog .search-bar {
+  top: 0;
+  margin: 0 -1.25rem;
+  padding: 0.5rem 1.25rem 0.75rem;
+  background: rgb(var(--popover) / 0.92);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: none;
+}
+
+.search-page-shell.is-dialog .search-sticky-sentinel {
+  margin-top: 0;
+}
+
+.search-page-shell.is-dialog .search-start {
+  margin-top: 1rem;
+}
+
+.search-page-shell.is-dialog :is(.search-poet-row, .search-scope-row) {
+  margin-inline: -1.25rem;
+  padding-inline: 1.25rem;
+}
+
+.search-page-shell.is-dialog .search-field {
+  background: rgb(var(--background));
+}
+
+@media (min-width: 768px) {
+  .search-page-shell.is-page .search-bar {
+    margin: 0;
+    padding-inline: 0;
+  }
+
+  .search-hit-link {
+    padding: 1.1rem 1.35rem 0.9rem;
+  }
+
+  .search-hit-line {
+    font-size: 1.08rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-hit-skeleton,
+  .search-skeleton-line,
+  .search-skeleton-dot,
+  .search-start,
+  .search-state,
+  .search-pending::before,
+  .search-field-progress::after {
+    animation: none;
+  }
+}

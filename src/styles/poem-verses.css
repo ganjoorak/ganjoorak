@@ -1,0 +1,282 @@
+.verse-pair {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    gap: clamp(1.75rem, 4vw, 3.5rem);
+    position: relative;
+    width: 100%;
+    max-width: var(--poem-verse-pair-max-width, min(94vw, 1720px));
+    padding: 0 0.5rem;
+    direction: rtl;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+}
+
+.verse-pair-numbered {
+    padding-right: 4rem;
+}
+
+.verse-pair-numbered::before {
+    content: attr(data-couplet-number);
+    position: absolute;
+    top: 50%;
+    right: 1rem;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.8ch;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+    line-height: 1;
+    background-color: rgb(var(--foreground) / 0.08);
+    color: rgb(var(--foreground) / 0.7);
+    border-radius: 9999px;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 0 0 1px rgb(var(--foreground) / 0.04);
+}
+
+.verse-line {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    max-width: var(--poem-verse-line-max-width, min(52ch, 780px));
+    transition:
+        color 0.25s ease,
+        font-weight 0.25s ease;
+    font-weight: 400;
+    font-size: var(--poem-verse-font-size, 1.5rem);
+    white-space: nowrap;
+    overflow: visible;
+    word-wrap: normal;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    color: rgb(var(--foreground) / 0.92);
+}
+
+.verse-pair .verse-line:first-child {
+    padding-inline-start: 1.8rem;
+}
+
+.verse-pair .verse-line:first-child::after {
+    content: "•";
+    position: absolute;
+    inset-inline-start: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgb(var(--foreground) / 0.35);
+    font-size: 1.2rem;
+    pointer-events: none;
+    line-height: 1;
+}
+
+.verse-pair-numbered .verse-line:first-child {
+    padding-inline-start: 0;
+}
+
+.verse-pair-numbered .verse-line:first-child::after {
+    display: none;
+}
+
+.verse-line-numbered {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.verse-number {
+    font-size: 0.85rem;
+    color: rgb(var(--foreground) / 0.6);
+    font-variant-numeric: tabular-nums;
+    background-color: rgb(var(--foreground) / 0.08);
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    line-height: 1;
+    min-width: 2.4ch;
+    text-align: center;
+}
+
+/* When highlighting is active, softly blur non-highlighted lines */
+.poem-text.highlight-on .verse-line {
+    opacity: 0.82;
+    transition:
+        opacity 0.3s ease,
+        color 0.3s ease,
+        font-weight 0.3s ease;
+}
+
+.poem-text.highlight-on .verse-line.verse-highlighted {
+    opacity: 1;
+}
+
+/* Only blur the verse text content, not the decorative bullet */
+.poem-text.highlight-on .verse-line .verse-text {
+    filter: blur(1px);
+    transition: filter 0.3s ease;
+}
+
+.poem-text.highlight-on .verse-line.verse-highlighted .verse-text {
+    filter: none;
+}
+
+.poem-text.highlight-on .verse-line .verse-number {
+    color: rgb(var(--foreground) / 0.35);
+    background-color: rgb(var(--foreground) / 0.04);
+    transition:
+        color 0.3s ease,
+        background-color 0.3s ease,
+        transform 0.3s ease;
+}
+
+.poem-text.highlight-on .verse-line.verse-highlighted .verse-number {
+    color: rgb(var(--accent-foreground) / 1);
+    background-color: rgb(var(--accent) / 0.65);
+    transform: translateY(-1px) scale(1.05);
+}
+
+.verse-line:hover {
+    color: rgb(var(--foreground) / 1);
+    text-shadow: 0 0 8px rgb(var(--foreground) / 0.3);
+}
+
+/* A single centred line between couplets (Ganjoor b2): stanza breaks such as
+   «***» and the band lines of tarjiband / tasnif poems. */
+.verse-centered {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 0.75rem;
+    direction: rtl;
+}
+
+.verse-centered .verse-line {
+    flex: none;
+    max-width: 100%;
+    white-space: normal;
+}
+
+/* Set by PoemViewer when the widest couplet can't fit side by side (tablet widths):
+   the phone layout, one mesra per line, at the desktop verse size. */
+.poem-text--stacked .verse-pair {
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 1.5rem;
+    padding: 0;
+}
+
+.poem-text--stacked .verse-line {
+    max-width: 100%;
+    padding: 0 0.5rem;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.poem-text--stacked .verse-pair .verse-line:first-child {
+    padding-inline-start: 0.5rem;
+}
+
+.poem-text--stacked .verse-pair .verse-line:first-child::after {
+    display: none;
+}
+
+.poem-text--stacked .verse-pair:not(.verse-pair-numbered):not(:last-child)::after {
+    content: "•";
+    position: absolute;
+    right: 50%;
+    bottom: -1rem;
+    transform: translateX(50%);
+    font-size: 0.75rem;
+    opacity: 0.4;
+    line-height: 1;
+}
+
+.poem-text--stacked .verse-pair-numbered {
+    padding-right: 0;
+    padding-top: 1.9rem;
+}
+
+.poem-text--stacked .verse-pair-numbered::before {
+    top: 0.8rem;
+    right: 50%;
+    transform: translate(50%, -50%);
+}
+
+.poem-navigation-frame {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    position: relative;
+    will-change: transform, opacity, filter;
+}
+
+/* Verse highlighting for synchronized audio */
+.verse-highlighted {
+    font-weight: 700;
+    color: rgb(var(--foreground) / 1);
+}
+
+/* Enhanced highlighting for modern poems */
+.modern-poem .verse-highlighted {
+    margin: 0.1rem 0;
+}
+
+/* Style the verses from htmlText */
+.b {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    gap: 2rem;
+    position: relative;
+    width: 100%;
+    max-width: 1300px;
+    padding: 0 0.5rem;
+    direction: rtl;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+}
+
+.m1 {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    max-width: 800px;
+    transition:
+        color 0.2s ease,
+        text-shadow 0.2s ease;
+    font-weight: 400;
+    font-size: 1.5rem;
+    white-space: nowrap;
+    overflow: visible;
+    word-wrap: normal;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+}
+
+.m2 {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    max-width: 800px;
+    transition:
+        color 0.2s ease,
+        text-shadow 0.2s ease;
+    font-weight: 400;
+    font-size: 1.5rem;
+    white-space: nowrap;
+    overflow: visible;
+    word-wrap: normal;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+}
+
+.m1:hover,
+.m2:hover {
+    color: rgb(var(--foreground) / 1);
+    text-shadow: 0 0 8px rgb(var(--foreground) / 0.3);
+}

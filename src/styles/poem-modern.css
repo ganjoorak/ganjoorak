@@ -1,0 +1,37 @@
+/* Responsive styles for modern poems */
+@media (max-width: 768px) {
+    .modern-poem {
+        padding: 0 0.5rem;
+    }
+
+    .modern-poem p {
+        font-size: 1.6rem;
+        line-height: 1.8;
+    }
+}
+
+@media (max-width: 480px) {
+    .modern-poem p {
+        font-size: 1.4rem;
+        line-height: 1.6;
+    }
+}
+
+.modern-poem .verse-line::after {
+    display: none;
+}
+
+.action-buttons.absolute {
+    position: relative;
+    z-index: 10;
+}
+
+.action-buttons.absolute.top-4 {
+    top: auto;
+}
+
+@media (max-width: 768px) {
+    .action-buttons.absolute.top-4 {
+        top: 0.75rem;
+    }
+}

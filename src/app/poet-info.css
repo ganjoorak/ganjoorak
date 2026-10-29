@@ -1,0 +1,131 @@
+.poet-info-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    pointer-events: none;
+}
+
+.poet-info-dialog--side {
+    justify-content: flex-end;
+    align-items: stretch;
+    padding: 1rem;
+}
+
+.poet-info-panel {
+    width: min(100%, 760px);
+    max-height: min(88vh, 760px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgb(var(--border));
+    border-radius: 1rem;
+    background-color: rgb(var(--card));
+    color: rgb(var(--card-foreground));
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+    pointer-events: auto;
+}
+
+.poet-info-panel--side {
+    width: min(100%, 24rem);
+    max-height: none;
+    height: 100%;
+    border-radius: 1.1rem;
+}
+
+.poet-info-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+    min-height: 4.45rem;
+    padding: 1rem 1rem 1rem 4rem;
+    border-bottom: 1px solid rgb(var(--border));
+    text-align: center;
+}
+
+.poet-info-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-align: right;
+    width: 100%;
+}
+
+.poet-info-header button {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 9999px;
+    background-color: rgb(var(--secondary));
+    color: rgb(var(--secondary-foreground));
+    cursor: pointer;
+    transition:
+        transform 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.poet-info-header button:hover {
+    transform: translateY(-50%) rotate(-10deg);
+    background-color: rgb(var(--secondary) / 0.8);
+}
+
+.poet-info-panel {
+    width: min(100%, 900px);
+}
+
+.poet-info-body {
+    min-height: 18rem;
+    overflow-y: auto;
+    direction: ltr;
+    padding: 1rem;
+    scrollbar-gutter: stable;
+}
+
+.poet-info-body>* {
+    direction: rtl;
+}
+
+.poet-info-section {
+    padding-top: 1rem;
+    margin-top: 1rem;
+    border-top: 1px solid rgb(var(--border));
+}
+
+.poet-info-section:first-child {
+    padding-top: 0;
+    margin-top: 0;
+    border-top: none;
+}
+
+.poet-info-section-title {
+    margin: 0 0 0.75rem;
+    color: rgb(var(--foreground) / 0.68);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+@media (max-width: 1023px) {
+    .poet-info-dialog--side {
+        align-items: flex-end;
+        justify-content: center;
+        padding: 0.75rem;
+    }
+
+    .poet-info-panel--side {
+        width: min(100%, 44rem);
+        height: min(72vh, 44rem);
+        border-radius: 1.1rem 1.1rem 0 0;
+    }
+}

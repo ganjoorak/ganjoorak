@@ -1,0 +1,6 @@
+/* One clear control per search field: hide the native WebKit cancel X. */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}

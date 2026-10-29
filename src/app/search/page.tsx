@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import SearchPage from "@/components/SearchPage";
-import "@/styles/SearchPage.css";
+import "@/styles/searchStyles";
 
 const SearchFallback = () => (
   <div className="search-page" dir="rtl">

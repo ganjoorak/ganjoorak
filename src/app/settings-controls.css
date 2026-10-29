@@ -1,0 +1,48 @@
+.settings-size-control {
+    --range-thumb-size: 1.15rem;
+    --range-track-size: 0.35rem;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.settings-size-readout,
+.settings-size-scale {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.settings-size-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: rgb(var(--foreground));
+    font-variant-numeric: tabular-nums;
+}
+
+.settings-size-track {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: var(--range-thumb-size);
+}
+
+.settings-size-scale {
+    position: relative;
+    padding-inline: calc(var(--range-thumb-size) / 2);
+    color: rgb(var(--muted-foreground));
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.settings-size-scale-default {
+    position: absolute;
+    top: 0;
+    transform: translateX(50%);
+    transition: color 0.18s ease;
+}
+
+.settings-size-scale-default.active {
+    color: rgb(var(--foreground));
+    font-weight: 700;
+}
