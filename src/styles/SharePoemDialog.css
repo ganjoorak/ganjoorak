@@ -504,14 +504,6 @@
     font-size: 0.8rem;
 }
 
-.share-tabs__dot {
-    width: 0.85rem;
-    height: 0.85rem;
-    flex: 0 0 auto;
-    border-radius: 9999px;
-    box-shadow: inset 0 0 0 1px rgb(var(--foreground) / 0.18);
-}
-
 .share-preview__play:focus-visible {
     outline: 2px solid rgb(var(--ring) / 0.7);
     outline-offset: 2px;

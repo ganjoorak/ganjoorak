@@ -136,9 +136,6 @@ html[data-theme="paper"] { --radius: 0.625rem; }
   /* The floating bar is centered and never reaches the left column, so the action column (and the poet card at its
      bottom) sits on the bar's own baseline instead of stacking above a reserved strip for it. */
   :root:root:root .action-buttons { bottom: calc(1rem + env(safe-area-inset-bottom)); }
-  /* Poet pages with the sidebar open: center in the remaining area. */
-  html:root body .poet-page.sidebar-open.sidebar-w-96 .audio-player { left: calc((100vw - 24rem) / 2); right: auto; }
-  html:root body .poet-page.sidebar-open.sidebar-w-80 .audio-player { left: calc((100vw - 20rem) / 2); right: auto; }
 }
 :root .audio-control-button[data-slot="button"] { width: 2.75rem; height: 2.75rem; min-width: 2.75rem; min-height: 2.75rem; padding: 0; }
 :root .audio-control-button[data-slot="button"] svg { width: 1rem; height: 1rem; }
@@ -157,8 +154,6 @@ html[data-theme="paper"] { --radius: 0.625rem; }
 @media (min-width: 640px) {
   :root .lyrics-share-panel[data-slot="dialog-popup"] { border: 1px solid rgb(var(--border)); border-radius: 1rem; }
 }
-:root .lyrics-share-header button[data-slot="button"] { background: transparent; color: inherit; }
-:root .lyrics-share-header button[data-slot="button"]:hover { background: rgb(var(--accent)); }
 @media (max-width: 768px) {
   body:has([data-slot="dialog-popup"]) .menu-button,
   body:has([data-slot="dialog-popup"]) .global-search-button,
@@ -337,17 +332,6 @@ html:root body .poem-viewer .poem-text > .title-section {
 
   .mobile-audio-hint.is-leaving { opacity: 0; transition: opacity 0.3s ease; }
 }
-
-/* The menu's poem section (share/search/lock/poet) is only needed when those buttons are hidden; they are visible again on every width. */
-.menu-poet-avatar {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 1.75rem; height: 1.75rem; border-radius: 999px; overflow: hidden; flex-shrink: 0;
-  background: rgb(var(--muted)); font-size: 1.1rem;
-}
-.menu-poet-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.menu-link--poet { font-weight: 600; }
-.menu-section--poem { display: none; }
-.menu-section--poem + .menu-section { margin-top: 0; padding-top: 0; border-top: 0; }
 
 /* Prose (Ganjoor paragraph blocks, e.g. letters and Golestan): wrapping, justified RTL paragraphs */
 .poem-viewer .prose-block {

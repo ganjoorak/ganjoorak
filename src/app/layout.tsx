@@ -3,7 +3,6 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import "@/styles/PoemLibrary.css";
-import "./mobile-polish.css";
 import "./mobile-floating-controls.css";
 import "./mobile-modal-polish.css";
 import "./mobile-minimal-feed.css";

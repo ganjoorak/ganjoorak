@@ -843,28 +843,6 @@ a.poem-eyebrow-chip:focus-visible {
     }
 }
 
-.ganjoor-link {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    color: #fff;
-    background-color: rgb(var(--foreground) / 0.1);
-    border-radius: 0.5rem;
-    text-decoration: none;
-    font-size: 0.875rem;
-    transition: all 0.2s ease;
-}
-
-.ganjoor-link:hover {
-    background-color: rgb(var(--foreground) / 0.2);
-    transform: translateY(-1px);
-}
-
-.ganjoor-link svg {
-    font-size: 0.75rem;
-    opacity: 0.8;
-}
-
 .navigation-controls {
     position: absolute;
     right: 20px;
@@ -1108,15 +1086,6 @@ a.poem-eyebrow-chip:focus-visible {
 }
 
 /* On poet pages with an open sidebar (desktop), reduce audio width from the right */
-@media (min-width: 1024px) {
-    .poet-page.sidebar-open.sidebar-w-96 .audio-player {
-        right: calc(24rem + env(safe-area-inset-right));
-    }
-
-    .poet-page.sidebar-open.sidebar-w-80 .audio-player {
-        right: calc(20rem + env(safe-area-inset-right));
-    }
-}
 
 .audio-controls {
     display: flex;
@@ -1271,72 +1240,7 @@ a.poem-eyebrow-chip:focus-visible {
     transition: width 0.1s linear;
 }
 
-.time-display {
-    color: white;
-    font-size: 0.8rem;
-    opacity: 0.8;
-    margin-top: 0.25rem;
-}
-
-.loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgb(var(--background) / 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.2rem;
-    z-index: 1000;
-}
-
-.toast-message {
-    position: fixed;
-    bottom: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgb(var(--background) / 0.8);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 2rem;
-    font-size: 0.875rem;
-    backdrop-filter: blur(8px);
-    z-index: 100;
-    animation: fadeInOut 2s ease;
-    direction: rtl;
-}
-
-@keyframes fadeInOut {
-    0% {
-        opacity: 0;
-        transform: translate(-50%, 1rem);
-    }
-
-    15% {
-        opacity: 1;
-        transform: translate(-50%, 0);
-    }
-
-    85% {
-        opacity: 1;
-        transform: translate(-50%, 0);
-    }
-
-    100% {
-        opacity: 0;
-        transform: translate(-50%, -1rem);
-    }
-}
-
 @media (max-width: 768px) {
-    .toast-message {
-        bottom: 1rem;
-        font-size: 0.75rem;
-        padding: 0.5rem 1rem;
-    }
 
     .poem-text {
         font-size: 1rem;
@@ -1476,22 +1380,10 @@ a.poem-eyebrow-chip:focus-visible {
     top: auto;
 }
 
-.action-buttons.absolute.left-4 {
-    left: auto;
-}
-
 @media (max-width: 768px) {
     .action-buttons.absolute.top-4 {
         top: 0.75rem;
     }
-
-    .action-buttons.absolute.left-4 {
-        left: 0.75rem;
-    }
-}
-
-.action-buttons.absolute.left-4 {
-    left: 1rem;
 }
 
 /* Poet Profile Styles */
