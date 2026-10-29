@@ -1,0 +1,256 @@
+# همگام‌سازی با برنامهٔ موبایل — تغییرات برنچ `v3`
+
+مبنای مقایسه: `master`..`v3` (۱۰۳ کامیت). این سند از روی کد نوشته شده؛ هر بخش مسیر فایل منبع را دارد.
+بخش ۱ تا ۶ تغییرات پیشین برنچ است. بخش ۷ قابلیت‌های اجتماعی تازه (استریک، نشان، ظاهر نمایه، تکه‌شعر، مشاعره) است و **انجام‌شده**؛ قرارداد دقیق API در [social-api-contract.md](social-api-contract.md) است.
+
+---
+
+## ۱. سرویس حساب (Go، پوشهٔ `backend/`)
+
+کل این سرویس نسبت به `master` تازه است. وب آن را از مسیر همان‌مبدأ `/api/account/*` (rewrite در `next.config.js`) می‌خواند.
+
+**احراز هویت**
+- کوکی `ganjoorak_session`: `HttpOnly`، `Secure`، `SameSite=Lax`، اعتبار ۳۰ روز ([server.go:18](backend/server.go:18)).
+- سرور فقط هش توکن را ذخیره می‌کند. هیچ هدر `Authorization`/Bearer و هیچ CORS وجود ندارد.
+- **برای موبایل:** کلاینت باید cookie jar داشته باشد (مثلاً `URLSession`/`OkHttp CookieJar`). اگر بخواهید توکن Bearer بدهید، باید به سرور اضافه شود (نیاز به تصمیم).
+- محدودیت نرخ: ۲۰ درخواست/۱۵ دقیقه برای ورود، ثبت‌نام، تغییر گذرواژه، کد بازیابی، بازنشانی؛ ۵ درخواست/ساعت برای بازخورد.
+
+### نقاط پایانی
+
+| متد و مسیر | ورودی | خروجی | یادداشت |
+|---|---|---|---|
+| `POST /api/account/signup` | `{username, password, displayName}` | `201 {user, recoveryCode}` | کد بازیابی فقط همین یک بار نمایش داده می‌شود |
+| `POST /api/account/login` | `{username, password}` | `{user}` | |
+| `POST /api/account/logout` | — | `204` | |
+| `GET /api/account/me` | — | `{user, data, follows:{followers, following}}` | `follows` تازه است |
+| `PUT /api/account/data` | `{data, merge}` | `{data}` | همگام‌سازی کتابخانه؛ بخش ۲ |
+| `PUT /api/account/visibility` | `{isPublic}` | `{user}` | |
+| `PUT /api/account/profile` | `{username, displayName, avatar}` | `{user}` | `409` اگر نام گرفته شده |
+| `PUT /api/account/password` | `{currentPassword, newPassword}` | `{user}` | بقیهٔ نشست‌ها بسته می‌شوند |
+| `POST /api/account/recovery-code` | `{password}` | `{user, recoveryCode}` | کد جدید می‌سازد |
+| `POST /api/account/reset` | `{username, recoveryCode, newPassword}` | `{user, recoveryCode}` | «فراموشی گذرواژه»؛ کد مصرف و کد تازه صادر می‌شود، کاربر وارد هم می‌شود |
+| `GET /api/account/users/{username}` | — | `{profile}` | عمومی؛ بدون نشست. `404` برای ناموجود و خصوصی |
+| `GET /api/account/follow/{username}` | — | `{following}` | **تازه** |
+| `PUT /api/account/follow/{username}` | — | `{following: true}` | **تازه**؛ `404` خصوصی/ناموجود، `400` خودت، `409` سقف ۱۰۰۰ |
+| `DELETE /api/account/follow/{username}` | — | `{following: false}` | **تازه**؛ روی حساب خصوصی هم کار می‌کند |
+| `GET /api/account/following` | — | `{users:[FollowUser]}` | **تازه**؛ فقط لیست خود کاربر |
+| `GET /api/account/followers` | — | `{users:[FollowUser]}` | **تازه**؛ فقط لیست خود کاربر |
+| `POST /api/account/feedback` | `{kind, message, contact, page}` | `204` | ورود اختیاری. `kind`: `suggestion` \| `bug` \| `other`؛ پیام ۳ تا ۴۰۰۰ نویسه |
+
+قواعد اعتبارسنجی ([account.go](backend/account.go)):
+- `username`: `^[a-z0-9_]{3,32}$`، همیشه به حروف کوچک نرمال می‌شود.
+- گذرواژه ۸ تا ۱۲۸ نویسه. `displayName` تا ۵۰ نویسه (خالی = نام کاربری).
+- `avatar` یکی از `""`، `cypress`، `candle`، `quill`، `tulip`، `cup` (`""` یعنی انتخاب خودکار از نام کاربری).
+- پیام‌های خطا فارسی و آمادهٔ نمایش‌اند: `{"error": "..."}`.
+
+### اشکال‌ها
+```
+User        { username, displayName, createdAt, isPublic, avatar, hasRecoveryCode }
+FollowUser  { username, displayName, avatar, followedAt }
+PublicProfile {
+  username, displayName, avatar, createdAt,
+  nowReading: Entry|null,      // فقط اگر در ۲۰ دقیقهٔ اخیر شعری باز شده (زمان را سرور می‌زند)
+  lastPoem: Entry|null,
+  favorites: Entry[],          // حداکثر ۵۰ مورد، تازه‌ترین اول
+  favoriteCount,
+  lovedCollections: CollectionEntry[],   // حداکثر ۵۰ مورد
+  followerCount, followingCount
+}
+```
+شمارندهٔ دنبال‌کننده/دنبال‌شونده فقط حساب‌های **عمومی** را می‌شمارد؛ حساب خصوصی در هیچ شمارش و لیستی نمی‌آید.
+
+### جدول‌های SQLite
+- `follows(follower_id, followee_id, created_at)` — کلید ترکیبی، با `ON DELETE CASCADE`، شاخص روی `(followee_id, created_at)`. با شناسهٔ کاربر ذخیره می‌شود، پس تغییر نام کاربری دنبال‌کردن را نمی‌شکند.
+- `feedback(id, kind, message, contact, page, username, created_at)`.
+- ستون‌های تازهٔ `users`: `is_public`، `reading_at`، `recovery_hash`، `avatar` (مهاجرت خودکار).
+
+---
+
+## ۲. مدل دادهٔ همگام‌شونده (`AccountData`)
+
+`PUT /api/account/data` با `merge: true` اجتماع دو طرف را می‌سازد (برای اولین ورود)، و با `merge: false` جایگزین می‌کند.
+سرور همیشه پاک‌سازی می‌کند: تکراری‌ها حذف، تازه‌ترین `savedAt` برنده، سقف اعمال می‌شود.
+
+```ts
+AccountData {
+  favorites:         Entry[]            // سقف ۲۰۰
+  history:           Entry[]            // سقف ۳۰
+  lovedCollections:  CollectionEntry[]  // سقف ۱۰۰  ← تازه
+  preferredPoetKeys: string[]           // سقف ۵۰۰   ← نام جدید followedPoetKeys
+  interestKeys:      string[]           // سقف ۵۰
+}
+```
+
+### تغییر نام مهم: `followedPoetKeys` → `preferredPoetKeys`
+- «دنبال‌کردن شاعر» حالا «شاعر مورد علاقه» است؛ هیچ‌کس مطلع نمی‌شود و فقط فید خود کاربر را شکل می‌دهد. «دنبال‌کردن» فقط برای **کاربران** است.
+- سرور هنوز `followedPoetKeys` را هنگام خواندن می‌پذیرد و به `preferredPoetKeys` اضافه می‌کند ([account.go:86](backend/account.go:86))، ولی **خروجی همیشه `preferredPoetKeys`** است. برنامهٔ موبایل باید نام جدید را بنویسد و بخواند.
+- تنظیم محلی `feedMode` هم تغییر کرده: `"following"` → `"preferred"` (مقدارهای مجاز: `"all"` | `"preferred"`). وب مقدار قدیمی را هنگام خواندن تبدیل می‌کند.
+
+### فرمت کلیدها
+- `Entry.key`: `"{source}:{poetSlug}:{id}"`. `source` ∈ `ganjoor` | `custom` | `echolalia`.
+- `Entry.href`: فقط مسیر همان‌مبدأ (باید با `/` شروع شود و `//` نباشد)، وگرنه سرور مورد را دور می‌ریزد.
+  - گنجور: `/poem/{id}`؛ بقیه: `/{poetSlug}/{id}`.
+- `CollectionEntry` (کتابِ دوست‌داشتنی):
+  ```
+  { key, source: "ganjoor"|"custom", categoryId, poetSlug, poetName, title, href, savedAt }
+  key گنجور:  ganjoor:{poetSlug}:cat:{categoryId}     (categoryId > 0 الزامی)
+  key محلی:   custom:{poetSlug}:{عنوان کتاب}          (categoryId = 0)
+  ```
+- `preferredPoetKeys`: `^[a-z]+:[\p{L}\p{N}_.\-]+$` مثل `ganjoor:hafez`، `echolalia:...`.
+- `interestKeys`: `^[a-z]{1,32}$` (در `v3` رابط دلبستگی‌ها حذف شده، ولی داده هنوز همگام می‌شود).
+
+### «در حال خواندن»
+سرور هر بار که سر `history` عوض شود `reading_at` را با ساعت خودش ثبت می‌کند؛ پس موبایل باید با باز شدن هر شعر یک `PUT /data` بزند تا «در حال خواندن» در پروفایل عمومی درست کار کند.
+
+### کلیدهای ذخیرهٔ محلی وب (برای معادل‌سازی در موبایل)
+`ganjoorak:favorites:v1`، `ganjoorak:history:v1`، `ganjoorak:collections:v1`، `ganjoorak:settings`، `ganjoorak:recent-searches:v1`، `ganjoorak:lastSeenUpdate`، `ganjoorak:zen-scroll-lock`، `ganjoorak-share-prefs`.
+
+---
+
+## ۳. پروفایل عمومی و دنبال‌کردن کاربران (وب)
+
+- نشانی اشتراک‌گذاری: `/@username` (rewrite به `/u/[username]`).
+- صفحه‌ها: `/profile` (خود کاربر)، `/profile/settings`، `/following`، `/preferred-poets`، `/login`.
+- `FollowUserButton` روی پروفایل عمومی؛ `/following` دو تب «دنبال‌شده‌ها» و «دنبال‌کننده‌ها» دارد.
+- فید خانه دو حالت دارد: **«همه»** و **«علاقه‌مندی‌ها»**. حالت دوم از شاعران مورد علاقه **و کتاب‌های دوست‌داشتنی** به یک اندازه می‌کشد (هر کدام یک قرعه؛ [page.tsx:170](src/app/page.tsx:170)).
+- کتاب محبوب: دکمهٔ قلب روی صفحهٔ شاعر (`useLovedCollections`, `collectionLibrary.ts`)، نمایش در پروفایل عمومی.
+- منوی «بیشتر» فرم بازخورد دارد (`POST /feedback`).
+
+---
+
+## ۴. API سمت Next (مسیرهایی که موبایل می‌تواند مستقیم بزند یا باید بازتولید کند)
+
+| مسیر | کار |
+|---|---|
+| `GET /api/search/local?q=&poet=&source=&limit=&offset=` | جست‌وجوی فوری روی آینهٔ محلی (`custom`/`echolalia`). `limit` ۱ تا ۱۰۰ (پیش‌فرض ۳۰). پاسخ: `{hits, total, counts:{custom, echolalia}}`. حداقل طول پرس‌وجو: `MIN_SEARCH_QUERY_LENGTH` |
+| `GET /api/search/ganjoor?q=&poetId=&cursor=` | نتایج گنجور، کوتاه‌شده و بازرتبه‌بندی. پاسخ: `{hits, next, phraseTotal, wordsTotal}`؛ صفحه‌بندی با `cursor` |
+| `GET /api/ganjoor/search/semantic` | جست‌وجوی معنایی (پروکسی به ganjgah.ir) |
+| `GET /api/echolalia/wp/[...path]` | **تازه**: پروکسی WordPress اکولالیا |
+| `GET /api/echolalia/poet-image/{categoryId}` | تصویر شاعر اکولالیا (بازنویسی‌شده) |
+| `GET /api/poet/{slug}` | اطلاعات شاعر |
+| `GET /api/daily-poem` | شعر روز (ورودی منو حذف شده، مسیر مانده) |
+| `GET /api/ganjoor/[...path]` | پروکسی گنجور؛ میزبان پیش‌فرض `https://api.ganjoor.net` |
+| `GET /api/audio/[...path]` | پروکسی خوانش‌ها |
+
+شاعران و شعرهای **اکولالیا** حالا از آینهٔ محلی و API خودمان داده می‌شوند، نه مستقیم از سایت مبدأ (کامیت `cc1fad6`). نصرت رحمانی دو ورودی بود و به یک شاعر ادغام شد؛ فروغ بر اساس کتاب دسته‌بندی شد.
+
+---
+
+## ۵. تغییرات رفتاری و رابط که باید در موبایل هم بیایند
+
+**حذف‌شده نسبت به `master`**
+- ردیف «دلبستگی‌ها»، انتخابگر، آیتم منو، بخش پروفایل و فیلتر فید (برنچ `feature/poem-interests` آن را نگه داشته).
+- «خواندن در فید» و بخش «مکان‌ها» از صفحهٔ شاعر.
+- آیتم «شعر روز» از منو (مسیر `/today` مانده).
+- بخش «شاعران دنبال‌شده» از پروفایل (صفحهٔ `/following` جایش را گرفته).
+- دکمه‌های جست‌وجو و منو از نوار بالا؛ حبابِ «شعر بعدی».
+- تزئین بین عنوان و ابیات در کارت اشتراک‌گذاری.
+
+**شعر و فید**
+- بعدی/قبلی با **کشیدن (pull-to-next)**: آخر شعر، شعر بعدی همراه انگشت/چرخ ماوس بالا می‌آید و با عبور از ۳۳٪ ارتفاع ثبت می‌شود. در `/poem/[id]` شعر بعدی از پیش بار می‌شود.
+- مصراع‌ها فقط وقتی پهن‌ترین بیت جا نمی‌شود روی هم چیده می‌شوند.
+- خط‌های وسط‌چین گنجور (`b2`، مثل «***») جدا رندر می‌شوند.
+- فید از **شاخص از پیش ساخته‌شدهٔ تمام شعرهای گنجور** شعر تصادفی می‌دهد.
+- پخش‌کننده: در موبایل فقط دکمهٔ پخش + قرص نام خوانشگر؛ دکمهٔ «خوانشگرها» پخش‌کننده را به فهرست خوانش‌ها باز می‌کند.
+- **باگ شناخته‌شده (وب و احتمالاً موبایل):** با زدن «خوانشگر بعدی» وسط پخش، پخش خودکار ادامه نمی‌یابد (`preload="none"`).
+
+**اشتراک‌گذاری** — طراحی تازهٔ کارت **تصویر و ویدیو** (`SharePoemDialog`، `src/components/share/`): انتخاب ابیات، طراحی، پیش‌نمایش، خروجی ویدیو. تنظیمات در `ganjoorak-share-prefs`.
+
+**جست‌وجو** — نتایج محلی فوری، نتایج گنجور فشرده و بازرتبه، حالت معنایی، فیلتر شاعر (`PoetCombobox`).
+
+**صفحه‌های تازه** — `/explore` (صفحهٔ کاوش شاعران و شعرها، با چینش مَسونری)، `/preferred-poets`، `/following`، `/login`، صفحهٔ شاعران با تب‌ها و جابه‌جایی شبکه/فهرست، ذخیره‌ها با تب لغزان، به‌روزرسانی‌ها و سؤالات متداول به سبک برنامه.
+
+**ورود** — صفحهٔ مستقل، دکمهٔ نمایش گذرواژه، بازیابی با کد، کد بازیابی هنگام ثبت‌نام.
+
+---
+
+## ۶. فهرست بررسی برای موبایل
+
+1. [ ] cookie jar برای `ganjoorak_session` (یا تصمیم برای توکن Bearer).
+2. [ ] نام `preferredPoetKeys` در خواندن/نوشتن؛ `feedMode` به `"all" | "preferred"`.
+3. [ ] فیلد `lovedCollections` در `AccountData` و رابط قلب روی کتاب.
+4. [ ] پیاده‌سازی ۶ نقطهٔ پایانی تازه (follow ×3، following، followers، feedback) و فیلد `follows` در `GET /me`.
+5. [ ] پروفایل عمومی: `followerCount`، `followingCount`، `lovedCollections`، `nowReading`.
+6. [ ] `PUT /data` با هر باز شدن شعر برای «در حال خواندن».
+7. [ ] پیام‌های خطا را مستقیم از `{"error"}` نمایش بدهید.
+8. [ ] کارت اشتراک‌گذاری بدون تزئین وسط.
+9. [ ] آیتم‌های حذف‌شدهٔ بخش ۵ را از منو برداشتن.
+
+---
+
+
+## ۷. قابلیت‌های اجتماعی تازه — انجام‌شده
+
+قرارداد کامل (شکل JSON، کدهای وضعیت، پیام‌های خطا) در [social-api-contract.md](social-api-contract.md) است. این بخش فهرست کاری است که موبایل باید انجام دهد. همهٔ مسیرها زیر `/api/account/` هستند، جز `/api/poem-lines`.
+
+### ۷.۰ پیکربندی سرور
+- متغیر محیطی تازه برای سرویس Go: `POEMS_API_URL` = مبدأ برنامهٔ Next (پیش‌فرض `http://127.0.0.1:3000`). سرور متن تکه‌شعر و بیت مشاعره را از `GET /api/poem-lines?key=` همین برنامه می‌خواند؛ پس متن هیچ‌وقت از کلاینت گرفته نمی‌شود. اگر Next در دسترس نباشد این دو قابلیت `502` می‌دهند.
+- «روز» همه‌جا روز تقویمی **تهران** است و ساعت را سرور می‌زند (`time/tzdata` در باینری است).
+- جدول‌های تازه: `reads`، `badges`، `quotes`، `public_moves`، `matches`، `match_moves`؛ ستون‌های تازهٔ `users`: `bio`، `banner`، `accent`، `background`. همه خودکار ساخته/مهاجرت می‌شوند.
+
+### ۷.۱ استریک خواندن — [progress.go](backend/progress.go)
+- `POST /read {key}` → `{streak, newBadges}`. فقط وقتی کاربر وارد شده.
+- **قاعدهٔ «خوانده‌شده» در وب** ([useReadTracker.ts](src/hooks/useReadTracker.ts)): ۱۵ ثانیه زمانِ دیده‌شدن، یا رسیدن به آخر شعر بعد از دست‌کم ۴ ثانیه. وقتی صفحه پنهان است زمان نمی‌گذرد. هر شعر یک بار در هر بار باز شدن. موبایل همین قاعده را پیاده کند.
+- `Streak = {current, best, today, totalPoems, days}`؛ `days` روزهای دارای خواندن در ۲۸ روز اخیر است (برای تقویم کوچک). اگر امروز هنوز خوانده نشده ولی دیروز خوانده شده، `current` زنده است و `today=false`.
+- سقف ۳۰۰ خواندن در روز؛ بیشتر از آن هم `200` می‌دهد.
+- `GET /me` حالا `progress: {streak, badges}` دارد.
+
+### ۷.۲ نشان‌ها
+- فعلاً فقط استریک: `streak-3/7/30/100/365`. کسب‌شده ذخیره می‌شود و با تغییر قاعده از بین نمی‌رود.
+- `GET /catalog` (بدون نشست) → `{badges, banners}`؛ عنوان، توضیح و `icon` را از همین بگیرید، در اپ ثابت ننویسید.
+- `icon` کلید خنثی است: `sprout` | `flame` | `moon` | `star` | `crown`؛ هر کلاینت به آیکون خودش نگاشت کند (وب: [badgeIcons.ts](src/components/badges/badgeIcons.ts)).
+- وقتی `newBadges` خالی نیست، اعلان «نشان تازه» نشان دهید. وب در اولین خواندن روز (اگر `current ≥ 2`) اعلان «🔥 N روز پیاپی» هم می‌دهد.
+
+### ۷.۳ ظاهر نمایه: بنر، رنگ تأکید، رنگ پس‌زمینه، بیو
+- `PUT /appearance {bio, banner, accent, background}` → `{user}`. **جدا از `PUT /profile`** تا نسخه‌های قدیمی اپ با ویرایش نام این‌ها را پاک نکنند.
+- `bio` تا ۱۶۰ نویسه؛ `banner` یکی از ۸ کلید کاتالوگ یا `""`؛ رنگ‌ها `""` یا `#rrggbb` (حروف کوچک ذخیره می‌شود).
+- اگر هر دو رنگ تنظیم شده باشند، کنتراست WCAG باید ≥ ۳ باشد وگرنه `400`. وب همین را پیش از ذخیره بررسی می‌کند ([colorContrast.ts](src/utils/colorContrast.ts)).
+- رنگ متن روی پس‌زمینه و روی دکمهٔ تأکید را خودتان با درخشندگی انتخاب کنید (سیاه یا سفید، هر کدام کنتراست بیشتری دارد). پس‌زمینهٔ روشنِ کاربر در حالت تاریک هم روشن می‌ماند ([profileTheme.ts](src/utils/profileTheme.ts)).
+- تصویر بنرها: `/banners/{key}.svg` (۱۵۰۰×۵۰۰). کلیدها: `dawn` `dusk` `night` `garden` `desert` `sea` `tile` `paper`.
+- `User` و `PublicProfile` چهار فیلد `bio, banner, accent, background` گرفته‌اند.
+- چیدمان تازهٔ نمایه (مثل Substack): بنر، آواتار روی لبهٔ بنر، نام، `@username`، بیو، شمارنده‌ها، دکمه‌های «اشتراک‌گذاری» و «ویرایش» (یا «دنبال کردن» روی نمایهٔ دیگران)، تراشهٔ استریک، و تب‌های «تکه‌ها»، «پسندها»، «کتاب‌ها»، «نشان‌ها». ویرایش ظاهر در برگهٔ «ویرایش ظاهر» و در `/profile/settings`.
+
+### ۷.۴ تکه‌شعر (نقل) و «استوری» دنبال‌شده‌ها
+- **ساختن:** کاربر بخشی از شعر را انتخاب می‌کند؛ انتخاب به **سطرهای کامل** گرد می‌شود و نوار شناوری با «در صفحهٔ من»، «کپی» و «اشتراک» (کارت اشتراک‌گذاری) می‌آید.
+  - وب: `selectionchange` + نوار شناور؛ روی لمسی زیر انتخاب تا با منوی بومی برخورد نکند ([usePoemSelection.ts](src/components/poem-viewer/usePoemSelection.ts)، [PoemSelectionMenu.tsx](src/components/poem-viewer/PoemSelectionMenu.tsx)).
+  - موبایل بومی: یک اقدام به منوی انتخاب متن اضافه کنید (اندروید `ActionMode.Callback`، iOS `UIEditMenuInteraction`/`UIMenu`).
+- `POST /quotes {key, from, to}` → `201 {quote}` (همان بازه دوباره → `200` با همان نقل). حداکثر ۸ سطر، ۲۰ نقل در روز (`429`)، ۵۰۰ نقلِ تازه‌تر نگه داشته می‌شود.
+- **شمارهٔ سطر:** `from`/`to` اندیس صفر-مبنا در `lines` پاسخ `/api/poem-lines` است = `plainText` به سطرها شکسته، trim شده، سطرهای خالی حذف ([poemLines.ts](src/utils/poemLines.ts)). موبایل **باید دقیقاً همین شکستن** را به کار ببرد، وگرنه بیت اشتباه ذخیره می‌شود.
+- **کلید باید کانونی باشد:** همان `getPoemLibraryKey` خود شعر. کلیدی که با شعر نخواند `404` می‌گیرد.
+- `DELETE /quotes/{id}` (فقط نقل خود)، `GET /users/{username}/quotes?before=` (۲۰تایی؛ صاحب حسابِ خصوصی هم نقل‌های خودش را می‌گیرد).
+- `PublicProfile` حالا `quotes` (۲۰ تای آخر) و `quoteCount` دارد.
+- **«استوری» دنبال‌شده‌ها:** `GET /following/quotes` → `{people: [{user:{username, displayName, avatar, accent}, quotes, latestAt}]}`؛ فقط دنبال‌شده‌های عمومی با نقلی در ۷ روز اخیر.
+  - حلقهٔ دور آواتار به رنگ `accent` آن شخص (دیده‌نشده) یا خاکستری (دیده‌شده). وضعیت دیده‌شدن محلی است: تازه‌ترین شناسهٔ دیده‌شده به‌ازای هر نام کاربری (وب: `ganjoorak:stories-seen:v1`).
+  - نمایشگر تمام‌صفحه: نوار پیشرفت به‌ازای هر نقل، ۷ ثانیه، نگه‌داشتن = مکث، در RTL ضربه روی نیمهٔ چپ = بعدی، کشیدن به پایین = بستن، بعد از آخرین نقل شخص بعدی.
+  - **جای آن در وب:** یک تراشهٔ شناور کوچک روی فید خانه، کنار بقیهٔ دکمه‌های شناور: دستهٔ ۲–۳ آواتار روی هم با حلقهٔ رنگ تأکید. فقط وقتی کسی نقلِ دیده‌نشده دارد نمایش داده می‌شود و ضربه روی آن نمایشگر را از اولین شخص دیده‌نشده باز می‌کند ([FollowingStoriesChip.tsx](src/components/stories/FollowingStoriesChip.tsx)). ردیف بالای فید حذف شد.
+
+### ۷.۵ مشاعره — [moshaere*.go](backend/moshaere.go)، صفحه‌های `/moshaere` و `/moshaere/{id}`
+- **قاعده:** هر بیت با حرف آخر بیت قبل شروع شود. نرمال‌سازی حروف باید با سرور یکی باشد (وب: [moshaereLetters.ts](src/utils/moshaereLetters.ts)؛ سرور: [moshaere_letters.go](backend/moshaere_letters.go)): `ي ى ئ→ی`، `ك→ک`، `ة ۀ→ه`، `أ إ آ ٱ→ا`، `ؤ→و`، حذف اعراب، کشیده، نیم‌فاصله، نشانه‌ها، عدد، لاتین و «ء» پایانی. سرور داور نهایی است؛ کلاینت فقط راهنمایی زنده نشان می‌دهد.
+- **بیت:** ۱ یا ۲ مصراع، هر کدام ۲ تا ۱۲۰ نویسه، دست‌کم ۶ حرف. ورودی یا تایپی `{lines}` (از حافظه) یا انتخابی `{key, from, to}` با `to-from ≤ 1` (سرور متن را می‌برد و پیوند شعر را می‌گذارد). تکرار بیت ممنوع است (در کل مسابقه / ۵۰۰ بیت آخر اتاق).
+- **مشاعرهٔ همگانی:** `GET /moshaere/public?after=` (بدون نشست؛ هر ۴ ثانیه poll) و `POST /moshaere/public` با `expect` اختیاری (شناسهٔ تازه‌ترین بیتی که دیده‌اید). فقط نمایهٔ عمومی (`403`)، نه دو بار پشت سر هم (`409`)، هر ۱۰ ثانیه یک بیت (`429`). اگر کسی زودتر خوانده باشد، `409` با `nextLetter`: پیش‌نویس کاربر را نگه دارید و حرف را عوض کنید. `leaders` پرکارهای ۷ روز اخیر است.
+- **مسابقه (تیمی؛ چند در برابر چند):** دو تیم، هر کدام ۱ تا ۵ نفر؛ یک‌به‌یک یعنی دو تیمِ یک‌نفره.
+  - `POST /matches {opponents: [...], allies: [...], assist, turnSeconds}`: `opponents` ۱–۵ نفر، `allies` ۰–۴ هم‌تیمیِ میزبان. `turnSeconds` ∈ `30 | 60 | 180 | 86400`. حداکثر ۵ مسابقهٔ در انتظارِ میزبانی. فیلد قدیمی `opponent` هنوز خوانده می‌شود.
+  - هر دعوت‌شده `accept` / `decline` می‌کند. مسابقه وقتی کسی در حالت `invited` نماند و هر تیم دست‌کم یک عضو `joined` داشت خودش شروع می‌شود؛ میزبان می‌تواند زودتر `start` بزند. میزبان `cancel`؛ بازیکن در بازیِ فعال `leave` (نام قدیم `resign`).
+  - **نوبت بین دو تیم می‌چرخد**؛ هر عضوِ `joined` تیمِ صاحب نوبت می‌تواند بخواند و اولین بیتِ درست نوبت را به تیم دیگر می‌دهد. تیم میزبان (`0`) اول می‌خواند.
+  - تمام شدن مهلت = باختِ تیمِ صاحب نوبت؛ ترک کردن فقط وقتی باخت است که از آن تیم کسی نماند. سرور مهلت را هنگام هر خواندن یا نوشتن اعمال می‌کند. شمارش معکوس را با `now` سرور حساب کنید.
+  - شکل پاسخ: `host` (نام کاربری)، `teams[2]` با `players[{username, displayName, avatar, accent, state, moveCount}]` و `moveCount`، `myTeam`، `myState`، `turnTeam`، `winnerTeam` (هر دو `-1` وقتی معنا ندارند)، `endReason`. `state` ∈ `invited | joined | declined | left`. جزئیات: قرارداد §۶.
+  - `GET /matches` → `{matches, invites, yourTurn}`؛ `GET /matches/{id}?after=` هر ۲ ثانیه وقتی مسابقه در انتظار یا فعال است.
+  - **«جست‌وجو»** (فیلد `assist`؛ نام قبلی در رابط «کمک جست‌وجو») برای هر مسابقه جدا تنظیم می‌شود. وقتی خاموش است سرور بیت انتخابی را با «در این مسابقه جست‌وجو خاموش است.» رد می‌کند و کلاینت جست‌وجو را پنهان کند. نتایج فقط برای خود کاربر است. در اتاق همگانی یک کلید محلی است.
+- **جست‌وجو در وب:** تا دست‌کم **دو کلمه** نوشته نشده نتیجه‌ای نشان نمی‌دهد (نه با یک حرف یا یک کلمه). بعد با جست‌وجوی برنامه می‌گردد، بیت‌هایی را که با حرف لازم شروع می‌شوند نشان می‌دهد، و با `/api/poem-lines` شمارهٔ سطر را پیدا می‌کند تا `{key, from, to}` بفرستد. دکمهٔ ارسال سمت راست کادر است.
+- منوی «بیشتر» آیتم تازهٔ «مشاعره» دارد.
+
+### ۷.۶ زیرساخت تازهٔ وب (معادل در موبایل اختیاری)
+- سیستم اعلان کوچک ([toastStore.ts](src/components/toast/toastStore.ts)) برای نشان، استریک و نقل.
+- [useAccountSession](src/hooks/useAccountSession.ts): یک بار `/me` و اشتراک پاسخ بین اجزا.
+
+### ۷.۷ فهرست بررسی موبایل
+1. [ ] `POST /read` با قاعدهٔ ۱۵ ثانیه / پایان شعر؛ نمایش `newBadges` و استریک.
+2. [ ] `progress` در `GET /me`؛ `streak`، `badges`، `quotes`، `quoteCount`، `bio`، `banner`، `accent`، `background` در `PublicProfile`؛ چهار فیلد تازه در `User`.
+3. [ ] `GET /catalog` برای نشان‌ها و بنرها؛ نگاشت `icon` به آیکون‌های اپ.
+4. [ ] برگهٔ ویرایش ظاهر با `PUT /appearance`، بررسی کنتراست، انتخاب خودکار رنگ متن.
+5. [ ] چیدمان تازهٔ نمایه (بنر، دکمه‌ها، تب‌ها، تراشهٔ استریک، شبکهٔ نشان‌ها).
+6. [ ] اقدام «در صفحهٔ من» در منوی انتخاب متن، با **همان** شکستن سطر `poemToLines` و کلید کانونی.
+7. [ ] تراشهٔ شناور «استوری» روی خانه با `GET /following/quotes` و وضعیت دیده‌شدن محلی.
+8. [ ] صفحه‌های مشاعره (همگانی و مسابقهٔ تیمی)، ساختن تیم‌ها، `start`/`leave`، نرمال‌سازی حروف یکسان با سرور، poll، `expect`، شمارش معکوس با `now` سرور، جست‌وجو از دو کلمه به بعد.
+9. [ ] پیام‌های خطای تازه را مستقیم از `{"error"}` نشان دهید (همه فارسی و آماده‌اند).
+10. [ ] در استقرار: `POEMS_API_URL` را برای سرویس Go تنظیم کنید.
