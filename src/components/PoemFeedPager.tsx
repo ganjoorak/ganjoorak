@@ -49,7 +49,7 @@ const getActivePoemText = (root: HTMLElement | null) =>
   root?.querySelector(".poem-text") as HTMLElement | null;
 
 const isShareDialogOpen = () =>
-  Boolean(document.querySelector(".lyrics-share-panel"));
+  Boolean(document.querySelector(".share-sheet"));
 
 export default function PoemFeedPager({
   poem,
