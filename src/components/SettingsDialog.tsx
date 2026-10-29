@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { FaMoon, FaSun, FaRegNewspaper, FaTimes } from "react-icons/fa";
+import Link from "next/link";
+import { FaChevronLeft, FaChevronRight, FaMoon, FaSun, FaRegNewspaper, FaTimes } from "react-icons/fa";
 import {
   useSettings,
   type ThemeOption,
@@ -17,6 +18,8 @@ import {
   applyPoemFontSize,
   clampPoemFontSize,
 } from "@/context/SettingsContext";
+import FeedbackForm from "@/components/FeedbackForm";
+import { useUpdateNotification } from "@/hooks/useUpdateNotification";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -121,6 +124,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
   );
   const hasSavedRef = useRef(false);
   const latestOnCloseRef = useRef(onClose);
+  const { hasNewUpdates, markAsRead } = useUpdateNotification();
+  // The feedback form replaces the sheet's content; the pending changes above stay in state meanwhile.
+  const [view, setView] = useState<"settings" | "feedback">("settings");
 
   useEffect(() => {
     latestOnCloseRef.current = onClose;
@@ -154,6 +160,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
   }, [restoreAppearance]);
 
   useEffect(() => {
+    setView("settings");
     if (!isOpen) {
       return undefined;
     }
@@ -270,7 +277,21 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
     >
       <DialogPopup dir="rtl" showCloseButton={false} className="settings-sheet">
         <DialogHeader className="settings-sheet-header">
-          <DialogTitle>تنظیمات</DialogTitle>
+          {view === "feedback" ? (
+            <div className="settings-sheet-heading">
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                onClick={() => setView("settings")}
+                aria-label="بازگشت به تنظیمات"
+              >
+                <FaChevronRight />
+              </Button>
+              <DialogTitle>بازخورد</DialogTitle>
+            </div>
+          ) : (
+            <DialogTitle>تنظیمات</DialogTitle>
+          )}
           <Button
             variant="ghost"
             size="icon-lg"
@@ -281,6 +302,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
           </Button>
         </DialogHeader>
         <DialogPanel className="settings-sheet-body">
+          {view === "feedback" ? (
+            <FeedbackForm onDone={() => setView("settings")} />
+          ) : (
           <div aria-live="polite" className="settings-sheet-groups">
             <section className="settings-group" aria-labelledby="settings-group-look">
               <h3 id="settings-group-look" className="settings-group-title">
@@ -440,8 +464,52 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
                 ))}
               </div>
             </section>
+
+            <section className="settings-group" aria-labelledby="settings-group-about">
+              <h3 id="settings-group-about" className="settings-group-title">
+                درباره و پشتیبانی
+              </h3>
+              <div className="settings-group-card">
+                <Link
+                  href="/updates"
+                  className="settings-row settings-row--link"
+                  onClick={() => {
+                    markAsRead();
+                    requestCloseWithoutSaving();
+                  }}
+                >
+                  <span className="settings-row-text">
+                    <span>بروزرسانی‌ها</span>
+                  </span>
+                  {hasNewUpdates && <span className="settings-row-badge">جدید</span>}
+                  <FaChevronLeft className="settings-row-chevron" aria-hidden="true" />
+                </Link>
+                <Link
+                  href="/faq"
+                  className="settings-row settings-row--link"
+                  onClick={requestCloseWithoutSaving}
+                >
+                  <span className="settings-row-text">
+                    <span>پرسش‌های متداول</span>
+                  </span>
+                  <FaChevronLeft className="settings-row-chevron" aria-hidden="true" />
+                </Link>
+                <button
+                  type="button"
+                  className="settings-row settings-row--link"
+                  onClick={() => setView("feedback")}
+                >
+                  <span className="settings-row-text">
+                    <span>بازخورد</span>
+                  </span>
+                  <FaChevronLeft className="settings-row-chevron" aria-hidden="true" />
+                </button>
+              </div>
+            </section>
           </div>
+          )}
         </DialogPanel>
+        {view === "settings" && (
         <DialogFooter className="settings-sheet-footer">
           <Button variant="outline" size="lg" onClick={handleCancel}>
             لغو
@@ -450,6 +518,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
             ذخیره
           </Button>
         </DialogFooter>
+        )}
       </DialogPopup>
     </Dialog>
   );

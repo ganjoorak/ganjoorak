@@ -24,7 +24,6 @@ import { fetchRandomPoemFromCollection } from '@/utils/collectionFeed';
 import { readCachedFeed, writeCachedFeedPoems } from '@/utils/feedCache';
 import { getPoetDisplayName, parsePreferredPoetKey, getIndexedGanjoorPoetId } from '@/utils/feedPoets';
 import FeedPoetDialog from '@/components/FeedPoetDialog';
-import FollowingStoriesChip from '@/components/stories/FollowingStoriesChip';
 
 const INITIAL_POEMS_COUNT = 12;
 const PREFETCH_THRESHOLD = 5;
@@ -109,6 +108,7 @@ export default function Home() {
     }, [feedSignature, currentPoemIndex, poems]);
     const currentPoem = poems[currentPoemIndex];
     const nextPoem = poems[currentPoemIndex + 1];
+    const previousPoem = currentPoemIndex > 0 ? poems[currentPoemIndex - 1] : undefined;
 
     const clearFeedQuery = useCallback(() => {
         if (typeof window !== 'undefined') {
@@ -528,6 +528,7 @@ export default function Home() {
                 <PoemFeedPager
                     poem={currentPoem}
                     nextPoem={nextPoem}
+                    previousPoem={previousPoem}
                     isFirst={currentPoemIndex === 0}
                     isPreparingNextPoem={isFetchingMore && !nextPoem}
                     onNext={handleNext}
@@ -536,8 +537,6 @@ export default function Home() {
                     titleEyebrow={<div className="home-feed-eyebrow">{feedModeSwitch}</div>}
                 />
             )}
-            {/* Floating chip of followed people's unseen fragments; shows on every poem of the feed. */}
-            {currentPoem && <FollowingStoriesChip />}
         </main>
     );
 }

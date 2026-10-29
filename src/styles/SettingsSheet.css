@@ -197,3 +197,59 @@
 .settings-sheet [data-slot="switch"][data-checked] [data-slot="switch-thumb"] {
   background: rgb(var(--primary-foreground));
 }
+
+/* Rows that lead somewhere (updates, FAQ, feedback): the same row, plus a «new» badge and a chevron. */
+a.settings-row--link,
+button.settings-row--link {
+  width: 100%;
+  /* Keep the card's hairline between rows (border-top); drop the browser's own button border. */
+  border-inline: 0;
+  border-bottom: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+}
+
+.settings-row--link:hover {
+  background: rgb(var(--muted) / 0.6);
+}
+
+.settings-row--link:focus-visible {
+  outline: 2px solid rgb(var(--ring) / 0.7);
+  outline-offset: -2px;
+}
+
+.settings-row--link .settings-row-text {
+  flex: 1 1 auto;
+}
+
+.settings-row-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.15rem;
+  padding: 0 0.45rem;
+  border-radius: 9999px;
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.settings-row-chevron {
+  flex: 0 0 auto;
+  width: 0.7rem;
+  height: 0.7rem;
+  color: rgb(var(--muted-foreground));
+}
+
+/* Feedback view: back arrow beside the title. */
+.settings-sheet-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-inline-start: -0.5rem;
+}

@@ -24,6 +24,7 @@ import PoemBody from "@/components/poem-viewer/PoemBody";
 import { useEdgeNavigation } from "@/components/poem-viewer/useEdgeNavigation";
 import { usePinnedEyebrow } from "@/components/poem-viewer/usePinnedEyebrow";
 import { useRecitationPlayer } from "@/components/poem-viewer/useRecitationPlayer";
+import { usePullSheetPoem } from "@/components/poem-viewer/usePullSheetPoem";
 import { useStackedMesras } from "@/components/poem-viewer/useStackedMesras";
 import { useVerseSync } from "@/components/poem-viewer/useVerseSync";
 import { useHideOnScroll } from "@/hooks/useHideOnScroll";
@@ -33,10 +34,19 @@ import { useUpdateNotification } from "@/hooks/useUpdateNotification";
 import { usePoemLibrary } from "@/hooks/usePoemLibrary";
 import { useReadTracker } from "@/hooks/useReadTracker";
 
+/** What the feed pager can ask the viewer to do on its behalf (play the sheet slide instead of a frame slide). */
+export interface PoemSlideControls {
+  /** Slide the previous poem down like a released pull. True when sliding (or already), false if it can't. */
+  previous: () => boolean;
+  /** The same for the next poem, sliding up. */
+  next: () => boolean;
+}
+
 interface PoemViewerProps {
   poem: Poem;
   onNext: (poem?: Poem) => void;
-  onPrevious?: () => void;
+  /** Receives the poem the pull sheet showed (only when the previous sheet navigated). */
+  onPrevious?: (poem?: Poem) => void;
   isFirst?: boolean;
   isLast?: boolean;
   isModern?: boolean;
@@ -55,6 +65,16 @@ interface PoemViewerProps {
   onToggleZenLock?: () => void;
   /** Poem shown in the pull-to-next sheet while it slides up. */
   nextPoemPeek?: Poem | null;
+  /**
+   * The poem before this one, when the feed knows it: enables pull-to-previous (over-scroll up at the top pulls
+   * it down from above) and its sheet slide for the button and ArrowUp. Without it, "previous" keeps the plain
+   * frame slide.
+   */
+  previousPoemPeek?: Poem | null;
+  /** Filled with the viewer's slide controls while it is mounted. */
+  slideControlsRef?: React.MutableRefObject<PoemSlideControls | null>;
+  /** Extra gate for pulls (zen lock, dialogs, navigation cooldown); see usePullToNext. */
+  canStartPull?: () => boolean;
   isPreparingNext?: boolean;
   /** Pull-to-next at the bottom of the poem. Defaults to on whenever there is a next poem (!isLast). */
   pullToNext?: boolean;
@@ -96,6 +116,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   isZenLocked,
   onToggleZenLock,
   nextPoemPeek,
+  previousPoemPeek,
+  slideControlsRef,
+  canStartPull,
   isPreparingNext = false,
   pullToNext,
 }) => {
@@ -159,18 +182,21 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     onNext(target);
   }, [stopPlayback, onNext]);
 
-  const handlePrevious = useCallback(() => {
+  const handlePrevious = useCallback((target?: Poem) => {
     setNavigationDirection(-1);
     setInstantArrivalFor(null);
     stopPlayback();
-    onPrevious();
+    onPrevious(target);
   }, [stopPlayback, onPrevious]);
+
+  // With a known previous poem, going back is a pull (usePullToNext, direction "previous"), not a swipe jump.
+  const hasPreviousSheet = Boolean(previousPoemPeek);
 
   useEdgeNavigation({
     scrollRef: poemTextRef,
     rootRef: containerRef,
     poemId: poem.id,
-    isFirst,
+    isFirst: isFirst || hasPreviousSheet,
     disabled: isShareOpen,
     onPrevious: handlePrevious,
   });
@@ -190,15 +216,9 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
   );
   const isStacked = useStackedMesras(poemTextRef, poem.id);
 
-  const pullSheetRef = useRef<HTMLDivElement>(null);
-  // Once a pull commits, the sheet keeps showing the poem it committed to while it fades out, even though
-  // the page has already computed a new "next" for the poem that just landed.
-  const [committedPeek, setCommittedPeek] = useState<Poem | null>(null);
-  useEffect(() => {
-    if (!committedPeek) return;
-    const timer = window.setTimeout(() => setCommittedPeek(null), committedPeek.id === poem.id ? 400 : 7000);
-    return () => window.clearTimeout(timer);
-  }, [committedPeek, poem.id]);
+  // Each sheet keeps showing the poem it committed to while the real one lands, and measures its own layout.
+  const nextSheet = usePullSheetPoem(nextPoemPeek, poem.id);
+  const previousSheet = usePullSheetPoem(previousPoemPeek, poem.id);
   const isInstantArrival =
     instantArrivalFor !== null &&
     (instantArrivalFor === "*" || instantArrivalFor === String(poem.id));
@@ -211,24 +231,47 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     );
     return () => window.clearTimeout(timer);
   }, [instantArrivalFor, isInstantArrival]);
-  const sheetPoem = committedPeek ?? nextPoemPeek ?? null;
-  const { commitNext } = usePullToNext({
+  const { commit: commitNext } = usePullToNext({
     scrollRef: poemTextRef,
     rootRef: containerRef,
-    sheetRef: pullSheetRef,
+    sheetRef: nextSheet.sheetRef,
     // The open reciters list owns the wheel and the bottom of the screen: no pull while it is open.
     enabled: (pullToNext ?? !isLast) && !isZenLocked && !isShareOpen && !isRecitersOpen,
     // While the next poem is still loading the sheet springs back instead of navigating somewhere unseen.
-    hasNext: Boolean(nextPoemPeek) || !isPreparingNext,
+    hasTarget: Boolean(nextPoemPeek) || !isPreparingNext,
     // Navigate to exactly the poem the sheet showed (single source of truth for "next").
     onCommit: () => {
-      if (nextPoemPeek) setCommittedPeek(nextPoemPeek);
+      if (nextPoemPeek) nextSheet.setCommitted(nextPoemPeek);
       handleNext(nextPoemPeek ?? undefined);
       // After handleNext (which clears it): batched with the navigation, so the landing render already sees it.
       setInstantArrivalFor(nextPoemPeek ? String(nextPoemPeek.id) : "*");
     },
     resetKey: poem.id,
   });
+  // The mirror image at the top of the poem: the previous poem comes down from above.
+  const showPreviousSheet = hasPreviousSheet || previousSheet.isCommitted;
+  const { commit: commitPrevious } = usePullToNext({
+    direction: "previous",
+    scrollRef: poemTextRef,
+    rootRef: containerRef,
+    sheetRef: previousSheet.sheetRef,
+    enabled: hasPreviousSheet && !isFirst && !isZenLocked && !isShareOpen && !isRecitersOpen,
+    hasTarget: hasPreviousSheet,
+    canStart: canStartPull,
+    onCommit: () => {
+      if (previousPoemPeek) previousSheet.setCommitted(previousPoemPeek);
+      handlePrevious(previousPoemPeek ?? undefined);
+      setInstantArrivalFor(previousPoemPeek ? String(previousPoemPeek.id) : "*");
+    },
+    resetKey: poem.id,
+  });
+  useEffect(() => {
+    if (!slideControlsRef) return;
+    slideControlsRef.current = { previous: commitPrevious, next: commitNext };
+    return () => {
+      slideControlsRef.current = null;
+    };
+  }, [slideControlsRef, commitPrevious, commitNext]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -308,6 +351,15 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
     showTitleSection && "poem-text--title-in-flow",
     isStacked && "poem-text--stacked",
   );
+  // Same classes, but the per-poem ones come from the sheet's own poem, and without live audio highlighting.
+  const sheetTextClassNameFor = (sheet: { sheetPoem: Poem | null; isStacked: boolean }) =>
+    classNames(
+      "poem-text",
+      (sheet.sheetPoem?.recitations?.length ?? 0) === 0 && "poem-text--no-audio",
+      isMinimalPoemView && "poem-text--minimal",
+      showTitleSection && "poem-text--title-in-flow",
+      sheet.isStacked && "poem-text--stacked",
+    );
 
   const canNavigatePrevious = !isFirst;
   const canNavigateNext = showNext || !isLast;
@@ -326,12 +378,28 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
         ? " verse-highlighted"
         : ""
     }`;
-  // The page only says whether its own poem is modern; a next poem from the same source is alike.
-  const sheetIsModern = sheetPoem
-    ? sheetPoem.id === poem.id || sheetPoem.source === poem.source
-      ? isModern
-      : sheetPoem.source !== "ganjoor"
-    : isModern;
+  // The page only says whether its own poem is modern; a neighbouring poem from the same source is alike.
+  const isSheetModern = (sheetPoem: Poem | null) =>
+    sheetPoem
+      ? sheetPoem.id === poem.id || sheetPoem.source === poem.source
+        ? isModern
+        : sheetPoem.source !== "ganjoor"
+      : isModern;
+  // The sheet drops live-only state such as audio highlighting.
+  const renderSheetBody = (sheetPoem: Poem | null) => {
+    if (!sheetPoem) return null;
+    const modern = isSheetModern(sheetPoem);
+    return (
+      <PoemBody
+        poem={sheetPoem}
+        isModern={modern}
+        animate={false}
+        verseClass={() => `verse-line${numberedClass(modern)}`}
+        isPoetPage={isPoetPage}
+        hasEyebrow={hasTitleEyebrow}
+      />
+    );
+  };
   const toggleHighlight = () => setIsHighlightEnabled((v) => !v);
 
   if (!poem) return null;
@@ -403,7 +471,10 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
           <button
             type="button"
             className="nav-button"
-            onClick={handlePrevious}
+            // Like a pull: the previous poem slides down with the current one; plain transition if there is no sheet.
+            onClick={() => {
+              if (!commitPrevious()) handlePrevious();
+            }}
             disabled={!canNavigatePrevious}
             aria-label="شعر قبلی"
             title="شعر قبلی"
@@ -511,22 +582,24 @@ const PoemViewer: React.FC<PoemViewerProps> = ({
       )}
       {(pullToNext ?? !isLast) && (
         <PullNextSheet
-          ref={pullSheetRef}
+          ref={nextSheet.sheetRef}
           isPreparing={isPreparingNext}
           contentClassName={poemContentClassName}
-          textClassName={poemTextClassName.replace(" highlight-on", "")}
+          textClassName={sheetTextClassNameFor(nextSheet)}
+          textRef={nextSheet.sheetTextRef}
         >
-          {sheetPoem ? (
-            // The sheet drops live-only state such as audio highlighting.
-            <PoemBody
-              poem={sheetPoem}
-              isModern={sheetIsModern}
-              animate={false}
-              verseClass={() => `verse-line${numberedClass(sheetIsModern)}`}
-              isPoetPage={isPoetPage}
-              hasEyebrow={hasTitleEyebrow}
-            />
-          ) : null}
+          {renderSheetBody(nextSheet.sheetPoem)}
+        </PullNextSheet>
+      )}
+      {showPreviousSheet && (
+        <PullNextSheet
+          ref={previousSheet.sheetRef}
+          edge="top"
+          contentClassName={poemContentClassName}
+          textClassName={sheetTextClassNameFor(previousSheet)}
+          textRef={previousSheet.sheetTextRef}
+        >
+          {renderSheetBody(previousSheet.sheetPoem)}
         </PullNextSheet>
       )}
     </motion.div>

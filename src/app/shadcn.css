@@ -410,6 +410,19 @@ html:root body .poem-viewer .verse-line.prose-paragraph::after { content: none; 
 }
 .gk-pull-sheet[data-armed] .gk-pull-handle { width: 3.25rem; background: rgb(var(--foreground) / 0.42); }
 .gk-pull-label { margin-top: 1.5rem; font-size: 0.8rem; opacity: 0.6; }
+/* Pull-to-previous: the same sheet mirrored. It waits above the viewport and slides down; the rounded edge and
+   shadow face down, and the grab handle sits on its bottom (leading) edge. */
+.gk-pull-sheet--top {
+  top: -100%;
+  border-radius: 0 0 calc(1.5rem * (1 - var(--gk-pull-p))) calc(1.5rem * (1 - var(--gk-pull-p)));
+  box-shadow: 0 18px 48px rgb(0 0 0 / calc(0.16 * (1 - var(--gk-pull-p))));
+}
+.gk-pull-sheet--top .gk-pull-grip {
+  top: auto;
+  bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0.4rem;
+}
 .gk-pull-scrim {
   position: absolute;
   inset: 0;

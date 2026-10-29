@@ -1,34 +1,26 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useDragControls, useReducedMotion } from "framer-motion";
 import {
   FaBars,
-  FaBell,
   FaBookmark,
-  FaChevronLeft,
-  FaChevronRight,
-  FaCommentDots,
   FaCompass,
-  FaEllipsisH,
   FaFeatherAlt,
   FaHome,
   FaMinus,
   FaMoon,
   FaPlus,
-  FaQuestionCircle,
-  FaRegStar,
   FaRegNewspaper,
+  FaRegStar,
   FaSearch,
-  FaSlidersH,
   FaSun,
   FaTimes,
   FaUserCheck,
-  FaUserCircle,
   FaUsers,
 } from "react-icons/fa";
 import {
@@ -38,7 +30,12 @@ import {
   useSettings,
   type ThemeOption,
 } from "@/context/SettingsContext";
-import FeedbackForm from "@/components/FeedbackForm";
+import ProfileAvatar from "@/components/ProfileAvatar";
+import StoriesRow from "@/components/stories/StoriesRow";
+import StoryViewer from "@/components/stories/StoryViewer";
+import { useAccountSession } from "@/hooks/useAccountSession";
+import { markStorySeen, useFollowingStories } from "@/hooks/useFollowingStories";
+import type { StoryPerson } from "@/utils/quotesApi";
 
 interface MenuProps {
   isOpen: boolean;
@@ -51,10 +48,7 @@ interface MenuProps {
   onOpenSearch?: () => void;
   isZenLocked?: boolean;
   onToggleZenLock?: () => void;
-  /**
-   * Poem-specific actions shown as the first menu section on phones only
-   * (the mobile bottom bar keeps just like, play and menu).
-   */
+  /** Accepted for the hosts that pass it; the menu itself no longer shows poem actions. */
   poemActions?: MenuPoemActions;
 }
 
@@ -74,20 +68,8 @@ type MenuLinkItem = {
   href: string;
   icon: React.ReactNode;
   label: string;
-  badge?: string;
   count?: string;
-  onClick?: () => void;
 };
-
-type MenuButtonItem = {
-  kind: "button";
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  ariaPressed?: boolean;
-};
-
-type MenuItem = MenuLinkItem | MenuButtonItem;
 
 const THEME_OPTIONS: Array<{
   value: ThemeOption;
@@ -104,6 +86,25 @@ const FOCUSABLE_SELECTOR =
 
 const persianNumber = new Intl.NumberFormat("fa-IR");
 
+// Phones and small tablets get a bottom sheet instead of the side drawer: the breakpoint the floating
+// controls (mobile-floating-controls.css) already switch layout at.
+const SHEET_QUERY = "(max-width: 768px)";
+const subscribeSheet = (callback: () => void) => {
+  const query = window.matchMedia(SHEET_QUERY);
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
+};
+const useIsSheet = () =>
+  useSyncExternalStore(
+    subscribeSheet,
+    () => window.matchMedia(SHEET_QUERY).matches,
+    () => false,
+  );
+
+/** Past this drag distance (px) or fling speed (px/s) a sheet drag dismisses the menu. */
+const SHEET_DISMISS_DISTANCE = 90;
+const SHEET_DISMISS_VELOCITY = 500;
+
 const isRouteActive = (pathname: string | null, href: string) => {
   if (!pathname || href.includes("?")) return false;
   if (href === "/") return pathname === "/";
@@ -113,18 +114,23 @@ const isRouteActive = (pathname: string | null, href: string) => {
 const Menu: React.FC<MenuProps> = ({
   isOpen,
   onClose,
-  hasNewUpdates = false,
-  onUpdatesViewed,
   onOpenSettings,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
+  const isSheet = useIsSheet();
+  const dragControls = useDragControls();
   const { settings, setTheme, setPoemFontSize } = useSettings();
+  const { user } = useAccountSession();
+  const stories = useFollowingStories();
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const lastPathnameRef = useRef(pathname);
-  const [view, setView] = useState<"main" | "more" | "feedback">("main");
+  // Frozen when opened: the viewer indexes into this list while the live one re-sorts as stories are seen.
+  const [viewer, setViewer] = useState<{ people: StoryPerson[]; startIndex: number } | null>(null);
+  const isViewerOpenRef = useRef(false);
+  isViewerOpenRef.current = viewer !== null;
 
   const preferredCount = settings.preferredPoetKeys?.length ?? 0;
 
@@ -138,7 +144,7 @@ const Menu: React.FC<MenuProps> = ({
     [],
   );
 
-  const libraryItems = useMemo<MenuItem[]>(
+  const libraryItems = useMemo<MenuLinkItem[]>(
     () => [
       { kind: "link", href: "/saved", icon: <FaBookmark />, label: "نشان‌شده‌ها" },
       {
@@ -149,53 +155,32 @@ const Menu: React.FC<MenuProps> = ({
         count: preferredCount > 0 ? persianNumber.format(preferredCount) : undefined,
       },
       { kind: "link", href: "/following", icon: <FaUserCheck />, label: "دنبال‌شده‌ها" },
-      { kind: "link", href: "/profile", icon: <FaUserCircle />, label: "حساب کاربری" },
     ],
     [preferredCount],
   );
 
-  const moreItems = useMemo<MenuItem[]>(
-    () => [
-      {
-        kind: "link",
-        href: "/updates",
-        icon: <FaBell />,
-        label: "بروزرسانی‌ها",
-        badge: hasNewUpdates ? "جدید" : undefined,
-        onClick: () => onUpdatesViewed?.(),
-      },
-      {
-        kind: "link",
-        href: "/faq",
-        icon: <FaQuestionCircle />,
-        label: "پرسش‌های متداول",
-      },
-      {
-        kind: "button",
-        icon: <FaCommentDots />,
-        label: "بازخورد",
-        onClick: () => setView("feedback"),
-      },
-    ],
-    [hasNewUpdates, onUpdatesViewed],
-  );
-
+  const { refresh: refreshStories } = stories;
   useEffect(() => {
-    if (!isOpen) setView("main");
+    if (isOpen) refreshStories();
+    // refresh only reads the shared store; it is recreated each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
-    [...discoverItems, ...libraryItems, ...moreItems].forEach((item) => {
-      if (item.kind === "link") {
-        router.prefetch(item.href);
-      }
-    });
-  }, [discoverItems, libraryItems, moreItems, router]);
+    if (!isOpen) setViewer(null);
+  }, [isOpen]);
+
+  useEffect(() => {
+    [...discoverItems, ...libraryItems].forEach((item) => router.prefetch(item.href));
+    router.prefetch("/profile");
+    router.prefetch("/login");
+  }, [discoverItems, libraryItems, router]);
 
   // Close when the route changes underneath the drawer (back/forward, in-page navigation).
   useEffect(() => {
     if (lastPathnameRef.current === pathname) return;
     lastPathnameRef.current = pathname;
+    setViewer(null);
     if (isOpen) onClose();
   }, [isOpen, onClose, pathname]);
 
@@ -216,6 +201,9 @@ const Menu: React.FC<MenuProps> = ({
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // The story viewer sits on top and handles its own keys.
+      if (isViewerOpenRef.current) return;
+
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
@@ -264,25 +252,7 @@ const Menu: React.FC<MenuProps> = ({
     [setPoemFontSize, settings.poemFontSize],
   );
 
-  const renderItem = (item: MenuItem) => {
-    if (item.kind === "button") {
-      return (
-        <li key={item.label}>
-          <button
-            type="button"
-            className="menu-link"
-            onClick={item.onClick}
-            aria-pressed={item.ariaPressed}
-          >
-            <span className="menu-link-icon" aria-hidden="true">
-              {item.icon}
-            </span>
-            <span className="menu-link-label">{item.label}</span>
-          </button>
-        </li>
-      );
-    }
-
+  const renderItem = (item: MenuLinkItem) => {
     const active = isRouteActive(pathname, item.href);
 
     return (
@@ -292,17 +262,13 @@ const Menu: React.FC<MenuProps> = ({
           prefetch
           className={`menu-link${active ? " is-active" : ""}`}
           aria-current={active ? "page" : undefined}
-          onClick={() => {
-            item.onClick?.();
-            onClose();
-          }}
+          onClick={onClose}
         >
           <span className="menu-link-icon" aria-hidden="true">
             {item.icon}
           </span>
           <span className="menu-link-label">{item.label}</span>
           {item.count && <span className="menu-link-count">{item.count}</span>}
-          {item.badge && <span className="menu-link-badge">{item.badge}</span>}
         </Link>
       </li>
     );
@@ -315,17 +281,25 @@ const Menu: React.FC<MenuProps> = ({
         exit: { opacity: 0 },
         transition: { duration: 0.15 },
       }
-    : {
-        initial: { x: "100%" },
-        animate: { x: 0 },
-        exit: { x: "100%" },
-        transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] as const },
-      };
+    : isSheet
+      ? {
+          initial: { y: "100%" },
+          animate: { y: 0 },
+          exit: { y: "100%" },
+          transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] as const },
+        }
+      : {
+          initial: { x: "100%" },
+          animate: { x: 0 },
+          exit: { x: "100%" },
+          transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] as const },
+        };
 
   const canDecreaseFont = settings.poemFontSize > POEM_FONT_SIZE_MIN;
   const canIncreaseFont = settings.poemFontSize < POEM_FONT_SIZE_MAX;
 
   return (
+    <>
     <AnimatePresence>
       {isOpen && (
         <>
@@ -343,32 +317,70 @@ const Menu: React.FC<MenuProps> = ({
           <motion.div
             key="menu-drawer"
             ref={panelRef}
-            className="menu-drawer"
+            className={`menu-drawer${isSheet ? " menu-drawer--sheet" : ""}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="menu-drawer-title"
             id="main-menu"
             {...drawerMotion}
+            // Sheet: the grabber starts a vertical drag; a far or fast pull down closes, otherwise it springs back.
+            drag={isSheet ? "y" : false}
+            dragControls={dragControls}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.5 }}
+            dragSnapToOrigin
+            onDragEnd={(_, info) => {
+              if (info.offset.y > SHEET_DISMISS_DISTANCE || info.velocity.y > SHEET_DISMISS_VELOCITY) onClose();
+            }}
           >
-            <header className="menu-drawer-header">
-              <div className="menu-brand">
-                <Image
-                  src="/icon-192.png"
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="menu-brand-logo"
-                  priority
-                />
-                <div className="menu-brand-text">
-                  <span id="menu-drawer-title" className="menu-brand-title">
-                    گنجورک
-                  </span>
-                  <span className="menu-brand-subtitle">
-                    راحت‌تر شعر بخوانیم و شعر گوش دهیم
-                  </span>
-                </div>
+            {isSheet && (
+              <div
+                className="menu-sheet-grabber"
+                aria-hidden="true"
+                onPointerDown={(event) => dragControls.start(event)}
+              >
+                <span className="menu-sheet-grabber-bar" />
               </div>
+            )}
+            <header className="menu-drawer-header">
+              {user ? (
+                <Link href="/profile" prefetch className="menu-account" onClick={onClose}>
+                  <ProfileAvatar
+                    username={user.username}
+                    avatar={user.avatar}
+                    className="menu-account-avatar"
+                    decorative
+                  />
+                  <span className="menu-account-text">
+                    <span id="menu-drawer-title" className="menu-account-name">
+                      {user.displayName}
+                    </span>
+                    <span className="menu-account-meta" dir="ltr">
+                      @{user.username}
+                    </span>
+                  </span>
+                </Link>
+              ) : (
+                <Link href="/login" prefetch className="menu-account" onClick={onClose}>
+                  <Image
+                    src="/icon-192.png"
+                    alt=""
+                    width={44}
+                    height={44}
+                    className="menu-account-logo"
+                    priority
+                  />
+                  <span className="menu-account-text">
+                    <span id="menu-drawer-title" className="menu-account-name">
+                      گنجورک
+                    </span>
+                    <span className="menu-account-meta menu-account-meta--action">
+                      ورود یا ساخت حساب
+                    </span>
+                  </span>
+                </Link>
+              )}
               <button
                 ref={closeButtonRef}
                 type="button"
@@ -381,186 +393,108 @@ const Menu: React.FC<MenuProps> = ({
             </header>
 
             <nav className="menu-drawer-body" aria-label="منوی اصلی">
-              <AnimatePresence mode="wait" initial={false}>
-                {view === "main" ? (
-                  <motion.div
-                    key="menu-view-main"
-                    className="menu-view"
-                    initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
-                    transition={{ duration: 0.18 }}
-                  >
-                    <section className="menu-section" aria-labelledby="menu-section-discover">
-                      <h2 id="menu-section-discover" className="menu-section-title">
-                        کشف شعر
-                      </h2>
-                      <ul className="menu-list">
-                        {discoverItems.map((item) => renderItem(item))}
-                      </ul>
-                    </section>
+              <StoriesRow
+                people={stories.people}
+                isUnseen={stories.isUnseen}
+                onOpen={(index) => setViewer({ people: stories.people, startIndex: index })}
+              />
 
-                    <section className="menu-section" aria-labelledby="menu-section-library">
-                      <h2 id="menu-section-library" className="menu-section-title">
-                        کتابخانهٔ من
-                      </h2>
-                      <ul className="menu-list">
-                        {libraryItems.map((item) => renderItem(item))}
-                      </ul>
-                    </section>
+              <section className="menu-section" aria-labelledby="menu-section-discover">
+                <h2 id="menu-section-discover" className="menu-section-title">
+                  گنجورک
+                </h2>
+                <ul className="menu-list">{discoverItems.map((item) => renderItem(item))}</ul>
+              </section>
 
-                    <section className="menu-section" aria-label="بیشتر">
-                      <ul className="menu-list">
-                        <li>
-                          <button
-                            type="button"
-                            className="menu-link menu-link--more"
-                            onClick={() => setView("more")}
-                            aria-haspopup="true"
-                          >
-                            <span className="menu-link-icon" aria-hidden="true">
-                              <FaEllipsisH />
-                            </span>
-                            <span className="menu-link-label">بیشتر</span>
-                            {hasNewUpdates && (
-                              <span className="menu-link-dot" aria-label="بروزرسانی جدید" />
-                            )}
-                            <span className="menu-settings-chevron" aria-hidden="true">
-                              <FaChevronLeft />
-                            </span>
-                          </button>
-                        </li>
-                      </ul>
-                    </section>
-                  </motion.div>
-                ) : view === "more" ? (
-                  <motion.div
-                    key="menu-view-more"
-                    className="menu-view"
-                    initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
-                    transition={{ duration: 0.18 }}
-                  >
-                    <div className="menu-subpage-header">
-                      <button
-                        type="button"
-                        className="menu-subpage-back"
-                        onClick={() => setView("main")}
-                        aria-label="بازگشت به منو"
-                      >
-                        <FaChevronRight aria-hidden="true" />
-                      </button>
-                      <h2 className="menu-subpage-title">بیشتر</h2>
-                    </div>
-                    <section className="menu-section">
-                      <ul className="menu-list">
-                        {moreItems.map((item) => renderItem(item))}
-                      </ul>
-                    </section>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="menu-view-feedback"
-                    className="menu-view"
-                    initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
-                    transition={{ duration: 0.18 }}
-                  >
-                    <div className="menu-subpage-header">
-                      <button
-                        type="button"
-                        className="menu-subpage-back"
-                        onClick={() => setView("more")}
-                        aria-label="بازگشت به بیشتر"
-                      >
-                        <FaChevronRight aria-hidden="true" />
-                      </button>
-                      <h2 className="menu-subpage-title">بازخورد</h2>
-                    </div>
-                    <FeedbackForm onDone={onClose} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <section className="menu-section" aria-labelledby="menu-section-library">
+                <h2 id="menu-section-library" className="menu-section-title">
+                  کتابخانهٔ من
+                </h2>
+                <ul className="menu-list">{libraryItems.map((item) => renderItem(item))}</ul>
+              </section>
+
+              <section className="menu-section menu-section--quiet" aria-label="تنظیمات">
+                <ul className="menu-list">
+                  <li>
+                    <button
+                      type="button"
+                      className="menu-link"
+                      onClick={() => {
+                        onOpenSettings();
+                        onClose();
+                      }}
+                    >
+                      <span className="menu-link-label">تنظیمات</span>
+                    </button>
+                  </li>
+                </ul>
+              </section>
             </nav>
 
-            {/* The feedback form needs the room, especially with a phone keyboard up. */}
-            {view !== "feedback" && (
-              <footer className="menu-drawer-footer">
-                <div
-                  className="menu-theme-switch"
-                  role="radiogroup"
-                  aria-label="پوستهٔ نمایش"
+            <footer className="menu-drawer-footer">
+              <div
+                className="menu-theme-switch"
+                role="radiogroup"
+                aria-label="پوستهٔ نمایش"
+              >
+                {THEME_OPTIONS.map((option) => {
+                  const active = settings.theme === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      aria-label={option.label}
+                      title={option.label}
+                      className={`menu-theme-option${active ? " is-active" : ""}`}
+                      onClick={() => setTheme(option.value)}
+                    >
+                      {option.icon}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div
+                className="menu-font-stepper"
+                role="group"
+                aria-label="اندازهٔ متن شعر"
+              >
+                <button
+                  type="button"
+                  onClick={() => handleFontSizeStep(-1)}
+                  disabled={!canDecreaseFont}
+                  aria-label="کوچک‌تر کردن متن"
                 >
-                  {THEME_OPTIONS.map((option) => {
-                    const active = settings.theme === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        className={`menu-theme-option${active ? " is-active" : ""}`}
-                        onClick={() => setTheme(option.value)}
-                      >
-                        <span className="menu-theme-option-icon">{option.icon}</span>
-                        <span>{option.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="menu-footer-row">
-                  <button
-                    type="button"
-                    className="menu-settings-button"
-                    onClick={() => {
-                      onOpenSettings();
-                      onClose();
-                    }}
-                  >
-                    <span className="menu-link-icon" aria-hidden="true">
-                      <FaSlidersH />
-                    </span>
-                    <span className="menu-link-label">تنظیمات</span>
-                    <span className="menu-settings-chevron" aria-hidden="true">
-                      <FaChevronLeft />
-                    </span>
-                  </button>
-
-                  <div
-                    className="menu-font-stepper"
-                    role="group"
-                    aria-label="اندازهٔ متن شعر"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleFontSizeStep(-1)}
-                      disabled={!canDecreaseFont}
-                      aria-label="کوچک‌تر کردن متن"
-                    >
-                      <FaMinus aria-hidden="true" />
-                    </button>
-                    <span className="menu-font-stepper-value" aria-live="polite">
-                      {persianNumber.format(settings.poemFontSize)}٪
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleFontSizeStep(1)}
-                      disabled={!canIncreaseFont}
-                      aria-label="بزرگ‌تر کردن متن"
-                    >
-                      <FaPlus aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-              </footer>
-            )}
+                  <FaMinus aria-hidden="true" />
+                </button>
+                <span className="menu-font-stepper-value" aria-live="polite">
+                  {persianNumber.format(settings.poemFontSize)}٪
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleFontSizeStep(1)}
+                  disabled={!canIncreaseFont}
+                  aria-label="بزرگ‌تر کردن متن"
+                >
+                  <FaPlus aria-hidden="true" />
+                </button>
+              </div>
+            </footer>
           </motion.div>
         </>
       )}
     </AnimatePresence>
+    {viewer && (
+      <StoryViewer
+        people={viewer.people}
+        startIndex={viewer.startIndex}
+        onSeen={markStorySeen}
+        onClose={() => setViewer(null)}
+      />
+    )}
+    </>
   );
 };
 
@@ -575,6 +509,10 @@ export function MenuButton({
   isHidden?: boolean;
   isOpen?: boolean;
 }) {
+  // A dot for whatever is new inside: a recent update, or a followed person's unseen poem lines.
+  const { hasUnseen } = useFollowingStories();
+  const showDot = hasNotification || hasUnseen;
+
   return (
     <Button
       type="button"
@@ -587,15 +525,13 @@ export function MenuButton({
       ]
         .filter(Boolean)
         .join(" ")}
-      aria-label="منو"
+      aria-label={showDot ? "منو، مورد تازه دارد" : "منو"}
       aria-haspopup="dialog"
       aria-controls="main-menu"
       aria-expanded={isOpen}
     >
       <FaBars size={16} aria-hidden="true" />
-      {hasNotification && (
-        <span className="menu-button-indicator" aria-hidden="true" />
-      )}
+      {showDot && <span className="menu-button-indicator" aria-hidden="true" />}
     </Button>
   );
 }

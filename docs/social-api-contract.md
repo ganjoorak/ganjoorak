@@ -113,6 +113,34 @@ Keys: `dawn` سپیده‌دم · `dusk` غروب · `night` شب · `garden` ب
 
 ---
 
+### 3.1 Uploaded avatar and banner images
+
+Besides the presets, a user can upload their own profile picture and banner.
+
+**Representation.** An upload is stored in the existing field as `img:<id>`, where `<id>` is
+32 lowercase hex characters (random). So `User.avatar` / `User.banner`, `PublicProfile.avatar` /
+`.banner`, and every other `avatar` field (FollowUser, StoryPerson.user, Move, Player, leaders)
+may now hold `img:<id>` besides a preset key or `""`. Clients turn it into
+`/api/account/media/<id>.jpg`. A client that doesn't know the prefix should treat it as `""`
+(pick an avatar from the username / no banner).
+
+| Method & path | In | Out | Notes |
+|---|---|---|---|
+| `POST /uploads/avatar` | raw image body, `Content-Type: image/jpeg` or `image/png` | `201 {user}` | signed in; ≤ 2 MB; at least 128×128 and at most 4096×4096 pixels before processing. The server center-crops to a square, scales to 512×512, re-encodes as JPEG (quality 85, no metadata), stores it, sets `avatar = "img:<id>"` and deletes the user's previous uploaded avatar file |
+| `POST /uploads/banner` | same | `201 {user}` | ≤ 4 MB; at least 600×200, at most 6000×6000. Center-crops to 3:1, scales to 1500×500, re-encodes JPEG; sets `banner = "img:<id>"`, deletes the previous uploaded banner |
+| `DELETE /uploads/avatar` / `DELETE /uploads/banner` | — | `{user}` | resets the field to `""` and deletes the file |
+| `GET /media/{id}.jpg` | — | the JPEG | no session; `Content-Type: image/jpeg`, `X-Content-Type-Options: nosniff`, `Cache-Control: public, max-age=31536000, immutable`; `404` for unknown ids. Files of private accounts are still served (ids are unguessable), but private profiles never expose them |
+
+- Errors: `400` «فقط تصویر JPEG یا PNG.», «تصویر خیلی کوچک است.», «تصویر خیلی بزرگ است.» (also for
+  bodies over the size cap, `413`), «این تصویر خوانده نشد.»; `429` more than 20 uploads per hour.
+- `PUT /profile` and `PUT /appearance` accept `img:<id>` **only if it equals the value already
+  stored** for that user (so editing the name keeps the uploaded avatar); any other `img:` value
+  is `400`. Choosing a preset or `""` replaces the upload and deletes its file.
+- Files live next to the database: `<dir of ACCOUNTS_DB>/media/<id>.jpg` (the `/data` volume in
+  Docker), so backups of `/data` include them.
+- Moderation is out of scope for now: anyone signed in can upload. (A report/remove flow is a
+  later step.)
+
 ## 4. Additions to existing responses
 
 `GET /api/account/me` gains:

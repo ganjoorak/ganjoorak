@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { FaLock, FaLockOpen } from "react-icons/fa";
-import PoemViewer from "@/components/PoemViewer";
+import PoemViewer, { type PoemSlideControls } from "@/components/PoemViewer";
 import type { Poem } from "@/types/poem";
 import { consumeWheelGesture, MOUSE_NOTCHES_TO_NAVIGATE, trackWheelGesture } from "@/utils/wheelGesture";
 
@@ -20,6 +20,12 @@ type Direction = "next" | "previous";
 interface PoemFeedPagerProps {
   poem: Poem;
   nextPoem?: Poem;
+  /**
+   * The poem before this one, when the caller has it loaded (the home feed). Going back is then a pull: the
+   * previous poem follows the over-scroll down from above, mirroring "next". Without it, "previous" keeps
+   * the plain frame slide.
+   */
+  previousPoem?: Poem;
   isFirst: boolean;
   isLast?: boolean;
   isPreparingNextPoem?: boolean;
@@ -60,6 +66,7 @@ const isShareDialogOpen = () =>
 export default function PoemFeedPager({
   poem,
   nextPoem,
+  previousPoem,
   isFirst,
   isLast = false,
   isPreparingNextPoem = false,
@@ -79,20 +86,34 @@ export default function PoemFeedPager({
   const touchStartedAtBottomRef = useRef(false);
   const touchOnSelectionRef = useRef(false);
   const lastNavigationAtRef = useRef(0);
+  const slideControlsRef = useRef<PoemSlideControls | null>(null);
   const readingChromeTimeoutRef = useRef<number | null>(null);
   const [isZenLocked, setIsZenLocked] = useState(false);
   // Direction of the last navigation, whatever started it (buttons, wheel, swipe, keys, pull sheet), so
   // PoemViewer animates the old poem out and the new one in the right way.
   const [navigationDirection, setNavigationDirection] = useState<Direction | null>(null);
 
+  // Restore after mount (not in the initial state, which would not match the server render). The write below
+  // waits for the restore, otherwise it would overwrite a stored "1" with the initial `false`.
+  const [isZenRestored, setIsZenRestored] = useState(false);
   useEffect(() => {
-    setIsZenLocked(localStorage.getItem(ZEN_STORAGE_KEY) === "1");
+    try {
+      setIsZenLocked(localStorage.getItem(ZEN_STORAGE_KEY) === "1");
+    } catch {
+      // Storage unavailable (private mode, blocked): start unlocked.
+    }
+    setIsZenRestored(true);
   }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle("poem-zen-mode", isZenLocked);
-    localStorage.setItem(ZEN_STORAGE_KEY, isZenLocked ? "1" : "0");
-  }, [isZenLocked]);
+    if (!isZenRestored) return;
+    try {
+      localStorage.setItem(ZEN_STORAGE_KEY, isZenLocked ? "1" : "0");
+    } catch {
+      // Not persisted; the lock still works for this visit.
+    }
+  }, [isZenLocked, isZenRestored]);
 
   useEffect(() => {
     const updateAudioClass = () => {
@@ -177,6 +198,19 @@ export default function PoemFeedPager({
     resetTitleVisibility,
   ]);
 
+  // With a known previous poem, the viewer's pull sheet owns going back (wheel, touch, button, ArrowUp).
+  const hasPreviousSheet = Boolean(previousPoem) && !isFirst;
+
+  // Gate for the viewer's pulls: the same conditions `navigate` would refuse on, checked up front so a pull
+  // never slides a sheet in for a navigation that would then be refused.
+  const canStartPull = useCallback(
+    () =>
+      !isZenLocked &&
+      !isShareDialogOpen() &&
+      Date.now() - lastNavigationAtRef.current >= NAVIGATION_COOLDOWN_MS,
+    [isZenLocked],
+  );
+
   const requestBoundaryNavigation = useCallback((direction: Direction) => {
     if (isZenLocked) return;
     navigate(direction);
@@ -217,7 +251,8 @@ export default function PoemFeedPager({
     };
 
     // Passive: wheel/touchpad scrolling inside the poem stays native. "Next" belongs to the pull sheet
-    // (usePullToNext); "previous" needs a fresh gesture that began at the top, and fires once per gesture.
+    // (usePullToNext); so does "previous" when the previous poem is known. Otherwise "previous" needs a fresh
+    // gesture that began at the top, and fires once per gesture.
     let upwardTotal = 0;
     let upwardGestureId = -1;
     const handleWheel = (event: WheelEvent) => {
@@ -231,7 +266,7 @@ export default function PoemFeedPager({
       hideReadingChromeTemporarily();
 
       const deltaY = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
-      if (deltaY >= 0) return;
+      if (deltaY >= 0 || hasPreviousSheet) return;
 
       if (!gesture.startedAtTop || gesture.consumed || !(isAtTop(poemText) || !isScrollable(poemText))) {
         return;
@@ -290,8 +325,8 @@ export default function PoemFeedPager({
         return;
       }
 
-      if (shouldGoNext) {
-        // PoemViewer's pull-to-next owns this gesture (the next poem follows the finger).
+      if (shouldGoNext || (shouldGoPrevious && hasPreviousSheet)) {
+        // PoemViewer's pull sheets own this gesture (the neighbouring poem follows the finger).
         return;
       }
 
@@ -310,7 +345,7 @@ export default function PoemFeedPager({
       root.removeEventListener("touchstart", handleTouchStart, true);
       root.removeEventListener("touchend", handleTouchEnd, true);
     };
-  }, [hideReadingChromeTemporarily, requestBoundaryNavigation, resetArm, updateTitleVisibility]);
+  }, [hasPreviousSheet, hideReadingChromeTemporarily, requestBoundaryNavigation, resetArm, updateTitleVisibility]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -350,12 +385,15 @@ export default function PoemFeedPager({
         return;
       }
 
+      // Both directions play the same sheet slide as a released pull; plain navigation if the sheet can't.
+      if (direction === "previous" && hasPreviousSheet && slideControlsRef.current?.previous()) return;
+      if (direction === "next" && !isZenLocked && slideControlsRef.current?.next()) return;
       requestBoundaryNavigation(direction);
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [hideReadingChromeTemporarily, requestBoundaryNavigation, resetArm, updateTitleVisibility]);
+  }, [hasPreviousSheet, hideReadingChromeTemporarily, isZenLocked, requestBoundaryNavigation, resetArm, updateTitleVisibility]);
 
   useEffect(() => {
     return () => {
@@ -536,7 +574,11 @@ export default function PoemFeedPager({
             if (target && target.id !== nextPoem?.id) return;
             requestBoundaryNavigation("next");
           }}
-          onPrevious={() => requestBoundaryNavigation("previous")}
+          onPrevious={(target) => {
+            // The pull sheet passes the poem it showed; only go back if that is still the feed's previous poem.
+            if (target && target.id !== previousPoem?.id) return;
+            requestBoundaryNavigation("previous");
+          }}
           isFirst={isFirst}
           isLast={isLast}
           isModern={poem.source !== "ganjoor"}
@@ -550,6 +592,9 @@ export default function PoemFeedPager({
           isZenLocked={isZenLocked}
           onToggleZenLock={() => setIsZenLocked((value) => !value)}
           nextPoemPeek={nextPoem}
+          previousPoemPeek={hasPreviousSheet ? previousPoem : undefined}
+          slideControlsRef={slideControlsRef}
+          canStartPull={canStartPull}
           isPreparingNext={isPreparingNextPoem}
         />
       </div>

@@ -10,7 +10,7 @@ import {
   WHEEL_GESTURE_EDGE_PX,
 } from "@/utils/wheelGesture";
 
-/** Finger travel (share of the viewport height) needed to commit to the next poem on release. */
+/** Finger travel (share of the viewport height) needed to commit to the next/previous poem on release. */
 const COMMIT_RATIO = 0.33;
 /** A quick flick commits earlier: past this share of the viewport and faster than FLICK_SPEED px/ms. */
 const FLICK_RATIO = 0.16;
@@ -37,21 +37,33 @@ const SPRING_MS = 320;
 /** Frames to wait for the landed poem to render before giving up and removing the sheet anyway. */
 const LAND_MAX_FRAMES = 90;
 const NAVIGATION_TIMEOUT_MS = 6000;
-const PULLING_CLASS = "gk-pulling-next";
+
+export type PullDirection = "next" | "previous";
 
 interface Options {
+  /**
+   * "next" (default): at the bottom of the poem the next poem comes up from below.
+   * "previous": at the top of the poem the previous poem comes down from above mirrored: same thresholds,
+   * curves and scrim.
+   */
+  direction?: PullDirection;
   /** The scroll container (.poem-text). */
   scrollRef: React.RefObject<HTMLElement | null>;
   /** Element the gesture listeners attach to (the viewer root). */
   rootRef: React.RefObject<HTMLElement | null>;
-  /** The sheet that slides up (rendered fixed, just below the viewport). */
+  /** The sheet that slides in (rendered absolutely, just outside the viewport on its edge). */
   sheetRef: React.RefObject<HTMLElement | null>;
   enabled: boolean;
-  /** Whether the next poem is known. Without it the sheet can still be pulled, but always springs back. */
-  hasNext: boolean;
+  /** Whether the target poem is known. Without it the sheet can still be pulled, but always springs back. */
+  hasTarget: boolean;
+  /**
+   * Extra gate (zen lock, dialogs, navigation cooldown) checked when a pull would start and again when it
+   * would commit. Called often, keep it cheap.
+   */
+  canStart?: () => boolean;
   onCommit: () => void;
   /**
-   * Changes when the next poem has arrived. Once the scroll container carries `data-poem-id` equal to it (the
+   * Changes when the target poem has arrived. Once the scroll container carries `data-poem-id` equal to it (the
    * landed poem is rendered under the sheet), the sheet is removed instantly: it was an exact copy.
    */
   resetKey: unknown;
@@ -59,6 +71,7 @@ interface Options {
 
 const isTrulyAtBottom = (el: HTMLElement) =>
   el.scrollHeight - el.scrollTop - el.clientHeight <= WHEEL_GESTURE_EDGE_PX;
+const isTrulyAtTop = (el: HTMLElement) => el.scrollTop <= WHEEL_GESTURE_EDGE_PX;
 
 /** Light rubber band: 1:1 with the finger for most of the screen, slightly heavier only near the top. */
 const resist = (distance: number, viewport: number) => {
@@ -80,15 +93,34 @@ const transitionFor = (timing: string | null) =>
  * Pull-to-next: at the bottom of a poem, dragging further up (touch) or wheeling further down slides the
  * next poem up from the bottom. Past the threshold it commits (animates fully up, then onCommit);
  * otherwise it springs back. Transform-only, honours prefers-reduced-motion.
+ *
+ * With `direction: "previous"` the same machine runs mirrored at the top of the poem (drag down / wheel up),
+ * with the previous poem coming down from above. Everything below is written in "pull distance" terms;
+ * `dir` (+1 next, -1 previous) only flips the sign of input deltas and of the resulting translation.
  */
-export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, onCommit, resetKey }: Options) {
+export function usePullToNext({
+  direction = "next",
+  scrollRef,
+  rootRef,
+  sheetRef,
+  enabled,
+  hasTarget,
+  canStart,
+  onCommit,
+  resetKey,
+}: Options) {
+  const dir = direction === "next" ? 1 : -1;
+  const pullingClass = `gk-pulling-${direction}`;
   const enabledRef = useRef(enabled);
-  const hasNextRef = useRef(hasNext);
-  hasNextRef.current = hasNext;
+  const hasTargetRef = useRef(hasTarget);
+  hasTargetRef.current = hasTarget;
+  const canStartRef = useRef(canStart);
+  canStartRef.current = canStart;
+  const allowed = useCallback(() => canStartRef.current?.() ?? true, []);
   const onCommitRef = useRef(onCommit);
   const committingRef = useRef(false);
   const timeoutRef = useRef<number | null>(null);
-  // Set by the gesture effect: runs the same full slide a released pull does (used by the ⌄ button).
+  // Set by the gesture effect: runs the same full slide a released pull does (used by the ⌄/⌃ buttons and keys).
   const commitRef = useRef<(() => boolean) | null>(null);
   enabledRef.current = enabled;
   onCommitRef.current = onCommit;
@@ -96,10 +128,16 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
   // The next poem arrived: as soon as it is rendered under the sheet, drop the sheet in one frame. No fade:
   // the sheet is pixel-identical to the landed poem, so removing it is invisible.
   useEffect(() => {
+    if (!committingRef.current) return;
     const sheet = sheetRef.current;
-    if (!committingRef.current || !sheet) return;
     if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
     timeoutRef.current = null;
+    if (!sheet) {
+      // The sheet is gone (e.g. no further poem in that direction): nothing to wait for or to hide.
+      committingRef.current = false;
+      document.documentElement.classList.remove(pullingClass);
+      return;
+    }
     let frames = 0;
     let raf = 0;
     const finish = () => {
@@ -120,7 +158,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
         content.style.transition = "";
         content.style.transform = "";
       }
-      document.documentElement.classList.remove(PULLING_CLASS);
+      document.documentElement.classList.remove(pullingClass);
     };
     const waitForLanding = () => {
       frames += 1;
@@ -134,7 +172,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
     };
     raf = requestAnimationFrame(waitForLanding);
     return () => cancelAnimationFrame(raf);
-  }, [resetKey, scrollRef, sheetRef]);
+  }, [resetKey, scrollRef, sheetRef, pullingClass]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -160,13 +198,13 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       sheet.style.transition = transitionFor(timing);
       sheet.style.setProperty("--gk-pull-t", timing ?? "0s");
       sheet.style.setProperty("--gk-pull-p", progress.toFixed(4));
-      sheet.style.transform = `translate3d(0, ${-px}px, 0)`;
+      sheet.style.transform = `translate3d(0, ${-dir * px}px, 0)`;
       const content = scrollRef.current;
       if (content) {
         if (clearContentTimer !== null) window.clearTimeout(clearContentTimer);
         clearContentTimer = null;
         content.style.transition = timing ? `transform ${timing}` : "none";
-        content.style.transform = `translate3d(0, ${-px}px, 0)`;
+        content.style.transform = `translate3d(0, ${-dir * px}px, 0)`;
         if (px <= 0) {
           // Do not leave a transform (and a containing block) on the scroller once it is back in place.
           const clear = () => {
@@ -186,7 +224,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
         scrim.style.transition = timing ? `opacity ${timing}` : "none";
         scrim.style.opacity = (progress * 0.3).toFixed(3);
       }
-      if (html.classList.contains(PULLING_CLASS) !== px > 0) html.classList.toggle(PULLING_CLASS, px > 0);
+      if (html.classList.contains(pullingClass) !== px > 0) html.classList.toggle(pullingClass, px > 0);
     };
     const setPull = (px: number, timing: string | null, immediate = false) => {
       currentPx = px;
@@ -228,7 +266,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       lerpTarget = target;
       if (lerpRaf) return;
       // After a landing the sheet was reset outside this closure: a new pull starts from rest.
-      if (!html.classList.contains(PULLING_CLASS)) currentPx = 0;
+      if (!html.classList.contains(pullingClass)) currentPx = 0;
       lerpLast = performance.now();
       lerpRaf = requestAnimationFrame(lerpStep);
     };
@@ -249,8 +287,8 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
     const commit = (speed = 0, mouse = false) => {
       stopLerp();
       if (committingRef.current) return;
-      if (!hasNextRef.current) {
-        // The next poem is not loaded yet: never navigate somewhere the sheet did not show.
+      if (!hasTargetRef.current || !allowed()) {
+        // The poem is not loaded yet (or navigation is gated): never navigate somewhere the sheet did not show.
         springBack();
         return;
       }
@@ -301,7 +339,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       decided = false;
       startX = t.clientX;
       startY = t.clientY;
-      baseY = isTrulyAtBottom(el) ? t.clientY : null;
+      baseY = (dir > 0 ? isTrulyAtBottom(el) : isTrulyAtTop(el)) && allowed() ? t.clientY : null;
       distance = 0;
       samples = [{ y: t.clientY, t: event.timeStamp }];
     };
@@ -326,7 +364,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       // Like the wheel, a pull must start with the poem already at its bottom: a swipe that merely scrolls
       // to the end does not turn into a pull halfway through.
       if (baseY === null) return;
-      const d = baseY - t.clientY;
+      const d = dir * (baseY - t.clientY);
       if (d <= 0) {
         if (pulling) {
           pulling = false;
@@ -335,7 +373,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
           setPull(0, null);
         }
         // The finger scrolled the poem back up: this touch is a normal scroll now.
-        if (!isTrulyAtBottom(el)) baseY = null;
+        if (!(dir > 0 ? isTrulyAtBottom(el) : isTrulyAtTop(el))) baseY = null;
         return;
       }
       if (event.cancelable) event.preventDefault();
@@ -356,7 +394,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
         const first = samples[0];
         const last = samples[samples.length - 1];
         const dt = last.t - first.t;
-        if (dt > 0) speed = (first.y - last.y) / dt;
+        if (dt > 0) speed = (dir * (first.y - last.y)) / dt;
       }
       if (distance >= vh * COMMIT_RATIO || (distance >= vh * FLICK_RATIO && speed >= FLICK_SPEED)) {
         commit(Math.max(0, speed));
@@ -391,9 +429,12 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       }
       if (!enabledRef.current || committingRef.current || !el) return;
       if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
-      const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaMode === 2 ? event.deltaY * viewport() : event.deltaY;
+      const rawDelta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaMode === 2 ? event.deltaY * viewport() : event.deltaY;
+      const delta = dir * rawDelta;
       if (wheelTotal <= 0) {
-        if (delta <= 0 || gesture.consumed || !gesture.startedAtBottom || !isTrulyAtBottom(el)) return;
+        const startedAtEdge = dir > 0 ? gesture.startedAtBottom : gesture.startedAtTop;
+        const atEdge = dir > 0 ? isTrulyAtBottom(el) : isTrulyAtTop(el);
+        if (delta <= 0 || gesture.consumed || !startedAtEdge || !atEdge || !allowed()) return;
       }
       const vh = viewport();
       const commitPx = vh * COMMIT_RATIO;
@@ -410,7 +451,7 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
         wheelSamples.push({ total: wheelTotal, t: event.timeStamp });
         if (wheelSamples.length > 6) wheelSamples.shift();
       }
-      if (wheelTotal >= commitPx - 0.5 && hasNextRef.current) {
+      if (wheelTotal >= commitPx - 0.5 && hasTargetRef.current) {
         wheelTotal = 0;
         if (wheelTimer !== null) window.clearTimeout(wheelTimer);
         wheelTimer = null;
@@ -444,8 +485,10 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
     root.addEventListener("touchcancel", onTouchEnd, { passive: true });
     root.addEventListener("wheel", onWheel, { passive: false });
     commitRef.current = () => {
-      if (!enabledRef.current || committingRef.current || !hasNextRef.current) return false;
-      // As a mouse pull released from rest: the whole strip glides up at the mouse commit pace.
+      // Already sliding: the request is handled (callers must not navigate a second time).
+      if (committingRef.current) return true;
+      if (!enabledRef.current || !hasTargetRef.current || !allowed()) return false;
+      // As a mouse pull released from rest: the whole strip glides across at the mouse commit pace.
       commit(0.8, true);
       return true;
     };
@@ -461,16 +504,19 @@ export function usePullToNext({ scrollRef, rootRef, sheetRef, enabled, hasNext, 
       if (frame) cancelAnimationFrame(frame);
       stopLerp();
     };
-  }, [rootRef, scrollRef, sheetRef]);
+  }, [rootRef, scrollRef, sheetRef, dir, pullingClass, allowed]);
 
   useEffect(() => {
     return () => {
       if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
-      document.documentElement.classList.remove(PULLING_CLASS);
+      document.documentElement.classList.remove(pullingClass);
     };
-  }, []);
+  }, [pullingClass]);
 
-  /** Slide the next poem up exactly like a pull does; false when it can't (disabled, busy, not loaded). */
-  const commitNext = useCallback(() => commitRef.current?.() ?? false, []);
-  return { commitNext };
+  /**
+   * Slide the target poem in exactly like a pull does. True when it is sliding (or already was) and the
+   * caller must not navigate itself; false when it can't (disabled, gated, not loaded).
+   */
+  const commit = useCallback(() => commitRef.current?.() ?? false, []);
+  return { commit };
 }
