@@ -13,7 +13,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type Store struct{ db *sql.DB }
+type Store struct {
+	db *sql.DB
+	// now is the clock behind reading days; nil means time.Now (tests set it).
+	now func() time.Time
+}
 
 type User struct {
 	ID          int64  `json:"-"`
@@ -27,13 +31,18 @@ type User struct {
 	Avatar string `json:"avatar"`
 	// Whether a recovery code is set; accounts made before codes existed have none.
 	HasRecoveryCode bool `json:"hasRecoveryCode"`
+	// Profile appearance (PUT /appearance); "" means the default.
+	Bio        string `json:"bio"`
+	Banner     string `json:"banner"`
+	Accent     string `json:"accent"`
+	Background string `json:"background"`
 }
 
 // userColumns are the User fields every query below selects, in scan order.
-const userColumns = `u.id, u.username, u.display_name, u.created_at, u.is_public, u.avatar, u.recovery_hash != ''`
+const userColumns = `u.id, u.username, u.display_name, u.created_at, u.is_public, u.avatar, u.recovery_hash != '', u.bio, u.banner, u.accent, u.background`
 
 func (u *User) scanTargets() []any {
-	return []any{&u.ID, &u.Username, &u.DisplayName, &u.CreatedAt, &u.IsPublic, &u.Avatar, &u.HasRecoveryCode}
+	return []any{&u.ID, &u.Username, &u.DisplayName, &u.CreatedAt, &u.IsPublic, &u.Avatar, &u.HasRecoveryCode, &u.Bio, &u.Banner, &u.Accent, &u.Background}
 }
 
 var (
@@ -78,6 +87,13 @@ CREATE TABLE IF NOT EXISTS follows (
 CREATE INDEX IF NOT EXISTS follows_followee ON follows(followee_id, created_at);
 `
 
+// featureSchemas are the tables of later features, each registered from its
+// own file with init, and run after schema.
+var featureSchemas []string
+
+// featureUpgrades reshape tables of an older layout before the schemas run.
+var featureUpgrades []func(*sql.DB) error
+
 // Columns added after the first release, applied once to older databases.
 var migrations = []struct{ column, ddl string }{
 	{"is_public", `ALTER TABLE users ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1`},
@@ -87,6 +103,10 @@ var migrations = []struct{ column, ddl string }{
 	// argon2id hash of the account's recovery code; '' when none is set.
 	{"recovery_hash", `ALTER TABLE users ADD COLUMN recovery_hash TEXT NOT NULL DEFAULT ''`},
 	{"avatar", `ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''`},
+	{"bio", `ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''`},
+	{"banner", `ALTER TABLE users ADD COLUMN banner TEXT NOT NULL DEFAULT ''`},
+	{"accent", `ALTER TABLE users ADD COLUMN accent TEXT NOT NULL DEFAULT ''`},
+	{"background", `ALTER TABLE users ADD COLUMN background TEXT NOT NULL DEFAULT ''`},
 }
 
 func migrate(db *sql.DB) error {
@@ -129,9 +149,17 @@ func openStore(path string) (*Store, error) {
 	// One connection serializes writes, which keeps the read-merge-write in
 	// saveData race-free without extra locking. Plenty for this traffic.
 	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(schema); err != nil {
-		db.Close()
-		return nil, err
+	for _, upgrade := range featureUpgrades {
+		if err := upgrade(db); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
+	for _, ddl := range append([]string{schema}, featureSchemas...) {
+		if _, err := db.Exec(ddl); err != nil {
+			db.Close()
+			return nil, err
+		}
 	}
 	if err := migrate(db); err != nil {
 		db.Close()
@@ -311,9 +339,9 @@ func (s *Store) publicProfile(ctx context.Context, username string) (PublicProfi
 	var raw string
 	var readingAt int64
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, username, display_name, avatar, created_at, data, reading_at
+		SELECT id, username, display_name, avatar, created_at, data, reading_at, bio, banner, accent, background
 		FROM users WHERE username = ? AND is_public = 1`, username).
-		Scan(&u.ID, &u.Username, &u.DisplayName, &u.Avatar, &u.CreatedAt, &raw, &readingAt)
+		Scan(&u.ID, &u.Username, &u.DisplayName, &u.Avatar, &u.CreatedAt, &raw, &readingAt, &u.Bio, &u.Banner, &u.Accent, &u.Background)
 	if err != nil {
 		return PublicProfile{}, err
 	}
@@ -323,6 +351,13 @@ func (s *Store) publicProfile(ctx context.Context, username string) (PublicProfi
 	}
 	profile := buildPublicProfile(u, sanitizeAccountData(data), readingAt, time.Now().UnixMilli())
 	profile.FollowerCount, profile.FollowingCount, err = s.followCounts(ctx, u.ID)
+	if err != nil {
+		return PublicProfile{}, err
+	}
+	if err = s.fillProgress(ctx, &profile, u.ID); err != nil {
+		return PublicProfile{}, err
+	}
+	err = s.fillQuotes(ctx, &profile, u.ID)
 	return profile, err
 }
 

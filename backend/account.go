@@ -519,6 +519,17 @@ type PublicProfile struct {
 	LovedCollections []CollectionEntry `json:"lovedCollections"`
 	FollowerCount    int               `json:"followerCount"`
 	FollowingCount   int               `json:"followingCount"`
+	// Appearance, set by the owner (PUT /appearance).
+	Bio        string `json:"bio"`
+	Banner     string `json:"banner"`
+	Accent     string `json:"accent"`
+	Background string `json:"background"`
+	// Streak and Badges are filled in by the store (progress.go).
+	Streak ProfileStreak `json:"streak"`
+	Badges []Badge       `json:"badges"`
+	// Newest quotes (never nil) and how many there are in all; filled in by the store (quotes.go).
+	Quotes     []Quote `json:"quotes"`
+	QuoteCount int     `json:"quoteCount"`
 }
 
 func buildPublicProfile(u User, d AccountData, readingAt, now int64) PublicProfile {
@@ -529,6 +540,12 @@ func buildPublicProfile(u User, d AccountData, readingAt, now int64) PublicProfi
 		CreatedAt:     u.CreatedAt,
 		Favorites:     d.Favorites,
 		FavoriteCount: len(d.Favorites),
+		Bio:           u.Bio,
+		Banner:        u.Banner,
+		Accent:        u.Accent,
+		Background:    u.Background,
+		Badges:        []Badge{},
+		Quotes:        []Quote{},
 	}
 	if len(p.Favorites) > maxPublicFavorites {
 		p.Favorites = p.Favorites[:maxPublicFavorites]

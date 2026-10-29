@@ -30,6 +30,7 @@ const (
 
 type server struct {
 	store   *Store
+	poems   PoemSource
 	limiter *rateLimiter
 	// Separate, tighter budget so feedback spam cannot lock anyone out of login.
 	feedbackLimiter *rateLimiter
@@ -41,6 +42,7 @@ type server struct {
 func newServer(store *Store) *server {
 	return &server{
 		store:           store,
+		poems:           newHTTPPoemSource(getenv("POEMS_API_URL", "http://127.0.0.1:3000")),
 		limiter:         newRateLimiter(20, 15*time.Minute),
 		feedbackLimiter: newRateLimiter(5, time.Hour),
 		hashSlots:       make(chan struct{}, 4),
@@ -67,6 +69,28 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /api/account/following", s.handleFollowList(false))
 	mux.HandleFunc("GET /api/account/followers", s.handleFollowList(true))
 	mux.HandleFunc("POST /api/account/feedback", s.handleFeedback)
+	// reading streak, badges, appearance (progress.go, appearance.go)
+	mux.HandleFunc("POST /api/account/read", s.handleRead)
+	mux.HandleFunc("GET /api/account/catalog", s.handleCatalog)
+	mux.HandleFunc("PUT /api/account/appearance", s.handleAppearance)
+	// quotes (quotes.go)
+	mux.HandleFunc("POST /api/account/quotes", s.handleCreateQuote)
+	mux.HandleFunc("DELETE /api/account/quotes/{id}", s.handleDeleteQuote)
+	mux.HandleFunc("GET /api/account/users/{username}/quotes", s.handleUserQuotes)
+	mux.HandleFunc("GET /api/account/following/quotes", s.handleFollowingQuotes)
+	// moshaere (moshaere.go)
+	mux.HandleFunc("GET /api/account/moshaere/public", s.handlePublicRoom)
+	mux.HandleFunc("POST /api/account/moshaere/public", s.handlePublicMove)
+	mux.HandleFunc("POST /api/account/matches", s.handleCreateMatch)
+	mux.HandleFunc("GET /api/account/matches", s.handleListMatches)
+	mux.HandleFunc("GET /api/account/matches/{id}", s.handleGetMatch)
+	mux.HandleFunc("POST /api/account/matches/{id}/accept", s.handleMatchAction(acceptMatchOp))
+	mux.HandleFunc("POST /api/account/matches/{id}/decline", s.handleMatchAction(declineMatchOp))
+	mux.HandleFunc("POST /api/account/matches/{id}/start", s.handleMatchAction(startMatchOp))
+	mux.HandleFunc("POST /api/account/matches/{id}/cancel", s.handleMatchAction(cancelMatchOp))
+	mux.HandleFunc("POST /api/account/matches/{id}/leave", s.handleMatchAction(leaveMatchOp))
+	mux.HandleFunc("POST /api/account/matches/{id}/resign", s.handleMatchAction(leaveMatchOp))
+	mux.HandleFunc("POST /api/account/matches/{id}/moves", s.handleMatchMove)
 	return mux
 }
 
@@ -177,10 +201,16 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 		internalError(w, err)
 		return
 	}
+	streak, badges, err := s.store.progress(r.Context(), user.ID)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"user":    user,
-		"data":    data,
-		"follows": map[string]int{"followers": followers, "following": following},
+		"user":     user,
+		"data":     data,
+		"follows":  map[string]int{"followers": followers, "following": following},
+		"progress": map[string]any{"streak": streak, "badges": badges},
 	})
 }
 

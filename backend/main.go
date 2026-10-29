@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata" // Asia/Tehran for reading days, even in a scratch container
 )
 
 func getenv(key, fallback string) string {
