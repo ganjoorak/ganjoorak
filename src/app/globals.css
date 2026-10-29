@@ -1015,7 +1015,6 @@ body:has(.menu-drawer) .poem-feed-lock-button {
     padding: 1rem;
 }
 
-.lyrics-share-panel,
 .poet-info-panel {
     width: min(100%, 760px);
     max-height: min(88vh, 760px);
@@ -1131,10 +1130,6 @@ body:has(.menu-drawer) .poem-feed-lock-button {
     }
 }
 
-.lyrics-share-panel {
-    width: min(100%, 980px);
-}
-
 .route-progress {
     position: fixed;
     inset-inline: 0;
@@ -1241,30 +1236,6 @@ body:has(.menu-drawer) .poem-feed-lock-button {
 
     :root[data-nav-pop] body {
         animation: none;
-    }
-}
-
-@media (max-width: 760px) {
-
-    .lyrics-share-panel {
-        max-height: 92vh;
-        width: min(100% - 1rem, 980px);
-    }
-
-    .lyrics-share-panel {
-        width: 100%;
-        max-height: 94svh;
-        border-right: none;
-        border-bottom: none;
-        border-left: none;
-        border-radius: 1.1rem 1.1rem 0 0;
-    }
-
-}
-
-@media (max-width: 420px) {
-    .lyrics-share-panel {
-        max-height: 96svh;
     }
 }
 

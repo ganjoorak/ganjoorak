@@ -146,14 +146,6 @@ html[data-theme="paper"] { --radius: 0.625rem; }
 
 
 /* Dialogs (PersianLabs Dialog). Hide floating controls behind an open dialog, like the old backdrop rules. */
-:root .lyrics-share-panel[data-slot="dialog-popup"] {
-  background: rgb(var(--popover));
-  color: rgb(var(--popover-foreground));
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-}
-@media (min-width: 640px) {
-  :root .lyrics-share-panel[data-slot="dialog-popup"] { border: 1px solid rgb(var(--border)); border-radius: 1rem; }
-}
 @media (max-width: 768px) {
   body:has([data-slot="dialog-popup"]) .menu-button,
   body:has([data-slot="dialog-popup"]) .global-search-button,
