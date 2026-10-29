@@ -6,6 +6,7 @@ on:
       - master
       - docker-image
       - feature/shadcn
+      - v3
   workflow_dispatch:
 
 permissions:

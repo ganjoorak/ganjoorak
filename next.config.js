@@ -61,6 +61,8 @@ const nextConfig = {
     outputFileTracingIncludes: {
         '/api/echolalia/**': ['./data/echolalia/**'],
         '/poets': ['./data/echolalia/**', './public/poems/**'],
+        // The accounts service reads quote and moshaere text from here (POEMS_API_URL).
+        '/api/poem-lines': ['./data/echolalia/**', './public/poems/**'],
     },
     ...(isVercel ? {} : { output: 'standalone' }),
 
