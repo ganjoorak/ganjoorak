@@ -1,10 +1,12 @@
-import { fetchAccount, type AccountUser } from "@/utils/accountApi";
+import { fetchAccount, type AccountUser, type StaffRole } from "@/utils/accountApi";
 
 // Who is signed in, asked once and shared. The app has no account context: each page that needs to know
 // (the read tracker, the quote menu, the stories row) goes through here instead of calling /me again.
 
 export interface AccountSession {
   user: AccountUser | null;
+  /** Only decides what the UI offers; the service checks the role on every admin call. */
+  role: StaffRole;
   /**
    * Whether today already counted for the streak when the page learned who the reader is; kept up to date
    * by the read tracker. null while unknown (signed out, or the account answer had no progress).
@@ -19,7 +21,7 @@ const SIGNED_OUT_TTL_MS = 10_000;
 let cached: { at: number; ttl: number; session: AccountSession } | null = null;
 let pending: Promise<AccountSession> | null = null;
 
-const signedOut: AccountSession = { user: null, streakToday: null };
+const signedOut: AccountSession = { user: null, role: "", streakToday: null };
 
 export const peekAccountSession = () => (cached && Date.now() - cached.at < cached.ttl ? cached.session : null);
 
@@ -34,7 +36,11 @@ export const getAccountSession = (): Promise<AccountSession> => {
   if (pending) return pending;
   pending = fetchAccount()
     .then((account) => {
-      const session: AccountSession = { user: account.user, streakToday: account.progress?.streak?.today ?? null };
+      const session: AccountSession = {
+        user: account.user,
+        role: account.role ?? "",
+        streakToday: account.progress?.streak?.today ?? null,
+      };
       cached = { at: Date.now(), ttl: SIGNED_IN_TTL_MS, session };
       return session;
     })
@@ -64,7 +70,7 @@ export const subscribeAccountSession = (listener: (session: AccountSession) => v
  * menu header, stories and the rest show it without another /me round trip.
  */
 export const setAccountSessionUser = (user: AccountUser) => {
-  const base = cached?.session ?? { user: null, streakToday: null };
+  const base = cached?.session ?? signedOut;
   const session = { ...base, user };
   cached = { at: cached?.at ?? Date.now(), ttl: cached?.ttl ?? SIGNED_IN_TTL_MS, session };
   listeners.forEach((listener) => listener(session));

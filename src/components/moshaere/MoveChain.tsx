@@ -63,7 +63,7 @@ export default function MoveChain({
     <ol className="quote-list" aria-label="زنجیرهٔ بیت‌ها">
       {moves.map((move) => {
         const team = teamOf?.[move.username];
-        const marked = markLines(move.lines);
+        const marked = markLines(move.lines, move.removed ? "none" : "both");
         return (
           <li
             key={move.id}
@@ -72,6 +72,7 @@ export default function MoveChain({
               move.username === viewer && "is-mine",
               team !== undefined && `is-team-${team}`,
               move.id > freshAfter && "is-new",
+              move.removed && "is-removed",
             )}
           >
             <blockquote className="search-hit-verse">

@@ -229,7 +229,7 @@ func (s *Store) followingQuotes(ctx context.Context, userID int64) ([]StoryPerso
 			FROM quotes
 			WHERE created_at >= ?1 AND user_id IN (SELECT followee_id FROM follows WHERE follower_id = ?2)
 		) q JOIN users u ON u.id = q.user_id
-		WHERE q.rn <= ?3 AND u.is_public = 1
+		WHERE q.rn <= ?3 AND u.is_public = 1 AND u.banned_at = 0
 		ORDER BY q.id DESC`, since, userID, maxStoryQuotes)
 	if err != nil {
 		return nil, err
@@ -360,7 +360,7 @@ func (s *server) handleUserQuotes(w http.ResponseWriter, r *http.Request) {
 	}
 	var userID int64
 	err := s.store.db.QueryRowContext(r.Context(),
-		`SELECT id FROM users WHERE username = ? AND (is_public = 1 OR id = ?)`, username, ownerID).Scan(&userID)
+		`SELECT id FROM users WHERE username = ? AND banned_at = 0 AND (is_public = 1 OR id = ?)`, username, ownerID).Scan(&userID)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusNotFound, profileNotFoundMessage)
 		return

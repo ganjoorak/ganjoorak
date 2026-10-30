@@ -63,3 +63,21 @@ func (a *testAPI) signUp(username string) string {
 	}
 	return strings.SplitN(res.Header().Get("Set-Cookie"), ";", 2)[0]
 }
+
+// userID finds an account's id, which no public response carries.
+func (a *testAPI) userID(username string) int64 {
+	a.t.Helper()
+	var id int64
+	if err := a.server.store.db.QueryRow(`SELECT id FROM users WHERE username = ?`, username).Scan(&id); err != nil {
+		a.t.Fatal(err)
+	}
+	return id
+}
+
+// promote gives an account a role directly in the database.
+func (a *testAPI) promote(username, role string) {
+	a.t.Helper()
+	if _, err := a.server.store.db.Exec(`UPDATE users SET role = ? WHERE username = ?`, role, username); err != nil {
+		a.t.Fatal(err)
+	}
+}

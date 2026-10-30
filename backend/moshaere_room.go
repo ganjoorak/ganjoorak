@@ -113,12 +113,13 @@ type moshaereDB interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
-// roomLeaders are the public accounts with the most moves in the last week.
+// roomLeaders are the public accounts with the most moves in the last week;
+// moves removed by a moderator do not count.
 func (st *Store) roomLeaders(ctx context.Context, now time.Time) ([]Leader, error) {
 	rows, err := st.db.QueryContext(ctx, `
 		SELECT u.username, u.display_name, u.avatar, COUNT(*) AS moves
 		FROM public_moves m JOIN users u ON u.id = m.user_id
-		WHERE m.created_at >= ? AND u.is_public = 1
+		WHERE m.created_at >= ? AND u.is_public = 1 AND u.banned_at = 0 AND m.norm != ''
 		GROUP BY u.id
 		ORDER BY moves DESC, MAX(m.id) DESC
 		LIMIT ?`, now.Add(-roomLeadersWindow).UnixMilli(), roomLeaderCount)

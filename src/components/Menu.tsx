@@ -18,6 +18,7 @@ import {
   FaPlus,
   FaRegStar,
   FaSearch,
+  FaShieldAlt,
   FaSun,
   FaTimes,
   FaUserCheck,
@@ -69,6 +70,8 @@ type MenuLinkItem = {
   icon: React.ReactNode;
   label: string;
   count?: string;
+  /** Off for pages most visitors can never open. */
+  prefetch?: boolean;
 };
 
 const THEME_OPTIONS: Array<{
@@ -122,7 +125,7 @@ const Menu: React.FC<MenuProps> = ({
   const isSheet = useIsSheet();
   const dragControls = useDragControls();
   const { settings, setTheme, setPoemFontSize } = useSettings();
-  const { user } = useAccountSession();
+  const { user, role } = useAccountSession();
   const stories = useFollowingStories();
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -259,7 +262,7 @@ const Menu: React.FC<MenuProps> = ({
       <li key={item.href}>
         <Link
           href={item.href}
-          prefetch
+          prefetch={item.prefetch ?? true}
           className={`menu-link${active ? " is-active" : ""}`}
           aria-current={active ? "page" : undefined}
           onClick={onClose}
@@ -412,6 +415,23 @@ const Menu: React.FC<MenuProps> = ({
                 </h2>
                 <ul className="menu-list">{libraryItems.map((item) => renderItem(item))}</ul>
               </section>
+
+              {role && (
+                <section className="menu-section" aria-labelledby="menu-section-staff">
+                  <h2 id="menu-section-staff" className="menu-section-title">
+                    مدیریت
+                  </h2>
+                  <ul className="menu-list">
+                    {renderItem({
+                      kind: "link",
+                      href: "/admin",
+                      icon: <FaShieldAlt />,
+                      label: "داشبورد مدیریت",
+                      prefetch: false,
+                    })}
+                  </ul>
+                </section>
+              )}
 
               <section className="menu-section menu-section--quiet" aria-label="تنظیمات">
                 <ul className="menu-list">

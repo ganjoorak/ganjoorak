@@ -157,12 +157,14 @@ type Move struct {
 	PoetName  string `json:"poetName"`
 	PoemTitle string `json:"poemTitle"`
 	CreatedAt int64  `json:"createdAt"`
+	// Removed by a moderator: Lines holds a placeholder, the letters stay.
+	Removed bool `json:"removed,omitempty"`
 }
 
 // moveColumns are the Move fields selected from a moves table aliased m,
 // joined to users u, in scanMoves order.
 const moveColumns = `m.id, u.username, u.display_name, u.avatar, m.lines, m.first_letter, m.last_letter,
-	m.poem_key, m.href, m.poet_name, m.poem_title, m.created_at`
+	m.poem_key, m.href, m.poet_name, m.poem_title, m.created_at, m.norm = '' AS removed`
 
 // scanMoves reads and closes rows selected with moveColumns.
 func scanMoves(rows *sql.Rows, err error) ([]Move, error) {
@@ -175,7 +177,7 @@ func scanMoves(rows *sql.Rows, err error) ([]Move, error) {
 		var m Move
 		var lines string
 		if err := rows.Scan(&m.ID, &m.Username, &m.DisplayName, &m.Avatar, &lines, &m.FirstLetter, &m.LastLetter,
-			&m.Key, &m.Href, &m.PoetName, &m.PoemTitle, &m.CreatedAt); err != nil {
+			&m.Key, &m.Href, &m.PoetName, &m.PoemTitle, &m.CreatedAt, &m.Removed); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(lines), &m.Lines); err != nil {

@@ -1,0 +1,186 @@
+/* The /admin dashboard. Only app colour tokens, so all three themes work; rows
+   and tabs come from AppPage.css. */
+
+.admin-gate {
+  display: grid;
+  place-items: center;
+  min-height: 60dvh;
+  padding: 1.5rem;
+}
+.admin-gate--inline { min-height: 8rem; }
+
+/* Section links: one scrolling row, since five never fit on a phone. */
+.admin-nav,
+.admin-pills {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-nav::-webkit-scrollbar,
+.admin-pills::-webkit-scrollbar { display: none; }
+.admin-nav a,
+.admin-pills button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.3rem 0.95rem;
+  border: 1px solid rgb(var(--border));
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(var(--muted-foreground));
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.admin-nav a:hover,
+.admin-pills button:hover { background: rgb(var(--muted) / 0.6); }
+.admin-nav a[aria-current="page"],
+.admin-pills button[aria-pressed="true"] {
+  border-color: transparent;
+  background: rgb(var(--foreground));
+  color: rgb(var(--background));
+}
+.admin-nav-count {
+  min-width: 1.25rem;
+  padding-inline: 0.3rem;
+  border-radius: 999px;
+  background: rgb(var(--muted));
+  color: rgb(var(--foreground));
+  font-size: 0.72rem;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.admin-toolbar { display: grid; gap: 0.75rem; margin-bottom: 1rem; }
+.admin-pills { margin-bottom: 1rem; }
+
+.admin-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: rgb(var(--muted));
+  color: rgb(var(--muted-foreground));
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.admin-chip[data-tone="primary"] { background: rgb(var(--primary) / 0.14); color: rgb(var(--foreground)); }
+.admin-chip[data-tone="danger"] { background: rgb(var(--destructive) / 0.14); color: rgb(var(--destructive)); }
+
+.admin-row-title { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+
+.admin-more { justify-self: center; display: flex; width: 100%; margin-top: 0.75rem; min-height: 2.75rem; }
+
+/* Stat tiles. */
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.6rem;
+}
+.admin-stats--small { grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); }
+.admin-stat {
+  display: grid;
+  gap: 0.15rem;
+  align-content: start;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgb(var(--border));
+  border-radius: calc(var(--radius) + 6px);
+  background: rgb(var(--card));
+}
+.admin-stat-label { font-size: 0.78rem; color: rgb(var(--muted-foreground)); }
+.admin-stat-value { font-size: 1.5rem; font-weight: 700; line-height: 1.4; }
+.admin-stats--small .admin-stat-value { font-size: 1.15rem; }
+.admin-stat-note { font-size: 0.72rem; line-height: 1.6; color: rgb(var(--muted-foreground)); }
+
+/* Cards: rows with more text than an .app-row holds. */
+.admin-cards { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.admin-card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgb(var(--border));
+  border-radius: calc(var(--radius) + 6px);
+  background: rgb(var(--card));
+  min-width: 0;
+}
+.admin-page .app-section + .admin-card,
+.admin-page .admin-card + .admin-card { margin-top: 0; }
+.admin-page main > .admin-card { margin-bottom: 0.75rem; }
+.admin-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.admin-card-time { margin-inline-start: auto; }
+.admin-card-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.admin-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.admin-card-foot > button:only-child { margin-inline-start: auto; }
+.admin-link { text-decoration: underline; text-underline-offset: 3px; }
+.admin-card a:hover { color: rgb(var(--foreground)); }
+
+.admin-user { display: flex; align-items: center; gap: 0.85rem; }
+.admin-banner {
+  aspect-ratio: 3 / 1;
+  border-radius: var(--radius);
+  background-position: center;
+  background-size: cover;
+}
+.admin-actions { gap: 0.75rem; }
+
+.admin-field { display: grid; gap: 0.35rem; font-size: 0.85rem; font-weight: 700; }
+.admin-field + [data-slot="form-error"] { margin-top: 0.75rem; }
+
+/* Trend chart: thin bars, a hairline frame, ink only in the numbers. */
+.admin-chart {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgb(var(--border));
+  border-radius: calc(var(--radius) + 6px);
+  background: rgb(var(--card));
+}
+.admin-chart .app-segmented > button { padding-inline: 0.3rem; font-size: 0.78rem; }
+.admin-chart-readout { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; margin: 0.25rem 0 0; }
+.admin-chart-readout strong { font-size: 1.5rem; }
+.admin-chart-readout span { font-size: 0.78rem; color: rgb(var(--muted-foreground)); }
+.admin-chart-plot { position: relative; }
+.admin-chart-plot svg { display: block; width: 100%; height: 9rem; touch-action: pan-y; }
+.admin-chart-peak {
+  position: absolute;
+  inset-block-start: 0.15rem;
+  inset-inline-start: 0;
+  padding-inline: 0.25rem;
+  border-radius: 0.25rem;
+  background: rgb(var(--card) / 0.85);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--muted-foreground));
+  pointer-events: none;
+}
+.admin-chart-grid { stroke: rgb(var(--border)); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.admin-chart-bar { fill: rgb(var(--primary) / 0.6); transition: fill 0.12s ease; }
+.admin-chart-bar[data-active="true"] { fill: rgb(var(--primary)); }
+.admin-chart-hit { fill: transparent; cursor: pointer; }
+.admin-chart-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: rgb(var(--muted-foreground));
+}
+.admin-chart-table summary { font-size: 0.78rem; color: rgb(var(--muted-foreground)); cursor: pointer; }
+.admin-chart-table table { width: 100%; margin-top: 0.5rem; border-collapse: collapse; font-size: 0.78rem; }
+.admin-chart-table th,
+.admin-chart-table td { padding: 0.25rem 0.3rem; border-top: 1px solid rgb(var(--border)); text-align: start; font-weight: 400; }
+.admin-chart-table thead th { border-top: 0; color: rgb(var(--muted-foreground)); }
+.admin-chart-table td { font-variant-numeric: tabular-nums; }

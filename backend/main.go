@@ -23,6 +23,12 @@ func getenv(key, fallback string) string {
 }
 
 func main() {
+	if len(os.Args) > 1 {
+		if err := runCommand(os.Args[1:]); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	addr := getenv("ACCOUNTS_ADDR", "127.0.0.1:8787")
 	dbPath := getenv("ACCOUNTS_DB", "data/accounts.db")
 

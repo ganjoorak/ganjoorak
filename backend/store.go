@@ -36,13 +36,17 @@ type User struct {
 	Banner     string `json:"banner"`
 	Accent     string `json:"accent"`
 	Background string `json:"background"`
+	// Staff role ("", roleModerator, roleAdmin) and ban time (ms, 0 when not
+	// banned). Never part of a user object: /me reports the role on its own.
+	Role     string `json:"-"`
+	BannedAt int64  `json:"-"`
 }
 
 // userColumns are the User fields every query below selects, in scan order.
-const userColumns = `u.id, u.username, u.display_name, u.created_at, u.is_public, u.avatar, u.recovery_hash != '', u.bio, u.banner, u.accent, u.background`
+const userColumns = `u.id, u.username, u.display_name, u.created_at, u.is_public, u.avatar, u.recovery_hash != '', u.bio, u.banner, u.accent, u.background, u.role, u.banned_at`
 
 func (u *User) scanTargets() []any {
-	return []any{&u.ID, &u.Username, &u.DisplayName, &u.CreatedAt, &u.IsPublic, &u.Avatar, &u.HasRecoveryCode, &u.Bio, &u.Banner, &u.Accent, &u.Background}
+	return []any{&u.ID, &u.Username, &u.DisplayName, &u.CreatedAt, &u.IsPublic, &u.Avatar, &u.HasRecoveryCode, &u.Bio, &u.Banner, &u.Accent, &u.Background, &u.Role, &u.BannedAt}
 }
 
 var (
@@ -94,41 +98,43 @@ var featureSchemas []string
 // featureUpgrades reshape tables of an older layout before the schemas run.
 var featureUpgrades []func(*sql.DB) error
 
+// featureIndexes run last, once every table and migrated column exists: init
+// order follows file names, so a feature cannot rely on another's schema.
+var featureIndexes []string
+
 // Columns added after the first release, applied once to older databases.
-var migrations = []struct{ column, ddl string }{
-	{"is_public", `ALTER TABLE users ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1`},
+var migrations = []struct{ table, column, ddl string }{
+	{"users", "is_public", `ALTER TABLE users ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1`},
 	// Server time (ms) of the last push that changed the history head; drives
 	// "now reading" on the public profile.
-	{"reading_at", `ALTER TABLE users ADD COLUMN reading_at INTEGER NOT NULL DEFAULT 0`},
+	{"users", "reading_at", `ALTER TABLE users ADD COLUMN reading_at INTEGER NOT NULL DEFAULT 0`},
 	// argon2id hash of the account's recovery code; '' when none is set.
-	{"recovery_hash", `ALTER TABLE users ADD COLUMN recovery_hash TEXT NOT NULL DEFAULT ''`},
-	{"avatar", `ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''`},
-	{"bio", `ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''`},
-	{"banner", `ALTER TABLE users ADD COLUMN banner TEXT NOT NULL DEFAULT ''`},
-	{"accent", `ALTER TABLE users ADD COLUMN accent TEXT NOT NULL DEFAULT ''`},
-	{"background", `ALTER TABLE users ADD COLUMN background TEXT NOT NULL DEFAULT ''`},
+	{"users", "recovery_hash", `ALTER TABLE users ADD COLUMN recovery_hash TEXT NOT NULL DEFAULT ''`},
+	{"users", "avatar", `ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''`},
+	{"users", "bio", `ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''`},
+	{"users", "banner", `ALTER TABLE users ADD COLUMN banner TEXT NOT NULL DEFAULT ''`},
+	{"users", "accent", `ALTER TABLE users ADD COLUMN accent TEXT NOT NULL DEFAULT ''`},
+	{"users", "background", `ALTER TABLE users ADD COLUMN background TEXT NOT NULL DEFAULT ''`},
+	// Staff role and ban time, admin.go.
+	{"users", "role", `ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT ''`},
+	{"users", "banned_at", `ALTER TABLE users ADD COLUMN banned_at INTEGER NOT NULL DEFAULT 0`},
+	// The inbox of admin_feedback.go; user_id stays 0 on messages from before it.
+	{"feedback", "user_id", `ALTER TABLE feedback ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0`},
+	{"feedback", "reviewed_at", `ALTER TABLE feedback ADD COLUMN reviewed_at INTEGER NOT NULL DEFAULT 0`},
+	{"feedback", "reviewed_by", `ALTER TABLE feedback ADD COLUMN reviewed_by INTEGER NOT NULL DEFAULT 0`},
 }
 
 func migrate(db *sql.DB) error {
-	rows, err := db.Query(`SELECT name FROM pragma_table_info('users')`)
-	if err != nil {
-		return err
-	}
-	have := map[string]bool{}
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			rows.Close()
-			return err
-		}
-		have[name] = true
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return err
-	}
+	have := map[string]map[string]bool{}
 	for _, m := range migrations {
-		if have[m.column] {
+		if have[m.table] == nil {
+			columns, err := tableColumns(db, m.table)
+			if err != nil {
+				return err
+			}
+			have[m.table] = columns
+		}
+		if have[m.table][m.column] {
 			continue
 		}
 		if _, err := db.Exec(m.ddl); err != nil {
@@ -136,6 +142,23 @@ func migrate(db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+func tableColumns(db *sql.DB, table string) (map[string]bool, error) {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info(?)`, table)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		columns[name] = true
+	}
+	return columns, rows.Err()
 }
 
 func openStore(path string) (*Store, error) {
@@ -164,6 +187,12 @@ func openStore(path string) (*Store, error) {
 	if err := migrate(db); err != nil {
 		db.Close()
 		return nil, err
+	}
+	for _, ddl := range featureIndexes {
+		if _, err := db.Exec(ddl); err != nil {
+			db.Close()
+			return nil, err
+		}
 	}
 	return &Store{db: db}, nil
 }
@@ -259,20 +288,21 @@ func (s *Store) deleteSession(ctx context.Context, tokenHash string) error {
 	return err
 }
 
-func (s *Store) addFeedback(ctx context.Context, in FeedbackInput, username string) error {
+func (s *Store) addFeedback(ctx context.Context, in FeedbackInput, username string, userID int64) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO feedback (kind, message, contact, page, username, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		in.Kind, in.Message, in.Contact, in.Page, username, time.Now().UnixMilli())
+		`INSERT INTO feedback (kind, message, contact, page, username, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		in.Kind, in.Message, in.Contact, in.Page, username, userID, time.Now().UnixMilli())
 	return err
 }
 
-// userForSession returns sql.ErrNoRows for unknown or expired sessions.
+// userForSession returns sql.ErrNoRows for unknown or expired sessions and for
+// banned accounts.
 func (s *Store) userForSession(ctx context.Context, tokenHash string) (User, error) {
 	var u User
 	err := s.db.QueryRowContext(ctx, `
 		SELECT `+userColumns+`
 		FROM sessions s JOIN users u ON u.id = s.user_id
-		WHERE s.token_hash = ? AND s.expires_at > ?`, tokenHash, time.Now().UnixMilli()).
+		WHERE s.token_hash = ? AND s.expires_at > ? AND u.banned_at = 0`, tokenHash, time.Now().UnixMilli()).
 		Scan(u.scanTargets()...)
 	return u, err
 }
@@ -333,14 +363,14 @@ func (s *Store) setPublic(ctx context.Context, userID int64, public bool) error 
 }
 
 // publicProfile returns sql.ErrNoRows for unknown usernames and for accounts
-// that turned their profile off, so the two look the same from outside.
+// that are banned or turned their profile off, so these look the same from outside.
 func (s *Store) publicProfile(ctx context.Context, username string) (PublicProfile, error) {
 	var u User
 	var raw string
 	var readingAt int64
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, username, display_name, avatar, created_at, data, reading_at, bio, banner, accent, background
-		FROM users WHERE username = ? AND is_public = 1`, username).
+		FROM users WHERE username = ? AND is_public = 1 AND banned_at = 0`, username).
 		Scan(&u.ID, &u.Username, &u.DisplayName, &u.Avatar, &u.CreatedAt, &raw, &readingAt, &u.Bio, &u.Banner, &u.Accent, &u.Background)
 	if err != nil {
 		return PublicProfile{}, err
@@ -380,7 +410,7 @@ func (s *Store) followUser(ctx context.Context, followerID int64, username strin
 	}
 	defer tx.Rollback()
 	var targetID int64
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE username = ? AND is_public = 1`, username).Scan(&targetID); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE username = ? AND is_public = 1 AND banned_at = 0`, username).Scan(&targetID); err != nil {
 		return err
 	}
 	if targetID == followerID {
@@ -427,8 +457,8 @@ func (s *Store) isFollowing(ctx context.Context, followerID int64, username stri
 func (s *Store) followCounts(ctx context.Context, userID int64) (followers, following int, err error) {
 	err = s.db.QueryRowContext(ctx, `
 		SELECT
-			(SELECT COUNT(*) FROM follows f JOIN users u ON u.id = f.follower_id WHERE f.followee_id = ?1 AND u.is_public = 1),
-			(SELECT COUNT(*) FROM follows f JOIN users u ON u.id = f.followee_id WHERE f.follower_id = ?1 AND u.is_public = 1)`,
+			(SELECT COUNT(*) FROM follows f JOIN users u ON u.id = f.follower_id WHERE f.followee_id = ?1 AND u.is_public = 1 AND u.banned_at = 0),
+			(SELECT COUNT(*) FROM follows f JOIN users u ON u.id = f.followee_id WHERE f.follower_id = ?1 AND u.is_public = 1 AND u.banned_at = 0)`,
 		userID).Scan(&followers, &following)
 	return
 }
@@ -442,7 +472,7 @@ func (s *Store) followList(ctx context.Context, userID int64, followers bool) ([
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT u.username, u.display_name, u.avatar, f.created_at
 		FROM follows f JOIN users u ON u.id = f.`+other+`
-		WHERE f.`+own+` = ? AND u.is_public = 1
+		WHERE f.`+own+` = ? AND u.is_public = 1 AND u.banned_at = 0
 		ORDER BY f.created_at DESC, f.rowid DESC LIMIT ?`, userID, maxFollowList)
 	if err != nil {
 		return nil, err

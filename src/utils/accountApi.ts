@@ -57,6 +57,9 @@ export interface PublicProfile {
   quoteCount: number;
 }
 
+/** "" for regular accounts. The service decides what each role may do; see adminApi. */
+export type StaffRole = "" | "moderator" | "admin";
+
 export interface AccountData {
   favorites: PoemLibraryEntry[];
   history: PoemLibraryEntry[];
@@ -124,6 +127,7 @@ export interface FollowedUser {
 export const fetchAccount = () =>
   request<{
     user: AccountUser;
+    role: StaffRole;
     data: AccountData;
     follows: FollowCounts;
     progress: { streak: Streak; badges: Badge[] };

@@ -25,6 +25,7 @@ const (
 	// Same answer for an unknown username, a wrong code and an account without one.
 	resetFailedMessage   = "نام کاربری یا کد بازیابی درست نیست."
 	tooManyMessage       = "تلاش‌ها بیش از حد بود. کمی بعد دوباره امتحان کنید."
+	bannedMessage        = "این حساب مسدود شده است."
 	wrongPasswordMessage = "گذرواژهٔ فعلی درست نیست."
 )
 
@@ -105,6 +106,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/account/matches/{id}/leave", s.handleMatchAction(leaveMatchOp))
 	mux.HandleFunc("POST /api/account/matches/{id}/resign", s.handleMatchAction(leaveMatchOp))
 	mux.HandleFunc("POST /api/account/matches/{id}/moves", s.handleMatchMove)
+	s.adminRoutes(mux)
 	return mux
 }
 
@@ -183,6 +185,11 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, loginFailedMessage)
 		return
 	}
+	// Only after the password check, so a ban is not visible to strangers.
+	if user.BannedAt != 0 {
+		writeError(w, http.StatusForbidden, bannedMessage)
+		return
+	}
 	if !s.startSession(w, r, user) {
 		return
 	}
@@ -222,6 +229,7 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"user":     user,
+		"role":     user.Role,
 		"data":     data,
 		"follows":  map[string]int{"followers": followers, "following": following},
 		"progress": map[string]any{"streak": streak, "badges": badges},
@@ -410,6 +418,11 @@ func (s *server) handleReset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, resetFailedMessage)
 		return
 	}
+	// Before anything changes, so the code is not used up by a refused reset.
+	if user.BannedAt != 0 {
+		writeError(w, http.StatusForbidden, bannedMessage)
+		return
+	}
 	newCode, err := newRecoveryCode()
 	if err != nil {
 		internalError(w, err)
@@ -531,13 +544,13 @@ func (s *server) handleFeedback(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	username := ""
+	username, userID := "", int64(0)
 	if cookie, err := r.Cookie(sessionCookie); err == nil && cookie.Value != "" {
 		if user, err := s.store.userForSession(r.Context(), hashSessionToken(cookie.Value)); err == nil {
-			username = user.Username
+			username, userID = user.Username, user.ID
 		}
 	}
-	if err := s.store.addFeedback(r.Context(), in, username); err != nil {
+	if err := s.store.addFeedback(r.Context(), in, username, userID); err != nil {
 		internalError(w, err)
 		return
 	}

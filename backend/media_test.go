@@ -130,7 +130,7 @@ func TestUploadAvatarAndServe(t *testing.T) {
 		}
 		h := res.Header()
 		if h.Get("Content-Type") != "image/jpeg" || h.Get("X-Content-Type-Options") != "nosniff" ||
-			h.Get("Cache-Control") != "public, max-age=31536000, immutable" {
+			h.Get("Cache-Control") != "public, max-age=86400" {
 			t.Fatalf("%s: headers %v", name, h)
 		}
 		img, err := jpeg.Decode(res.Body)

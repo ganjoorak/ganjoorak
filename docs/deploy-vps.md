@@ -156,6 +156,15 @@ Then in a browser: sign up, open a poem for 15 s (streak), select two lines → 
 (quote; this one proves `server` → `web` works), open `/@yourname`, post a verse in
 `/moshaere`, and upload a banner of 2 MB or more (proves `client_max_body_size`).
 
+### First admin
+
+Sign up on the site, then give that account the role on the server. Later roles can be set from
+`/admin/users`. The same command recovers access if no admin is left.
+
+```bash
+docker compose exec server /accounts set-role <username> admin
+```
+
 ## 7. Updating
 
 Push to `v3`, wait for the workflow, then:

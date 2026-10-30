@@ -581,7 +581,7 @@ type newMatch struct {
 // publicUserID finds a public account by username, or answers 404 naming it.
 func publicUserID(ctx context.Context, tx *sql.Tx, username string) (int64, error) {
 	var id int64
-	err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE username = ? AND is_public = 1`, username).Scan(&id)
+	err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE username = ? AND is_public = 1 AND banned_at = 0`, username).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, failure(http.StatusNotFound, userNotFoundMessage(username))
 	}

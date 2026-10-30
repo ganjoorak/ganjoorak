@@ -129,7 +129,7 @@ may now hold `img:<id>` besides a preset key or `""`. Clients turn it into
 | `POST /uploads/avatar` | raw image body, `Content-Type: image/jpeg` or `image/png` | `201 {user}` | signed in; ≤ 2 MB; at least 128×128 and at most 4096×4096 pixels before processing. The server center-crops to a square, scales to 512×512, re-encodes as JPEG (quality 85, no metadata), stores it, sets `avatar = "img:<id>"` and deletes the user's previous uploaded avatar file |
 | `POST /uploads/banner` | same | `201 {user}` | ≤ 4 MB; at least 600×200, at most 6000×6000. Center-crops to 3:1, scales to 1500×500, re-encodes JPEG; sets `banner = "img:<id>"`, deletes the previous uploaded banner |
 | `DELETE /uploads/avatar` / `DELETE /uploads/banner` | — | `{user}` | resets the field to `""` and deletes the file |
-| `GET /media/{id}.jpg` | — | the JPEG | no session; `Content-Type: image/jpeg`, `X-Content-Type-Options: nosniff`, `Cache-Control: public, max-age=31536000, immutable`; `404` for unknown ids. Files of private accounts are still served (ids are unguessable), but private profiles never expose them |
+| `GET /media/{id}.jpg` | — | the JPEG | no session; `Content-Type: image/jpeg`, `X-Content-Type-Options: nosniff`, `Cache-Control: public, max-age=86400`; `404` for unknown ids. Files of private accounts are still served (ids are unguessable), but private profiles never expose them |
 
 - Errors: `400` «فقط تصویر JPEG یا PNG.», «تصویر خیلی کوچک است.», «تصویر خیلی بزرگ است.» (also for
   bodies over the size cap, `413`), «این تصویر خوانده نشد.»; `429` more than 20 uploads per hour.
@@ -138,14 +138,15 @@ may now hold `img:<id>` besides a preset key or `""`. Clients turn it into
   is `400`. Choosing a preset or `""` replaces the upload and deletes its file.
 - Files live next to the database: `<dir of ACCOUNTS_DB>/media/<id>.jpg` (the `/data` volume in
   Docker), so backups of `/data` include them.
-- Moderation is out of scope for now: anyone signed in can upload. (A report/remove flow is a
-  later step.)
+- Anyone signed in can upload; staff remove images afterwards (§8). A day of caching bounds how
+  long a removed file can linger. There is no report flow yet.
 
 ## 4. Additions to existing responses
 
 `GET /api/account/me` gains:
 ```
 progress: { streak: Streak, badges: Badge[] }   // badges earned, newest first
+role: "" | "moderator" | "admin"                // top-level; never inside a user object
 ```
 
 `PublicProfile` (`GET /api/account/users/{username}`) gains:
@@ -300,6 +301,7 @@ Timeouts are applied lazily on every read or write of the match (and in the list
 reads(user_id, poem_key, day, read_at, PRIMARY KEY(user_id, poem_key, day))
 badges(user_id, badge_key, earned_at, PRIMARY KEY(user_id, badge_key))
 quotes(id, user_id, poem_key, href, poet_name, poem_title, line_from, line_to, lines, created_at)   -- lines = JSON array
+-- norm = '' marks a verse removed by a moderator (§8)
 public_moves(id, user_id, lines, norm, first_letter, last_letter, poem_key, href, poet_name, poem_title, created_at)
 matches(id, host_id, status, assist, turn_seconds, turn_team, turn_deadline, winner_team, end_reason, created_at, updated_at)
 match_players(match_id, user_id, team, state, move_count, joined_at, PRIMARY KEY(match_id, user_id))
@@ -309,3 +311,43 @@ users += bio, banner, accent, background
 All `user_id` columns reference `users(id) ON DELETE CASCADE`.
 
 New environment variable for the Go service: `POEMS_API_URL` (the Next app's origin).
+
+## 8. Admin API
+
+Everything is under `/api/account/admin/` and answers `401` signed out, `403` «به این بخش دسترسی
+ندارید.» without the role. The role is read from the database on every request. Users are addressed
+by numeric id, which only these responses carry. Lists take `?before=` and answer `{items, next}`
+(30 per page, newest first). Actions take `{reason?}` (at most 300 characters) and answer `204`.
+
+| Route | Role | Notes |
+|---|---|---|
+| `GET session` | moderator | `{role, openFeedback}` |
+| `GET overview` | admin | `{overview}`: totals, 1/7/30-day windows, a gapless 30-day `trend`. Days are Tehran days; "active" means a row in `reads` |
+| `GET users?q=&filter=all\|banned\|staff` | admin | |
+| `GET users/{id}` | admin | `{user}`: fields, counts, recent audit. Never the data blob or hashes |
+| `POST users/{id}/ban` | admin | `reason` required. `409` for staff (remove the role first), `400` on yourself. Ends every session |
+| `POST users/{id}/unban` | admin | old sessions stay ended |
+| `POST users/{id}/revoke-sessions` | admin | anyone but yourself, other admins included |
+| `PUT users/{id}/role` | admin | `{role, reason?}`. `400` on yourself, `409` for a banned account or the last admin |
+| `GET feedback?status=open\|reviewed\|all&kind=` | moderator | `open` by default. `page` is what the client sent: check it before linking it |
+| `PUT feedback/{id}/reviewed` | moderator | `{reviewed}`. Stored on the message, not audited |
+| `GET content/profiles?q=&has=image\|text` | moderator | |
+| `GET content/quotes?q=` | moderator | |
+| `GET content/moves?q=&typed=1` | moderator | removed verses are left out |
+| `POST content/quotes/{id}/remove` | moderator | deletes the quote |
+| `POST content/moves/{id}/remove` | moderator | see below |
+| `POST content/users/{id}/clear` | moderator | `{field: avatar\|banner\|bio\|displayName, reason?}`. An image must be an upload; `409` when there is nothing to clear. A display name returns to the username |
+| `GET audit?actor=&target=&action=` | admin | |
+
+- Moderators cannot act on an admin's content (`403`).
+- A banned account cannot sign in or reset its password (`403` «این حساب مسدود شده است.», only after
+  the password or code checks out; a refused reset does not use up the code), and behaves as unknown
+  everywhere public. Its verses stay in the public room until removed one by one.
+- A verse removed from the room keeps its row, id, author and letters, because the chain depends on
+  them. `lines` becomes `["این بیت حذف شد."]`, the poem fields empty, and `Move` gains
+  `removed: true`. Clients must keep such a move in the chain and show it muted.
+- Every action except marking feedback is written to `admin_audit` in the same transaction, with the
+  removed text in `detail`. An actor id of 0 is the server command.
+- Roles are set from the dashboard, or on the server with
+  `accounts set-role <username> <admin|moderator|none>`, which is how the first admin is made.
+

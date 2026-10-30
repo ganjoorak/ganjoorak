@@ -11,6 +11,7 @@
 /* Match chains: a quiet tint per team (the host's team in the primary tone, the other one neutral). */
 .msh-move.is-team-0 { background: rgb(var(--primary) / 0.07); border-inline-start: 3px solid rgb(var(--primary) / 0.6); }
 .msh-move.is-team-1 { background: rgb(var(--muted) / 0.6); border-inline-start: 3px solid rgb(var(--muted-foreground) / 0.45); }
+.msh-move.is-removed .search-hit-line { color: rgb(var(--muted-foreground)); font-size: 0.85rem; }
 .msh-move.is-new { animation: msh-in 0.35s cubic-bezier(0.32, 0.72, 0, 1) both; }
 @keyframes msh-in { from { opacity: 0; transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) { .msh-move.is-new { animation: none; } }

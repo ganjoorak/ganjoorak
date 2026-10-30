@@ -21,6 +21,8 @@ export interface MoshaereMove {
   poetName: string;
   poemTitle: string;
   createdAt: number;
+  /** Taken down by a moderator: lines hold a placeholder, the letters stay so the chain still reads. */
+  removed?: boolean;
 }
 
 export interface MoshaereLeader {

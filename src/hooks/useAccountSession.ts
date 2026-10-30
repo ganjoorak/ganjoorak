@@ -46,5 +46,5 @@ export function useAccountSession() {
     };
   }, []);
 
-  return { user: session?.user ?? null, isSignedIn: Boolean(session?.user), isLoading };
+  return { user: session?.user ?? null, role: session?.role ?? "", isSignedIn: Boolean(session?.user), isLoading };
 }
