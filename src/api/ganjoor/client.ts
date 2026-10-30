@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 
 export const API_TIMEOUT_MS = 15000;
 export const SEMANTIC_SEARCH_TIMEOUT_MS = 30000;
@@ -21,6 +21,14 @@ export const API_BASE_URL =
 
 export const ganjoorHttp = axios.create({
   proxy: false,
+  // On the server, cacheable Ganjoor GETs go through the shared in-memory cache. The adapter is
+  // imported lazily so it never ends up in a browser chunk that is loaded.
+  ...(typeof window === "undefined"
+    ? {
+        adapter: async (config: InternalAxiosRequestConfig) =>
+          (await import("@/server/ganjoorAxiosAdapter")).ganjoorCachingAdapter(config),
+      }
+    : {}),
 });
 
 export const getAudioProxyUrl = (url?: string) =>

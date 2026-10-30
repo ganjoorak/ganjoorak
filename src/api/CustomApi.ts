@@ -8,6 +8,9 @@ import {
 
 // Cache for poets' poems
 let poetPoemsCache: Record<string, any> = {};
+// Name/slug/image only, from `/api/poet/{slug}?info=1`: the poet list must not download every
+// poet's whole poems file.
+const poetInfoCache: Record<string, Promise<{ poet: string; poetSlug: string }> | undefined> = {};
 
 const getLocalPoetImageUrl = (poetSlug: PoetSlug) =>
   `/images/poets/${poetSlug}.jpeg`;
@@ -148,6 +151,40 @@ const customApi = {
     }
   },
 
+  /**
+   * Just the poet's identity (no poems). Falls back to the full data if the light request fails.
+   */
+  async _getPoetInfoData(poetSlug: PoetSlug): Promise<{ poet: string; poetSlug: string }> {
+    const loaded = poetPoemsCache[poetSlug];
+    if (loaded) {
+      return loaded;
+    }
+
+    if (!poetInfoCache[poetSlug]) {
+      const request = (async () => {
+        try {
+          const response = await fetch(`/api/poet/${poetSlug}?info=1`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch poet info: ${response.status}`);
+          }
+          const data = await response.json();
+          if (!data || typeof data.poet !== "string" || typeof data.poetSlug !== "string") {
+            throw new Error("Invalid poet info received from API");
+          }
+          return data;
+        } catch (error) {
+          logger.error("Error fetching light poet info, using full data:", error);
+          return customApi._getPoetData(poetSlug);
+        }
+      })();
+      poetInfoCache[poetSlug] = request;
+      request.catch(() => {
+        poetInfoCache[poetSlug] = undefined;
+      });
+    }
+    return poetInfoCache[poetSlug] as Promise<{ poet: string; poetSlug: string }>;
+  },
+
   async _getPoetImageUrl(poetSlug: PoetSlug): Promise<string> {
     const poetData = await customApi._getPoetData(poetSlug);
     return poetData.imageUrl;
@@ -227,8 +264,8 @@ const customApi = {
    */
   async getPoetInfo(poetSlug: PoetSlug): Promise<Poet> {
     try {
-      // Get poet's data from blob or local file
-      const poetData = await customApi._getPoetData(poetSlug);
+      // Identity only: the poems file is fetched when a poem of this poet is needed.
+      const poetData = await customApi._getPoetInfoData(poetSlug);
       return customPoetFromData(poetSlug, poetData);
     } catch (error) {
       logger.error("Error fetching poet info:", error);

@@ -1,4 +1,4 @@
-import type { AvatarKey } from "@/components/ProfileAvatar";
+import type { AvatarValue } from "@/components/ProfileAvatar";
 import { request } from "@/utils/accountApi";
 
 // Moshaere: the public room and team matches. Contract:
@@ -11,7 +11,7 @@ export interface MoshaereMove {
   id: number;
   username: string;
   displayName: string;
-  avatar: AvatarKey | "";
+  avatar: AvatarValue;
   lines: string[];
   firstLetter: string;
   lastLetter: string;
@@ -26,7 +26,7 @@ export interface MoshaereMove {
 export interface MoshaereLeader {
   username: string;
   displayName: string;
-  avatar: AvatarKey | "";
+  avatar: AvatarValue;
   count: number;
 }
 
@@ -35,7 +35,7 @@ export type PlayerState = "invited" | "joined" | "declined" | "left";
 export interface MatchPlayer {
   username: string;
   displayName: string;
-  avatar: AvatarKey | "";
+  avatar: AvatarValue;
   accent: string;
   state: PlayerState;
   moveCount: number;

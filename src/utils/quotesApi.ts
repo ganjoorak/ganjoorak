@@ -1,4 +1,4 @@
-import type { AvatarKey } from "@/components/ProfileAvatar";
+import type { AvatarValue } from "@/components/ProfileAvatar";
 import { request } from "@/utils/accountApi";
 
 // Poem fragments people share on their page. Contract:
@@ -19,7 +19,7 @@ export interface Quote {
 }
 
 export interface StoryPerson {
-  user: { username: string; displayName: string; avatar: AvatarKey | ""; accent: string };
+  user: { username: string; displayName: string; avatar: AvatarValue; accent: string };
   /** Last 7 days, newest first. */
   quotes: Quote[];
   latestAt: number;

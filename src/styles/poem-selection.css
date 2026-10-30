@@ -73,6 +73,11 @@
     box-shadow: 0 0 0 0.3rem rgb(var(--primary) / 0.14);
 }
 
+[data-theme="light"] .poem-text [data-quote-selected] {
+    background: rgb(234 179 8 / 0.22);
+    box-shadow: 0 0 0 0.3rem rgb(234 179 8 / 0.22);
+}
+
 @media (prefers-reduced-motion: reduce) {
     .gk-selmenu {
         animation: none;

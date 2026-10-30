@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { FaBan, FaTimes } from "react-icons/fa";
-import ProfileAvatar from "@/components/ProfileAvatar";
+import { ImagePlus } from "lucide-react";
+import ProfileAvatar, { type AvatarValue } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,16 +16,41 @@ import {
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { FieldHint } from "@/components/ui/label";
-import { FALLBACK_BANNERS, bannerImage } from "@/components/profile/profileFormat";
-import { AccountError, updateAppearance, type AccountUser } from "@/utils/accountApi";
+import AvatarPicker from "@/components/profile/AvatarPicker";
+import ImageCropper, { type CropKind } from "@/components/profile/ImageCropper";
+import { FALLBACK_BANNERS, bannerBackground } from "@/components/profile/profileFormat";
+import { AccountError, updateAppearance, updateProfile, type AccountUser } from "@/utils/accountApi";
+import { setAccountSessionUser } from "@/utils/accountSession";
 import { LOW_CONTRAST_MESSAGE, hasEnoughContrast, isHexColor } from "@/utils/colorContrast";
+import {
+  isUploadedImage,
+  removeAvatar,
+  removeBanner,
+  uploadAvatar,
+  uploadBanner,
+} from "@/utils/mediaApi";
 import { profileThemeStyle } from "@/utils/profileTheme";
-import { fetchCatalog, type Banner, type BannerKey } from "@/utils/progressApi";
+import { fetchCatalog, type Banner, type BannerValue } from "@/utils/progressApi";
 import { formatPersianNumber } from "@/utils/searchText";
 import "@/styles/SettingsSheet.css";
 import "../../styles/AppearanceSheet.css";
 
 const BIO_MAX = 160;
+
+// Anything image-like may be picked; the crop step re-encodes it as JPEG, so WebP (and whatever the
+// browser can decode) works too. Just keep the browser from decoding something enormous.
+const MAX_PICKED_BYTES = 25 * 1024 * 1024;
+
+/** Where the last upload / removal ended up, shown under the matching section. */
+interface UploadState {
+  kind: CropKind | null;
+  busy: boolean;
+  error: string;
+  done: string;
+}
+const IDLE_UPLOAD: UploadState = { kind: null, busy: false, error: "", done: "" };
+
+const errorText = (caught: unknown) => (caught instanceof AccountError ? caught.message : "خطایی رخ داد.");
 
 const ACCENT_PRESETS = ["#c2410c", "#b45309", "#15803d", "#0f766e", "#1d4ed8", "#6d28d9", "#be185d", "#dc2626"];
 const BACKGROUND_PRESETS = ["#fffdf7", "#f6efe0", "#e6f2ee", "#e8eefb", "#1c1c24", "#10283f", "#2b1f3d", "#14261f"];
@@ -125,7 +151,12 @@ const AppearanceForm = ({
   onSaved: (user: AccountUser) => void;
 }) => {
   const [bio, setBio] = useState(user.bio);
-  const [banner, setBanner] = useState<BannerKey | "">(user.banner);
+  const [banner, setBanner] = useState<BannerValue>(user.banner);
+  const [avatar, setAvatar] = useState<AvatarValue>(user.avatar);
+  const [crop, setCrop] = useState<{ file: File; kind: CropKind } | null>(null);
+  const [upload, setUpload] = useState<UploadState>(IDLE_UPLOAD);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const pickKind = useRef<CropKind>("banner");
   const [accent, setAccent] = useState(user.accent);
   const [background, setBackground] = useState(user.background);
   const [banners, setBanners] = useState<Banner[]>(FALLBACK_BANNERS);
@@ -145,21 +176,130 @@ const AppearanceForm = ({
   const lowContrast = !hasEnoughContrast(accent, background);
   const previewStyle = profileThemeStyle(accent, background);
 
+  const pickImage = (kind: CropKind) => {
+    pickKind.current = kind;
+    fileInput.current?.click();
+  };
+
+  const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // So picking the same file again still fires onChange.
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    const kind = pickKind.current;
+    if (!file.type.startsWith("image/")) {
+      setUpload({ ...IDLE_UPLOAD, kind, error: "فقط تصویر JPEG یا PNG." });
+    } else if (file.size > MAX_PICKED_BYTES) {
+      setUpload({ ...IDLE_UPLOAD, kind, error: "تصویر خیلی بزرگ است." });
+    } else {
+      setUpload({ ...IDLE_UPLOAD, kind });
+      setCrop({ file, kind });
+    }
+  };
+
+  /** Uploads apply at once (their own endpoints); the colours and bio below still wait for «ذخیره». */
+  const applyUploaded = (saved: AccountUser, kind: CropKind, done: string) => {
+    if (kind === "avatar") {
+      setAvatar(saved.avatar);
+    } else {
+      setBanner(saved.banner);
+    }
+    onSaved(saved);
+    setAccountSessionUser(saved);
+    setUpload({ kind, busy: false, error: "", done });
+  };
+
+  const handleCropped = async (blob: Blob) => {
+    if (!crop) {
+      return;
+    }
+    const { kind } = crop;
+    setUpload({ kind, busy: true, error: "", done: "" });
+    try {
+      const saved = kind === "avatar" ? await uploadAvatar(blob) : await uploadBanner(blob);
+      applyUploaded(saved, kind, kind === "avatar" ? "تصویر نمایه ذخیره شد." : "بنر ذخیره شد.");
+      setCrop(null);
+    } catch (caught) {
+      setUpload({ kind, busy: false, error: errorText(caught), done: "" });
+    }
+  };
+
+  const handleRemove = async (kind: CropKind) => {
+    setUpload({ kind, busy: true, error: "", done: "" });
+    try {
+      const saved = kind === "avatar" ? await removeAvatar() : await removeBanner();
+      // A different choice made but not yet saved stays; only a selected upload falls back to «none».
+      const keep = kind === "avatar" ? !isUploadedImage(avatar) : !isUploadedImage(banner);
+      if (keep) {
+        onSaved(saved);
+        setAccountSessionUser(saved);
+        setUpload({ kind, busy: false, error: "", done: "تصویر حذف شد." });
+      } else {
+        applyUploaded(saved, kind, "تصویر حذف شد.");
+      }
+    } catch (caught) {
+      setUpload({ kind, busy: false, error: errorText(caught), done: "" });
+    }
+  };
+
   const handleSave = async () => {
-    if (lowContrast) {
+    if (lowContrast || upload.busy) {
       return;
     }
     setBusy(true);
     setError("");
     try {
+      // The picture is part of the profile, not the appearance, endpoint; only sent when it changed.
+      if (avatar !== user.avatar) {
+        const { user: renamed } = await updateProfile({
+          username: user.username,
+          displayName: user.displayName,
+          avatar,
+        });
+        onSaved(renamed);
+        setAccountSessionUser(renamed);
+      }
       const { user: saved } = await updateAppearance({ bio: bio.trim(), banner, accent, background });
       onSaved(saved);
+      setAccountSessionUser(saved);
       onClose();
     } catch (caught) {
       setError(caught instanceof AccountError ? caught.message : "خطایی رخ داد.");
       setBusy(false);
     }
   };
+
+  if (crop) {
+    return (
+      <ImageCropper
+        file={crop.file}
+        kind={crop.kind}
+        busy={upload.busy}
+        error={upload.error}
+        onBack={() => {
+          setCrop(null);
+          setUpload(IDLE_UPLOAD);
+        }}
+        onConfirm={handleCropped}
+      />
+    );
+  }
+
+  const storedBanner = isUploadedImage(user.banner) ? user.banner : null;
+  const storedAvatar = isUploadedImage(user.avatar) ? user.avatar : null;
+  const status = (kind: CropKind) =>
+    upload.kind === kind && (
+      <>
+        {upload.error && <FormError>{upload.error}</FormError>}
+        {upload.done && (
+          <p className="appearance-upload-status" role="status">
+            {upload.done}
+          </p>
+        )}
+      </>
+    );
 
   return (
     <>
@@ -170,6 +310,15 @@ const AppearanceForm = ({
         </Button>
       </DialogHeader>
       <DialogPanel className="settings-sheet-body">
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+          onChange={handleFile}
+        />
         <div aria-live="polite" className="settings-sheet-groups">
           <section className="settings-group">
             <h3 className="settings-group-title">پیش‌نمایش</h3>
@@ -177,12 +326,12 @@ const AppearanceForm = ({
               <div className="appearance-preview" style={previewStyle} aria-label="پیش‌نمایش" role="img">
                 <div
                   className="appearance-preview-banner"
-                  style={banner ? { backgroundImage: `url(${bannerImage(banner)})` } : undefined}
+                  style={bannerBackground(banner)}
                 />
                 <div className="appearance-preview-body">
                   <ProfileAvatar
                     username={user.username}
-                    avatar={user.avatar}
+                    avatar={avatar}
                     className="appearance-preview-avatar"
                     decorative
                   />
@@ -212,6 +361,28 @@ const AppearanceForm = ({
                   >
                     <span>بدون بنر</span>
                   </button>
+                  <button
+                    type="button"
+                    className="appearance-banner appearance-banner--upload"
+                    disabled={upload.busy}
+                    onClick={() => pickImage("banner")}
+                  >
+                    <ImagePlus aria-hidden="true" />
+                    <span>بارگذاری تصویر</span>
+                  </button>
+                  {storedBanner && (
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={banner === storedBanner}
+                      aria-label="تصویر شما"
+                      className="appearance-banner"
+                      style={bannerBackground(storedBanner)}
+                      onClick={() => setBanner(storedBanner)}
+                    >
+                      <span>تصویر شما</span>
+                    </button>
+                  )}
                   {banners.map((item) => (
                     <button
                       key={item.key}
@@ -227,6 +398,52 @@ const AppearanceForm = ({
                     </button>
                   ))}
                 </div>
+                <FieldHint>تصویر بنر همان لحظه ذخیره می‌شود؛ بقیهٔ تغییرات با دکمهٔ «ذخیره».</FieldHint>
+                {storedBanner && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="appearance-remove"
+                    loading={upload.busy && upload.kind === "banner"}
+                    disabled={upload.busy}
+                    onClick={() => handleRemove("banner")}
+                  >
+                    حذف تصویر
+                  </Button>
+                )}
+                {status("banner")}
+              </div>
+            </div>
+          </section>
+
+          <section className="settings-group" aria-labelledby="appearance-avatar-title">
+            <h3 id="appearance-avatar-title" className="settings-group-title">
+              تصویر نمایه
+            </h3>
+            <div className="settings-group-card">
+              <div className="settings-group-block">
+                <AvatarPicker
+                  username={user.username}
+                  value={avatar}
+                  onChange={setAvatar}
+                  uploaded={user.avatar}
+                  onUpload={() => pickImage("avatar")}
+                  disabled={upload.busy}
+                />
+                <FieldHint>تصویر دلخواه همان لحظه ذخیره می‌شود؛ انتخاب یکی از طرح‌ها با دکمهٔ «ذخیره».</FieldHint>
+                {storedAvatar && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="appearance-remove"
+                    loading={upload.busy && upload.kind === "avatar"}
+                    disabled={upload.busy}
+                    onClick={() => handleRemove("avatar")}
+                  >
+                    حذف تصویر
+                  </Button>
+                )}
+                {status("avatar")}
               </div>
             </div>
           </section>
@@ -263,7 +480,7 @@ const AppearanceForm = ({
         <Button variant="outline" size="lg" onClick={onClose} disabled={busy}>
           انصراف
         </Button>
-        <Button size="lg" onClick={handleSave} loading={busy} disabled={lowContrast}>
+        <Button size="lg" onClick={handleSave} loading={busy} disabled={lowContrast || upload.busy}>
           ذخیره
         </Button>
       </DialogFooter>
@@ -272,8 +489,8 @@ const AppearanceForm = ({
 };
 
 /**
- * «ویرایش ظاهر»: banner, accent and background colours and bio, with a live
- * preview. A bottom sheet on phones (same shell as the settings sheet).
+ * «ویرایش ظاهر»: banner and profile picture (presets or an uploaded, cropped image), accent and
+ * background colours and bio, with a live preview. Uploads apply at once; the rest waits for «ذخیره». A bottom sheet on phones (same shell as the settings sheet).
  */
 export default function AppearanceSheet({
   open,

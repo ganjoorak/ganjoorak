@@ -1,9 +1,20 @@
+import type { CSSProperties } from "react";
+import { mediaUrl } from "@/utils/mediaApi";
 import type { Banner, BannerKey } from "@/utils/progressApi";
 
 // Small formatting helpers shared by the profile components.
 
 /** Same file the service's catalog points at (/banners/{key}.svg). */
 export const bannerImage = (key: string) => `/banners/${key}.svg`;
+
+/**
+ * Inline style that paints a profile's banner (a preset key or an uploaded "img:<id>"), or undefined for none.
+ * Only a catalog-shaped key or a validated hex id ever reaches the CSS url().
+ */
+export const bannerBackground = (value: string): CSSProperties | undefined => {
+  const url = mediaUrl(value) ?? (/^[a-z]{1,24}$/.test(value) ? bannerImage(value) : null);
+  return url ? { backgroundImage: `url("${url}")` } : undefined;
+};
 
 /** Used by the appearance editor until (or unless) the catalog answers. */
 export const FALLBACK_BANNERS: Banner[] = (

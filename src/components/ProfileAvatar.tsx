@@ -1,5 +1,5 @@
-import type React from "react";
-import type { ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import { mediaUrl, type UploadedImage } from "@/utils/mediaApi";
 
 // Profile picture: a line motif from classical Persian poetry. Users can pick one in account settings;
 // otherwise it is picked from the username so a person always gets the same one. Drawn with
@@ -60,6 +60,9 @@ export const AVATAR_MOTIFS = [
 
 export type AvatarKey = (typeof AVATAR_MOTIFS)[number]["key"];
 
+/** What the service stores: a motif key, an uploaded picture ("img:<id>"), or "" for the username's motif. */
+export type AvatarValue = AvatarKey | UploadedImage | "";
+
 const hash = (value: string) => {
   let result = 0;
   for (const char of value) result = (result * 31 + char.codePointAt(0)!) >>> 0;
@@ -81,30 +84,47 @@ export default function ProfileAvatar({
   username: string;
   avatar?: string;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
   /** Hide from assistive tech when a name is already next to it. */
   decorative?: boolean;
 }) {
   const motif = resolveAvatar(username, avatar);
+  const photo = mediaUrl(avatar);
+  // The motif stands in when the file fails to load; keyed by URL so a new upload gets its own try.
+  const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
+  const showPhoto = photo !== null && failedPhoto !== photo;
+  const accessibility = decorative
+    ? ({ "aria-hidden": true } as const)
+    : ({ role: "img", "aria-label": showPhoto ? "تصویر نمایه" : `تصویر نمایه: ${motif.name}` } as const);
   return (
     <span
-      className={["profile-avatar", className].filter(Boolean).join(" ")}
+      className={["profile-avatar", showPhoto && "profile-avatar--photo", className].filter(Boolean).join(" ")}
       style={style}
-      {...(decorative
-        ? { "aria-hidden": true }
-        : { role: "img", "aria-label": `تصویر نمایه: ${motif.name}` })}
+      {...accessibility}
     >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.4}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        {motif.paths}
-      </svg>
+      {showPhoto ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a small same-origin JPEG; next/image would only re-encode it
+        <img
+          src={photo}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => setFailedPhoto(photo)}
+        />
+      ) : (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          {motif.paths}
+        </svg>
+      )}
     </span>
   );
 }

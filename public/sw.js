@@ -2,11 +2,12 @@
 // with its own cache and activation drops the previous deploy's cache.
 const BUILD_ID = new URL(self.location.href).searchParams.get("v") || "dev";
 const CACHE_VERSION = `ganjoorak-${BUILD_ID}`;
+// Only cheap static pages: precaching runs on the first visit, next to the feed's own requests.
+// Pages that render upstream data (/poets, /today) are still cached on navigation by the fetch
+// handler below.
 const APP_SHELL = [
   "/",
   "/saved",
-  "/today",
-  "/poets",
   "/faq",
   "/updates",
   "/manifest.json",

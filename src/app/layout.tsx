@@ -14,6 +14,7 @@ import "./mobile-floating-controls.css";
 import "./mobile-modal-polish.css";
 import "./mobile-minimal-feed.css";
 import "./shadcn.css";
+import "./paper-theme.css";
 import { SettingsProvider } from "@/context/SettingsContext";
 import RouteTransition from "@/components/RouteTransition";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
@@ -28,6 +29,9 @@ import "parastoo-font/dist/font-face.css";
 import "sahel-font/dist/font-face.css";
 import "vazir-code-font/dist/font-face.css";
 import "nahid-font/dist/font-face.css";
+
+// The /_vercel/* analytics scripts only exist on Vercel; elsewhere they are 404s on the first load.
+const isVercel = Boolean(process.env.VERCEL);
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ||
@@ -97,7 +101,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var settings=localStorage.getItem('ganjoorak:settings');var parsed=settings?JSON.parse(settings):null;var theme=parsed&&parsed.theme?parsed.theme:localStorage.getItem('theme');var prefersDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;var fallback=prefersDark?'dark':'dark';var allowedThemes=['dark','light','paper'];var finalTheme=allowedThemes.indexOf(theme)>=0?theme:fallback;var allowedFonts=['vazirmatn','samim','tanha','shabnam','gandom','parastoo','sahel','vazircode','nahid'];var storedFont=parsed&&parsed.fontFamily&&allowedFonts.indexOf(parsed.fontFamily)>=0?parsed.fontFamily:'vazirmatn';var legacy={compact:90,normal:100,large:112,extra:125};var clampSize=function(value){var n=Object.prototype.hasOwnProperty.call(legacy,value)?legacy[value]:Number(value);if(!Number.isFinite(n)){n=100;}n=Math.round(n/5)*5;return Math.min(125,Math.max(85,n));};var poemFontSize=clampSize(parsed&&parsed.poemFontSize);var scaled=function(base,min,max){var value=base*(poemFontSize/100);return Math.min(max,Math.max(min,value)).toFixed(3)+'rem';};document.documentElement.setAttribute('data-theme',finalTheme);document.documentElement.setAttribute('data-font',storedFont);document.documentElement.setAttribute('data-poem-font-size',String(poemFontSize));document.documentElement.style.setProperty('--poem-text-font-size',scaled(1.2,1.05,1.5));document.documentElement.style.setProperty('--poem-verse-font-size',scaled(1.5,1.3,1.85));document.documentElement.style.setProperty('--poem-title-font-size',scaled(2.5,2.15,3.1));localStorage.setItem('theme',finalTheme);}catch(e){document.documentElement.setAttribute('data-theme','dark');document.documentElement.setAttribute('data-font','vazirmatn');document.documentElement.setAttribute('data-poem-font-size','100');}})();",
+              "(function(){try{var settings=localStorage.getItem('ganjoorak:settings');var parsed=settings?JSON.parse(settings):null;var theme=parsed&&parsed.theme?parsed.theme:localStorage.getItem('theme');var prefersDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;var fallback=prefersDark?'dark':'dark';var allowedThemes=['dark','light','paper'];var finalTheme=allowedThemes.indexOf(theme)>=0?theme:fallback;if(finalTheme!=='dark'){var themeMeta=document.querySelector('meta[name=theme-color]');if(themeMeta){themeMeta.setAttribute('content',finalTheme==='paper'?'#fbf0d9':'#fafaf9');}}var allowedFonts=['vazirmatn','samim','tanha','shabnam','gandom','parastoo','sahel','vazircode','nahid'];var storedFont=parsed&&parsed.fontFamily&&allowedFonts.indexOf(parsed.fontFamily)>=0?parsed.fontFamily:'vazirmatn';var legacy={compact:90,normal:100,large:112,extra:125};var clampSize=function(value){var n=Object.prototype.hasOwnProperty.call(legacy,value)?legacy[value]:Number(value);if(!Number.isFinite(n)){n=100;}n=Math.round(n/5)*5;return Math.min(125,Math.max(85,n));};var poemFontSize=clampSize(parsed&&parsed.poemFontSize);var scaled=function(base,min,max){var value=base*(poemFontSize/100);return Math.min(max,Math.max(min,value)).toFixed(3)+'rem';};document.documentElement.setAttribute('data-theme',finalTheme);document.documentElement.setAttribute('data-font',storedFont);document.documentElement.setAttribute('data-poem-font-size',String(poemFontSize));document.documentElement.style.setProperty('--poem-text-font-size',scaled(1.2,1.05,1.5));document.documentElement.style.setProperty('--poem-verse-font-size',scaled(1.5,1.3,1.85));document.documentElement.style.setProperty('--poem-title-font-size',scaled(2.5,2.15,3.1));localStorage.setItem('theme',finalTheme);}catch(e){document.documentElement.setAttribute('data-theme','dark');document.documentElement.setAttribute('data-font','vazirmatn');document.documentElement.setAttribute('data-poem-font-size','100');}})();",
           }}
         />
       </head>
@@ -109,8 +113,12 @@ export default function RootLayout({
           <AccountSync />
           <Toaster />
         </SettingsProvider>
-        <Analytics />
-        <SpeedInsights />
+        {isVercel ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
       </body>
     </html>
   );

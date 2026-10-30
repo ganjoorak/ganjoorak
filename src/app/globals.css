@@ -91,28 +91,6 @@ html {
     --ring: 250 250 250;
 }
 
-[data-theme="paper"] {
-    --background: 244 240 229;
-    --foreground: 64 52 40;
-    --card: 250 247 237;
-    --card-foreground: 64 52 40;
-    --popover: 250 247 237;
-    --popover-foreground: 64 52 40;
-    --primary: 120 90 50;
-    --primary-foreground: 250 247 237;
-    --secondary: 238 232 216;
-    --secondary-foreground: 64 52 40;
-    --muted: 238 232 216;
-    --muted-foreground: 110 96 78;
-    --accent: 225 210 180;
-    --accent-foreground: 64 52 40;
-    --destructive: 176 68 40;
-    --destructive-foreground: 250 247 237;
-    --border: 214 204 183;
-    --input: 214 204 183;
-    --ring: 120 90 50;
-}
-
 :root[data-font="vazirmatn"] {
     --app-font: "Vazirmatn", "IRANSans", "Tahoma", "Segoe UI", sans-serif;
 }

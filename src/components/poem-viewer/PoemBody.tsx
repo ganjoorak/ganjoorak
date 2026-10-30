@@ -53,6 +53,11 @@ export default function PoemBody({
     ? null
     : buildPoemSegments(filledLines, poem.lineKinds);
   const from = <T,>(value: T): T | false => (animate ? value : false);
+  // A quick settle, capped: a poem must never make the reader wait for its own verses.
+  const verseTransition = (index: number) => ({
+    duration: 0.16,
+    delay: Math.min(index, 4) * 0.025,
+  });
   const pairClassName = `verse-pair ${showLineNumbers ? "verse-pair-numbered" : ""}`;
   const coupletNumber = (pairIndex: number) =>
     showLineNumbers ? persianNumberFormatter.format(pairIndex + 1) : undefined;
@@ -72,9 +77,9 @@ export default function PoemBody({
           )}
           <motion.h2
             className="poem-title"
-            initial={from({ opacity: 0, y: -20 })}
+            initial={from({ opacity: 0, y: -6 })}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.16 }}
             style={{
               fontSize:
                 "clamp(1.45rem, var(--poem-title-font-size, 2.25rem), 3.1rem)",
@@ -88,9 +93,9 @@ export default function PoemBody({
           {!isPoetPage && (
             <motion.div
               className="poet-line"
-              initial={from({ opacity: 0, y: -10 })}
+              initial={from({ opacity: 0, y: -4 })}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
+              transition={{ duration: 0.16 }}
               style={{
                 fontSize: "clamp(0.85rem, 2.4vw, 1rem)",
                 lineHeight: 1.45,
@@ -110,9 +115,9 @@ export default function PoemBody({
       {isModern ? (
         <motion.div
           className="modern-poem"
-          initial={from({ opacity: 0, y: 20 })}
+          initial={from({ opacity: 0, y: 6 })}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.16 }}
         >
           {allLines.map((line, index) => (
             <div
@@ -130,12 +135,9 @@ export default function PoemBody({
       ) : segments ? (
         segments.map((segment, segmentIndex) => {
           const entrance = {
-            initial: from({ opacity: 0, y: 20 }),
+            initial: from({ opacity: 0, y: 6 }),
             animate: { opacity: 1, y: 0 },
-            transition: {
-              duration: 0.3,
-              delay: Math.min(segmentIndex, 6) * 0.1,
-            },
+            transition: verseTransition(segmentIndex),
           };
           return segment.type === "prose" ? (
             <motion.div key={`p-${segment.index}`} className="prose-block" {...entrance}>
@@ -173,9 +175,9 @@ export default function PoemBody({
             key={index}
             className={pairClassName}
             data-couplet-number={coupletNumber(index)}
-            initial={from({ opacity: 0, y: 20 })}
+            initial={from({ opacity: 0, y: 6 })}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
+            transition={verseTransition(index)}
           >
             {pair.map((line, lineIndex) => (
               <div

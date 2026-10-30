@@ -5,10 +5,9 @@ import Link from "next/link";
 import { Check, Share2 } from "lucide-react";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
-import { bannerImage, formatDate } from "@/components/profile/profileFormat";
+import { bannerBackground, formatDate } from "@/components/profile/profileFormat";
 import { publicProfilePath } from "@/utils/accountApi";
 import { formatPersianNumber } from "@/utils/searchText";
-import type { BannerKey } from "@/utils/progressApi";
 import "../../styles/ProfileHeader.css";
 
 export interface ProfileHeaderData {
@@ -16,7 +15,7 @@ export interface ProfileHeaderData {
   displayName: string;
   avatar: string;
   bio: string;
-  banner: BannerKey | "";
+  banner: string;
   createdAt: number;
   followerCount?: number;
   followingCount?: number;
@@ -88,7 +87,7 @@ export default function ProfileHeader({
     <header className="profile-header">
       <div
         className="profile-banner"
-        style={profile.banner ? { backgroundImage: `url(${bannerImage(profile.banner)})` } : undefined}
+        style={bannerBackground(profile.banner)}
         aria-hidden="true"
       />
       <div className="profile-identity">

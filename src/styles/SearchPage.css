@@ -11,16 +11,13 @@
   --search-shadow: 0 10px 30px rgb(0 0 0 / 0.08);
 }
 
+[data-theme="light"] {
+  --search-mark: rgb(234 179 8 / 0.26);
+}
+
 [data-theme="dark"] {
   --search-mark: rgb(250 204 21 / 0.2);
   --search-shadow: 0 14px 36px rgb(0 0 0 / 0.5);
-}
-
-[data-theme="paper"] {
-  --search-border: rgb(var(--primary) / 0.16);
-  --search-surface-hover: rgb(var(--accent) / 0.32);
-  --search-mark: rgb(var(--accent) / 0.75);
-  --search-shadow: 0 12px 30px rgb(120 90 50 / 0.14);
 }
 
 .search-page {

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
 import {
   FaArrowRight,
   FaCog,
@@ -15,7 +14,7 @@ import {
   FaSignOutAlt,
 } from "react-icons/fa";
 import AppPage from "@/components/AppPage";
-import AppearanceSheet from "@/components/profile/AppearanceSheet";
+import AuthFeatureSlides from "@/components/AuthFeatureSlides";
 import { BadgeGrid } from "@/components/profile/BadgeGrid";
 import ProfileHeader, { ShareProfileButton } from "@/components/profile/ProfileHeader";
 import { QuotesPanel } from "@/components/profile/QuotesPanel";
@@ -25,6 +24,7 @@ import RecoveryCodePanel from "@/components/RecoveryCodePanel";
 import { CollectionList, PoemLibraryList, useLibraryVersion } from "@/components/PoemLibraryPage";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogPopup, DialogTitle } from "@/components/ui/dialog";
 import FollowUserButton from "@/components/FollowUserButton";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { FormError } from "@/components/ui/form-error";
@@ -53,22 +53,6 @@ import "../styles/PoemLibrary.css";
 import "../styles/ProfileHeader.css";
 
 type AuthMode = "login" | "signup";
-
-/**
- * Signup-only content that expands and fades in instead of popping in. It stays mounted so the height can
- * animate; while closed it is hidden from assistive tech and its inputs are disabled by the caller.
- * `gap` is the parent's gap, pulled back while closed so the collapsed row takes no space.
- */
-const AuthReveal = ({ open, gap, children }: { open: boolean; gap: string; children: ReactNode }) => (
-  <div
-    className="auth-reveal"
-    data-open={open}
-    aria-hidden={!open}
-    style={{ "--auth-reveal-gap": gap } as CSSProperties}
-  >
-    <div className="auth-reveal-inner">{children}</div>
-  </div>
-);
 
 /** Password input with a show/hide toggle; the input is LTR inside the RTL form. */
 export const PasswordField = ({
@@ -114,20 +98,11 @@ export const PasswordField = ({
   );
 };
 
-const AUTH_VERSES = [
-  { poet: "حافظ", lines: ["هرگز نمیرد آن که دلش زنده شد به عشق", "ثبت است بر جریدهٔ عالم دوام ما"] },
-  { poet: "مولانا", lines: ["بشنو این نی چون شکایت می‌کند", "از جدایی‌ها حکایت می‌کند"] },
-  { poet: "سعدی", lines: ["بنی‌آدم اعضای یک پیکرند", "که در آفرینش ز یک گوهرند"] },
-  { poet: "باباطاهر", lines: ["ز دست دیده و دل هر دو فریاد", "که هر چه دیده بیند دل کند یاد"] },
-  { poet: "فردوسی", lines: ["توانا بود هر که دانا بود", "ز دانش دل پیر برنا بود"] },
-];
-
 export const LoginPage = () => {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   // "reset" is forgot-password: username + recovery code + new password.
@@ -135,12 +110,10 @@ export const LoginPage = () => {
   const [recoveryInput, setRecoveryInput] = useState("");
   // A code the service just issued (sign-up or reset), shown once before continuing.
   const [issuedCode, setIssuedCode] = useState("");
-  // Null until mount: picking a verse during render would differ between the
-  // server HTML and the first client render.
-  const [verseIndex, setVerseIndex] = useState<number | null>(null);
+  // Below the desktop layout the page is a welcome screen and the form opens as a sheet.
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   useEffect(() => {
-    setVerseIndex(Math.floor(Math.random() * AUTH_VERSES.length));
     fetchAccount()
       .then(() => router.replace("/profile"))
       .catch(() => undefined);
@@ -158,7 +131,8 @@ export const LoginPage = () => {
         return;
       }
       if (mode === "signup") {
-        const { recoveryCode } = await signUp(username, password, displayName);
+        // An empty display name falls back to the username; it can be set later on the profile.
+        const { recoveryCode } = await signUp(username, password, "");
         setIssuedCode(recoveryCode);
         setIsSubmitting(false);
         return;
@@ -182,9 +156,19 @@ export const LoginPage = () => {
     }
   };
 
+  const showAuth = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    setView("auth");
+    setError("");
+  };
+
+  const openSheet = (nextMode: AuthMode) => {
+    showAuth(nextMode);
+    setIsSheetOpen(true);
+  };
+
   const isSignup = mode === "signup";
   const isReset = view === "reset";
-  const titleKey = issuedCode ? "code" : isReset ? "reset" : mode;
   const title = issuedCode
     ? "کد بازیابی شما"
     : isReset
@@ -192,235 +176,209 @@ export const LoginPage = () => {
       : isSignup
         ? "ساخت حساب"
         : "ورود به حساب";
+  const description = isReset && !issuedCode
+    ? "نام کاربری و کد بازیابی‌ای را که هنگام ساخت حساب گرفتید وارد کنید و گذرواژهٔ تازه بگذارید."
+    : null;
+
+  const form = issuedCode ? (
+    <RecoveryCodePanel code={issuedCode} doneLabel="ادامه" onDone={continueToProfile} />
+  ) : isReset ? (
+    <form className="account-form" onSubmit={handleSubmit}>
+      <Label className="flex flex-col">
+        <span>نام کاربری</span>
+        <Input
+          name="username"
+          dir="ltr"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+          value={username}
+          onChange={(event) => {
+            setError("");
+            setUsername(event.target.value);
+          }}
+        />
+      </Label>
+      <Label className="flex flex-col">
+        <span>کد بازیابی</span>
+        <Input
+          name="recoveryCode"
+          dir="ltr"
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          required
+          maxLength={64}
+          placeholder="XXXX-XXXX-XXXX-XXXX"
+          value={recoveryInput}
+          onChange={(event) => {
+            setError("");
+            setRecoveryInput(event.target.value);
+          }}
+        />
+      </Label>
+      <Label className="flex flex-col">
+        <span>گذرواژهٔ تازه</span>
+        <PasswordField
+          name="newPassword"
+          value={password}
+          onChange={(value) => {
+            setError("");
+            setPassword(value);
+          }}
+          autoComplete="new-password"
+          minLength={8}
+        />
+        <FieldHint>دست‌کم ۸ نویسه</FieldHint>
+      </Label>
+      {error && <FormError>{error}</FormError>}
+      <Button type="submit" size="lg" className="auth-submit" loading={isSubmitting}>
+        تغییر گذرواژه
+      </Button>
+      <button
+        type="button"
+        className="auth-text-button"
+        onClick={() => {
+          setView("auth");
+          setError("");
+          setPassword("");
+        }}
+      >
+        بازگشت به ورود
+      </button>
+    </form>
+  ) : (
+    <form className="account-form" onSubmit={handleSubmit}>
+      <Label className="flex flex-col">
+        <span>نام کاربری</span>
+        <Input
+          name="username"
+          dir="ltr"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+          minLength={3}
+          maxLength={32}
+          pattern="[A-Za-z0-9_]+"
+          value={username}
+          onChange={(event) => {
+            setError("");
+            setUsername(event.target.value);
+          }}
+        />
+        {isSignup && <FieldHint>حروف لاتین، رقم یا _ (۳ تا ۳۲ نویسه)</FieldHint>}
+      </Label>
+
+      <Label className="flex flex-col">
+        <span>گذرواژه</span>
+        <PasswordField
+          name="password"
+          value={password}
+          onChange={(value) => {
+            setError("");
+            setPassword(value);
+          }}
+          autoComplete={isSignup ? "new-password" : "current-password"}
+          minLength={isSignup ? 8 : undefined}
+        />
+        {isSignup && <FieldHint>دست‌کم ۸ نویسه</FieldHint>}
+      </Label>
+
+      {!isSignup && (
+        <button
+          type="button"
+          className="auth-text-button"
+          onClick={() => {
+            setView("reset");
+            setError("");
+            setPassword("");
+          }}
+        >
+          گذرواژه را فراموش کرده‌اید؟
+        </button>
+      )}
+
+      {error && <FormError>{error}</FormError>}
+
+      <Button type="submit" size="lg" className="auth-submit" loading={isSubmitting}>
+        {isSignup ? "ساخت حساب" : "ورود"}
+      </Button>
+
+      <p className="auth-switch">
+        {isSignup ? "حساب دارید؟" : "حساب ندارید؟"}
+        <button
+          type="button"
+          className="auth-text-button"
+          onClick={() => showAuth(isSignup ? "login" : "signup")}
+        >
+          {isSignup ? "ورود" : "ساخت حساب"}
+        </button>
+      </p>
+    </form>
+  );
 
   return (
     <div className="auth-page" dir="rtl">
+      <Button
+        variant="ghost"
+        size="icon-lg"
+        className="auth-back"
+        onClick={handleBack}
+        aria-label="بازگشت"
+      >
+        <FaArrowRight />
+      </Button>
+
       <main className="auth-main">
-        <Button
-          variant="ghost"
-          size="icon-lg"
-          className="auth-back"
-          onClick={handleBack}
-          aria-label="بازگشت"
-        >
-          <FaArrowRight />
-        </Button>
-        <div className="auth-main-inner">
-          <header className="auth-header">
-            <h1 key={titleKey} className="auth-swap">{title}</h1>
-            <p>
-              {isReset && !issuedCode
-                ? "نام کاربری و کد بازیابی‌ای را که هنگام ساخت حساب گرفتید وارد کنید و گذرواژهٔ تازه بگذارید."
-                : "گنجورک بدون حساب هم کامل کار می‌کند. با حساب، همه‌چیز روی همهٔ دستگاه‌هایتان می‌ماند."}
-            </p>
-          </header>
-
-          <Card className="auth-card">
-            {issuedCode ? (
-              <RecoveryCodePanel code={issuedCode} doneLabel="ادامه" onDone={continueToProfile} />
-            ) : isReset ? (
-              <form className="account-form" onSubmit={handleSubmit}>
-                <Label className="flex flex-col">
-                  <span>نام کاربری</span>
-                  <Input
-                    name="username"
-                    dir="ltr"
-                    autoComplete="username"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    required
-                    value={username}
-                    onChange={(event) => {
-                      setError("");
-                      setUsername(event.target.value);
-                    }}
-                  />
-                </Label>
-                <Label className="flex flex-col">
-                  <span>کد بازیابی</span>
-                  <Input
-                    name="recoveryCode"
-                    dir="ltr"
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    required
-                    maxLength={64}
-                    placeholder="XXXX-XXXX-XXXX-XXXX"
-                    value={recoveryInput}
-                    onChange={(event) => {
-                      setError("");
-                      setRecoveryInput(event.target.value);
-                    }}
-                  />
-                </Label>
-                <Label className="flex flex-col">
-                  <span>گذرواژهٔ تازه</span>
-                  <PasswordField
-                    name="newPassword"
-                    value={password}
-                    onChange={(value) => {
-                      setError("");
-                      setPassword(value);
-                    }}
-                    autoComplete="new-password"
-                    minLength={8}
-                  />
-                  <FieldHint>دست‌کم ۸ نویسه</FieldHint>
-                </Label>
-                {error && <FormError>{error}</FormError>}
-                <Button type="submit" size="lg" className="auth-submit" loading={isSubmitting}>
-                  تغییر گذرواژه
-                </Button>
-                <button
-                  type="button"
-                  className="auth-text-button"
-                  onClick={() => {
-                    setView("auth");
-                    setError("");
-                    setPassword("");
-                  }}
-                >
-                  بازگشت به ورود
-                </button>
-              </form>
-            ) : (
-              <>
-                <Tabs
-                  value={mode}
-                  onValueChange={(value) => {
-                    setMode(value as typeof mode);
-                    setError("");
-                  }}
-                >
-                  <TabsList aria-label="ورود یا ثبت‌نام" className="relative">
-                    <TabsIndicator />
-                    {(["login", "signup"] as const).map((value) => (
-                      <TabsTab
-                        key={value}
-                        value={value}
-                        className="relative data-active:bg-transparent data-active:shadow-none"
-                      >
-                        {value === "login" ? "ورود" : "ثبت‌نام"}
-                      </TabsTab>
-                    ))}
-                  </TabsList>
-                </Tabs>
-
-                <form className="account-form" onSubmit={handleSubmit}>
-                  <Label className="flex flex-col">
-                    <span>نام کاربری</span>
-                    <Input
-                      name="username"
-                      dir="ltr"
-                      autoComplete="username"
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      required
-                      minLength={3}
-                      maxLength={32}
-                      pattern="[A-Za-z0-9_]+"
-                      value={username}
-                      onChange={(event) => {
-                        setError("");
-                        setUsername(event.target.value);
-                      }}
-                    />
-                    <AuthReveal open={isSignup} gap="0.375rem">
-                      <FieldHint>حروف لاتین، رقم یا _ (۳ تا ۳۲ نویسه)</FieldHint>
-                    </AuthReveal>
-                  </Label>
-
-                  <AuthReveal open={isSignup} gap="1rem">
-                    <Label>
-                      <span>نام نمایشی (اختیاری)</span>
-                      <Input
-                        name="displayName"
-                        autoComplete="nickname"
-                        maxLength={50}
-                        disabled={!isSignup}
-                        value={displayName}
-                        onChange={(event) => {
-                          setError("");
-                          setDisplayName(event.target.value);
-                        }}
-                      />
-                    </Label>
-                  </AuthReveal>
-
-                  <Label className="flex flex-col">
-                    <span>گذرواژه</span>
-                    <PasswordField
-                      name="password"
-                      value={password}
-                      onChange={(value) => {
-                        setError("");
-                        setPassword(value);
-                      }}
-                      autoComplete={isSignup ? "new-password" : "current-password"}
-                      minLength={isSignup ? 8 : undefined}
-                    />
-                    <AuthReveal open={isSignup} gap="0.375rem">
-                      <FieldHint>دست‌کم ۸ نویسه</FieldHint>
-                    </AuthReveal>
-                  </Label>
-
-                  <AuthReveal open={!isSignup} gap="1rem">
-                    <button
-                      type="button"
-                      className="auth-text-button"
-                      tabIndex={isSignup ? -1 : undefined}
-                      onClick={() => {
-                        setView("reset");
-                        setError("");
-                        setPassword("");
-                      }}
-                    >
-                      گذرواژه را فراموش کرده‌اید؟
-                    </button>
-                  </AuthReveal>
-
-                  {error && (
-                    <FormError>{error}</FormError>
-                  )}
-
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="auth-submit"
-                    loading={isSubmitting}
-                  >
-                    <span key={mode} className="auth-swap">{isSignup ? "ساخت حساب" : "ورود"}</span>
-                  </Button>
-                </form>
-              </>
-            )}
-          </Card>
-
-          <p className="auth-benefits">
-            نشان‌شده‌ها، شاعران مورد علاقه و تاریخچهٔ خواندن، روی همهٔ دستگاه‌هایتان
-            می‌ماند.
-          </p>
-        </div>
+        {/* The sheet holds the only copy of the form while it is open. */}
+        {!isSheetOpen && (
+          <div className="auth-main-inner">
+            <header className="auth-header">
+              <h1>{title}</h1>
+              {description && <p>{description}</p>}
+            </header>
+            <Card className="auth-card">{form}</Card>
+          </div>
+        )}
       </main>
 
       <aside className="auth-hero">
-        {verseIndex !== null && (
-          <figure className="auth-hero-verse" key={verseIndex}>
-            <blockquote>
-              {AUTH_VERSES[verseIndex].lines.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-            </blockquote>
-            <figcaption className="auth-hero-poet">{AUTH_VERSES[verseIndex].poet}</figcaption>
-          </figure>
-        )}
+        <AuthFeatureSlides />
         <div className="auth-hero-brand">
           <span className="auth-hero-logo">گنجورک</span>
           <p className="auth-hero-tagline">راحت‌تر شعر بخوانیم و شعر گوش دهیم.</p>
           <span className="auth-hero-domain" dir="ltr">ganjoorak.ir</span>
         </div>
+        <div className="auth-welcome-actions">
+          <Button size="lg" className="auth-submit" onClick={() => openSheet("signup")}>
+            ساخت حساب
+          </Button>
+          <Button size="lg" variant="ghost" className="auth-submit" onClick={() => openSheet("login")}>
+            ورود
+          </Button>
+        </div>
       </aside>
+
+      <Dialog
+        open={isSheetOpen}
+        onOpenChange={(open) => {
+          // The recovery code is shown only once: this sheet must not be dismissed by accident.
+          if (!open && (issuedCode || isSubmitting)) return;
+          setIsSheetOpen(open);
+        }}
+      >
+        <DialogPopup dir="rtl" showCloseButton={!issuedCode}>
+          <div className="auth-sheet">
+            <header className="auth-header">
+              <DialogTitle className="auth-sheet-title">{title}</DialogTitle>
+              {description && <p>{description}</p>}
+            </header>
+            {form}
+          </div>
+        </DialogPopup>
+      </Dialog>
     </div>
   );
 };
@@ -599,7 +557,6 @@ export const ProfilePage = () => {
   const [error, setError] = useState("");
   const [visibilityError, setVisibilityError] = useState("");
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
-  const [appearanceOpen, setAppearanceOpen] = useState(false);
   // When the page opened; "now reading" is judged against it.
   const [openedAt, setOpenedAt] = useState(0);
   // Lists come from this device, which AccountSync keeps merged with the
@@ -749,15 +706,7 @@ export const ProfilePage = () => {
         isOwner
         favoritesHref="/saved"
         favoritesLimit={OWNER_FAVORITES_SHOWN}
-        actions={
-          <>
-            {user.isPublic && <ShareProfileButton profile={user} />}
-            <Button type="button" className="profile-action" onClick={() => setAppearanceOpen(true)}>
-              <Pencil aria-hidden="true" />
-              ویرایش
-            </Button>
-          </>
-        }
+        actions={user.isPublic ? <ShareProfileButton profile={user} /> : undefined}
         streak={progress && <StreakCard streak={progress.streak} />}
         notice={!user.isPublic ? <section className="profile-notice">{visibilityCard}</section> : undefined}
         quotes={<QuotesPanel username={user.username} isOwner />}
@@ -771,12 +720,6 @@ export const ProfilePage = () => {
           )
         }
         footer={user.isPublic ? <section className="profile-footer">{visibilityCard}</section> : undefined}
-      />
-      <AppearanceSheet
-        open={appearanceOpen}
-        onOpenChange={setAppearanceOpen}
-        user={user}
-        onSaved={setUser}
       />
     </AppPage>
   );
@@ -831,12 +774,7 @@ export const PublicProfilePage = ({ profile }: { profile: PublicProfile }) => {
         actions={
           <>
             <ShareProfileButton profile={profile} />
-            {isOwner ? (
-              <Link href="/profile" className={buttonVariants({ className: "profile-action" })}>
-                <Pencil aria-hidden="true" />
-                ویرایش
-              </Link>
-            ) : (
+            {!isOwner && (
               <FollowUserButton
                 username={profile.username}
                 displayName={profile.displayName}

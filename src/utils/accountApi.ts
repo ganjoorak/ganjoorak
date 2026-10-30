@@ -1,7 +1,7 @@
-import type { AvatarKey } from "@/components/ProfileAvatar";
+import type { AvatarValue } from "@/components/ProfileAvatar";
 import type { CollectionEntry } from "@/utils/collectionLibrary";
 import type { PoemLibraryEntry } from "@/utils/poemLibrary";
-import type { Badge, BannerKey, Streak } from "@/utils/progressApi";
+import type { Badge, BannerValue, Streak } from "@/utils/progressApi";
 import type { Quote } from "@/utils/quotesApi";
 
 // Thin client for the Go accounts service (backend/), reached same-origin
@@ -13,13 +13,13 @@ export interface AccountUser {
   createdAt: number;
   /** Whether /@username is visible to others. */
   isPublic: boolean;
-  /** Chosen profile picture motif; "" picks one from the username. */
-  avatar: AvatarKey | "";
+  /** A motif key, "img:<id>" for an upload (see mediaApi), or "" to pick a motif from the username. */
+  avatar: AvatarValue;
   /** False for accounts made before recovery codes existed. */
   hasRecoveryCode: boolean;
   /** Profile appearance; see updateAppearance. */
   bio: string;
-  banner: BannerKey | "";
+  banner: BannerValue;
   /** "#rrggbb", or "" for the theme default. */
   accent: string;
   background: string;
@@ -32,7 +32,7 @@ export interface AccountUser {
 export interface PublicProfile {
   username: string;
   displayName: string;
-  avatar: AvatarKey | "";
+  avatar: AvatarValue;
   createdAt: number;
   /** Set while the owner opened this poem in the last ~20 minutes. */
   nowReading: PoemLibraryEntry | null;
@@ -46,7 +46,7 @@ export interface PublicProfile {
   followerCount: number;
   followingCount: number;
   bio: string;
-  banner: BannerKey | "";
+  banner: BannerValue;
   accent: string;
   background: string;
   streak: Pick<Streak, "current" | "best" | "today">;
@@ -88,8 +88,9 @@ export const request = async <T>(
       ...rest,
       credentials: "same-origin",
       cache: "no-store",
-      headers: json === undefined ? undefined : { "Content-Type": "application/json" },
-      body: json === undefined ? undefined : JSON.stringify(json),
+      // A caller-supplied body (an image Blob, see mediaApi) goes through untouched, with its own headers.
+      headers: json === undefined ? rest.headers : { "Content-Type": "application/json" },
+      body: json === undefined ? rest.body : JSON.stringify(json),
     });
   } catch {
     throw new AccountError(FALLBACK_ERROR, 0);
@@ -116,7 +117,7 @@ export interface FollowCounts {
 export interface FollowedUser {
   username: string;
   displayName: string;
-  avatar: AvatarKey | "";
+  avatar: AvatarValue;
   followedAt: number;
 }
 
@@ -195,13 +196,13 @@ export const createRecoveryCode = (password: string) =>
     json: { password },
   });
 
-export const updateProfile = (profile: { username: string; displayName: string; avatar: AvatarKey | "" }) =>
+export const updateProfile = (profile: { username: string; displayName: string; avatar: AvatarValue }) =>
   request<{ user: AccountUser }>("profile", { method: "PUT", json: profile });
 
 /** Bio, banner and colours; a separate call so profile edits never wipe them. */
 export const updateAppearance = (appearance: {
   bio: string;
-  banner: BannerKey | "";
+  banner: BannerValue;
   accent: string;
   background: string;
 }) => request<{ user: AccountUser }>("appearance", { method: "PUT", json: appearance });

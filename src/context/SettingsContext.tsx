@@ -159,6 +159,13 @@ const DEFAULT_POEM_VIEWER_VISIBILITY: PoemViewerComponentVisibility = {
 
 const VALID_THEMES: ThemeOption[] = ["dark", "light", "paper"];
 
+// The browser bar follows the theme's page colour.
+const THEME_COLORS: Record<ThemeOption, string> = {
+  dark: "#0a0a0a",
+  light: "#fafaf9",
+  paper: "#fbf0d9",
+};
+
 const POEM_VIEWER_COMPONENT_KEYS: PoemViewerComponentKey[] = [
   "titleSection",
   "titleBreadcrumbs",
@@ -348,6 +355,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", settings.theme);
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", THEME_COLORS[settings.theme]);
   }, [settings.theme]);
 
   useEffect(() => {

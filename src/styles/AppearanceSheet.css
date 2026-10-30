@@ -70,3 +70,64 @@
 }
 .appearance-swatch svg { width: 0.85rem; height: 0.85rem; }
 .appearance-color-row { display: flex; align-items: center; gap: 0.5rem; }
+
+/* Uploads: the dashed «upload» tile, status and remove button. */
+.appearance-banner--upload {
+  place-items: center;
+  align-content: center;
+  gap: 0.15rem;
+  border-style: dashed;
+  color: rgb(var(--muted-foreground));
+  background: rgb(var(--card));
+}
+.appearance-banner--upload svg { width: 1.1rem; height: 1.1rem; }
+.appearance-banner--upload span { text-shadow: none; text-align: center; }
+.appearance-banner:disabled { opacity: 0.55; cursor: not-allowed; }
+.appearance-remove { justify-self: start; border-radius: 999px; }
+.appearance-upload-status { margin: 0; font-size: 0.82rem; font-weight: 700; color: rgb(var(--foreground) / 0.85); }
+
+/* Crop step. The frame is exactly what gets uploaded: 3:1 for the banner, a square (shown through a round
+   window) for the picture. touch-action: none so dragging pans the image instead of scrolling the sheet. */
+.appearance-crop { display: grid; justify-items: center; }
+.appearance-crop-frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: rgb(var(--muted));
+  border-radius: calc(var(--radius) + 2px);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.appearance-crop-frame:active { cursor: grabbing; }
+.appearance-crop-frame:focus-visible { outline: 2px solid rgb(var(--ring) / 0.7); outline-offset: 2px; }
+.appearance-crop--banner .appearance-crop-frame { aspect-ratio: 3 / 1; }
+.appearance-crop--avatar .appearance-crop-frame { width: min(100%, 17rem); aspect-ratio: 1; }
+.appearance-crop-image { position: absolute; max-width: none; max-height: none; pointer-events: none; }
+.appearance-crop-wait {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  color: rgb(var(--muted-foreground));
+}
+/* Dims everything outside the circle. */
+.appearance-crop-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.5), inset 0 0 0 2px rgb(255 255 255 / 0.9);
+  pointer-events: none;
+}
+.appearance-crop-zoom {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding-inline: 0.25rem;
+  color: rgb(var(--muted-foreground));
+}
+.appearance-crop-zoom svg { width: 1.1rem; height: 1.1rem; }
+.appearance-crop-hint { margin: 0; font-size: 0.78rem; line-height: 1.8; color: rgb(var(--muted-foreground)); }

@@ -1,4 +1,5 @@
 import { request } from "@/utils/accountApi";
+import type { UploadedImage } from "@/utils/mediaApi";
 
 // Reading streak, badges and the appearance catalog. Contract:
 // docs/social-api-contract.md §1–3.
@@ -28,6 +29,9 @@ export interface Badge {
 }
 
 export type BannerKey = "dawn" | "dusk" | "night" | "garden" | "desert" | "sea" | "tile" | "paper";
+
+/** A preset key, "img:<id>" for an uploaded image (see mediaApi), or "" for none. */
+export type BannerValue = BannerKey | UploadedImage | "";
 
 export interface Banner {
   key: BannerKey;

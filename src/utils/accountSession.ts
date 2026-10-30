@@ -49,6 +49,27 @@ export const getAccountSession = (): Promise<AccountSession> => {
   return pending;
 };
 
+const listeners = new Set<(session: AccountSession) => void>();
+
+/** Called when the cached account changes in place (see setAccountSessionUser). */
+export const subscribeAccountSession = (listener: (session: AccountSession) => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+
+/**
+ * Swaps in a fresher copy of the signed-in user (after a profile or appearance edit, an avatar upload) so the
+ * menu header, stories and the rest show it without another /me round trip.
+ */
+export const setAccountSessionUser = (user: AccountUser) => {
+  const base = cached?.session ?? { user: null, streakToday: null };
+  const session = { ...base, user };
+  cached = { at: cached?.at ?? Date.now(), ttl: cached?.ttl ?? SIGNED_IN_TTL_MS, session };
+  listeners.forEach((listener) => listener(session));
+};
+
 /** Records that today now counts, so the next read doesn't announce the streak again. */
 export const markStreakToday = () => {
   if (cached?.session.user) {

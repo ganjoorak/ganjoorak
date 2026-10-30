@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAccountSession, peekAccountSession, type AccountSession } from "@/utils/accountSession";
+import {
+  getAccountSession,
+  peekAccountSession,
+  subscribeAccountSession,
+  type AccountSession,
+} from "@/utils/accountSession";
 
 /**
  * The signed-in account, or null signed out. `isLoading` is true until the first answer, so callers can
@@ -30,8 +35,13 @@ export function useAccountSession() {
       if (document.visibilityState === "visible" && !peekAccountSession()) load();
     };
     document.addEventListener("visibilitychange", onVisible);
+    const unsubscribe = subscribeAccountSession((next) => {
+      setSession(next);
+      setIsLoading(false);
+    });
     return () => {
       cancelled = true;
+      unsubscribe();
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);

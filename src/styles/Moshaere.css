@@ -29,16 +29,54 @@
 }
 @media (min-width: 768px) { .msh-dock { margin-inline: -1.5rem; padding-inline: 1.5rem; } }
 
-/* The search field, grown to hold two mesras; its send button leads (the right side in RTL). */
-.search-field.msh-field {
-  height: auto;
-  min-height: 3.25rem;
-  align-items: flex-end;
-  padding-block: 0.3rem;
-  padding-inline: 0.35rem 1.1rem;
-  border-radius: 1.6rem;
+/* The verse being written: one field per mesra, centred like a couplet, with the send button leading
+   (the right side in RTL). It fills in only once the verse can be sent. */
+.msh-composer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  padding-inline-end: 0.75rem;
+  border: 1px solid rgb(var(--input));
+  border-radius: 1.5rem;
+  background: rgb(var(--card));
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.search-field.msh-field--compact { height: 3rem; }
+.msh-composer:focus-within {
+  border-color: rgb(var(--foreground) / 0.4);
+  box-shadow: 0 0 0 3px rgb(var(--foreground) / 0.06);
+}
+.msh-composer[data-invalid] {
+  border-color: rgb(var(--destructive));
+  box-shadow: 0 0 0 3px rgb(var(--destructive) / 0.12);
+}
+.msh-composer-lines { flex: 1; min-width: 0; display: grid; }
+.msh-composer-lines textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0.55rem 0.25rem;
+  border: 0;
+  background: transparent;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  text-align: center;
+  color: rgb(var(--foreground));
+}
+.msh-composer-lines textarea::placeholder { color: rgb(var(--muted-foreground)); }
+.msh-composer-lines textarea + textarea { border-top: 1px dashed rgb(var(--border)); }
+.msh-send { flex: none; border-radius: 999px !important; }
+.msh-send svg { width: 1.2rem; height: 1.2rem; }
+.msh-send:disabled {
+  opacity: 1;
+  background: rgb(var(--muted));
+  color: rgb(var(--muted-foreground));
+}
+.msh-field--compact { height: 3rem; }
 .msh-candidates { max-height: min(26dvh, 15rem); overflow-y: auto; overscroll-behavior: contain; }
 
 /* Match rows: invitations keep their buttons on a line of their own. */

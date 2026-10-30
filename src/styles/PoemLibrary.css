@@ -196,7 +196,7 @@
 .preferred-remove { flex-shrink: 0; border-radius: 999px !important; }
 .preferred-read { width: 100%; margin-bottom: 1.5rem; border-radius: 999px !important; }
 
-/* r16 auth (login page: split form + verse panel). */
+/* r16 auth (login page: split form + feature panel). */
 .auth-page {
   min-height: 100svh;
   display: grid;
@@ -206,7 +206,7 @@
   background: rgb(var(--background));
 }
 .auth-main { display: flex; flex-direction: column; padding: 0.75rem 1rem 2rem; }
-.auth-back { align-self: flex-start; margin-bottom: 0.25rem; }
+.auth-back { position: absolute; z-index: 1; top: 0.9rem; inset-inline-start: 0.5rem; margin: 0; }
 .auth-main-inner {
   width: 100%;
   max-width: 26rem;
@@ -225,31 +225,6 @@
 .auth-card { display: grid; gap: 1.25rem; padding: 1.25rem; }
 /* Flex, not grid: a collapsed .auth-reveal cancels the gap with a negative margin, which grid tracks ignore. */
 .account-form { display: flex; flex-direction: column; gap: 1rem; }
-/* Login ⇄ signup: signup-only rows expand/fade instead of popping in; labels crossfade. */
-.auth-reveal {
-  display: grid;
-  grid-template-rows: 1fr;
-  opacity: 1;
-  transition:
-    grid-template-rows 0.32s cubic-bezier(0.32, 0.72, 0, 1),
-    margin-top 0.32s cubic-bezier(0.32, 0.72, 0, 1),
-    opacity 0.24s ease;
-}
-.auth-reveal[data-open="false"] {
-  grid-template-rows: 0fr;
-  margin-top: calc(-1 * var(--auth-reveal-gap, 0px));
-  opacity: 0;
-}
-/* Room for the input focus ring, which overflow would otherwise clip. */
-.auth-reveal-inner { min-height: 0; overflow: hidden; padding: 4px; margin: -4px; }
-.auth-swap { animation: auth-swap-in 0.28s ease both; }
-@keyframes auth-swap-in {
-  from { opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .auth-reveal { transition: none; }
-  .auth-swap { animation: none; }
-}
 .auth-password { position: relative; }
 /* Physical sides: the input is dir="ltr" inside an RTL page, so logical
    padding and inset would land on opposite edges. */
@@ -262,15 +237,26 @@
   color: rgb(var(--muted-foreground));
 }
 .auth-submit { width: 100%; margin-top: 0.25rem; border-radius: 999px !important; }
-.auth-benefits {
+.auth-switch {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.35rem;
   margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.9;
-  text-align: center;
+  font-size: 0.85rem;
   color: rgb(var(--muted-foreground));
 }
+.auth-switch .auth-text-button {
+  align-self: baseline;
+  padding-block: 0;
+  font-size: inherit;
+  font-weight: 700;
+  color: rgb(var(--foreground));
+}
+.auth-sheet { display: grid; gap: 1.25rem; padding: 0.5rem 1.25rem 1.5rem; overflow-y: auto; }
+.auth-sheet-title { font-size: 1.5rem; font-weight: 800; }
 
-/* Verse panel: compact brand + verse header on phones, full-height side panel on desktop. */
+/* Hero panel: compact brand + slides on phones, full-height side panel on desktop. */
 .auth-hero {
   order: -1;
   display: flex;
@@ -292,45 +278,89 @@
   font-size: 0.7rem;
   color: rgb(var(--muted-foreground) / 0.7);
 }
-.auth-hero-verse {
-  margin: 0;
-  animation: auth-verse-in 0.7s ease both;
-}
-.auth-hero-verse blockquote { margin: 0; display: grid; gap: 0.1rem; }
-.auth-hero-verse blockquote p {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 2.1;
-  font-weight: 500;
-  color: rgb(var(--foreground) / 0.85);
-}
-.auth-hero-poet {
+/* Feature slides: stacked in one grid cell, so the tallest sets the height and the form never moves. */
+.auth-features { display: grid; gap: 0.75rem; min-width: 0; }
+.auth-features-track { display: grid; }
+.auth-feature {
+  grid-area: 1 / 1;
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-top: 0.6rem;
-  font-size: 0.75rem;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgb(var(--border));
+  border-radius: calc(var(--radius) + 6px);
+  background: rgb(var(--card));
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s ease, visibility 0.35s;
+}
+.auth-feature.is-active { opacity: 1; visibility: visible; }
+.auth-feature-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background: rgb(var(--primary) / 0.12);
+  color: rgb(var(--primary));
+}
+.auth-feature-icon svg { width: 1.4rem; height: 1.4rem; }
+.auth-feature h2 { margin: 0; font-size: 1.15rem; font-weight: 800; }
+.auth-feature p {
+  margin: 0.3rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.9;
   color: rgb(var(--muted-foreground));
 }
-.auth-hero-poet::before { content: "-"; }
-@keyframes auth-verse-in {
-  from { opacity: 0; translate: 0 0.4rem; }
-  to { opacity: 1; translate: 0 0; }
+.auth-features-dots { display: flex; justify-content: center; gap: 0.1rem; }
+/* The dot is drawn small inside a bigger hit area. */
+.auth-features-dots button {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.auth-features-dots button::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: rgb(var(--muted-foreground) / 0.4);
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+.auth-features-dots button.is-active::before {
+  background: rgb(var(--foreground));
+  transform: scale(1.25);
 }
 @media (prefers-reduced-motion: reduce) {
-  .auth-hero-verse { animation: none; }
+  .auth-feature,
+  .auth-features-dots button::before { transition: none; }
 }
 @media (max-width: 63.99rem) {
-  /* Back button joins the brand header, like an app bar. */
-  .auth-back { position: absolute; top: 0.9rem; inset-inline-start: 0.5rem; margin: 0; }
-  .auth-hero { gap: 0.4rem; padding-block: 1.25rem 1rem; padding-inline-start: 3.25rem; }
-  .auth-hero-brand { order: -1; }
+  /* Welcome screen: the page is the hero, and the form opens in a sheet. */
+  .auth-main { display: none; }
+  .auth-hero {
+    min-height: 100svh;
+    gap: 1.5rem;
+    padding: 1.1rem 1rem calc(1.25rem + env(safe-area-inset-bottom));
+    border-bottom: 0;
+  }
+  .auth-hero-brand { order: -1; justify-items: center; }
   .auth-hero-tagline,
-  .auth-hero-domain,
-  .auth-hero-verse blockquote p + p { display: none; }
-  .auth-hero-verse { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.75rem; }
-  .auth-hero-verse blockquote p { font-size: 0.85rem; line-height: 1.9; }
-  .auth-hero-poet { margin-top: 0; font-size: 0.7rem; gap: 0.4rem; }
+  .auth-hero-domain { display: none; }
+  .auth-hero-logo { line-height: 2.2; }
+  .auth-features { margin-block: auto; }
+  .auth-feature { flex-direction: column; gap: 1rem; padding: 1.75rem; }
+  .auth-feature-icon { width: 3.5rem; height: 3.5rem; }
+  .auth-feature-icon svg { width: 1.65rem; height: 1.65rem; }
+  .auth-feature h2 { font-size: 1.35rem; }
+  .auth-feature p { font-size: 1rem; }
+  .auth-welcome-actions { display: grid; gap: 0.5rem; }
 }
 @media (min-width: 64rem) {
   .auth-page { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-content: stretch; }
@@ -342,9 +372,13 @@
     border-bottom: 0;
     border-inline-start: 1px solid rgb(var(--border));
   }
-  .auth-hero-verse { margin-block: auto; }
-  .auth-hero-verse blockquote p { font-size: 1.5rem; }
-  .auth-hero-poet { font-size: 0.85rem; margin-top: 1rem; }
+  .auth-welcome-actions { display: none; }
+  .auth-features { margin-block: auto; gap: 1rem; }
+  .auth-feature { flex-direction: column; gap: 1.25rem; padding: 2rem; }
+  .auth-feature-icon { width: 4rem; height: 4rem; }
+  .auth-feature-icon svg { width: 1.9rem; height: 1.9rem; }
+  .auth-feature h2 { font-size: 1.5rem; }
+  .auth-feature p { margin-top: 0.5rem; font-size: 1.05rem; }
   .auth-hero-brand { gap: 0.2rem; }
   .auth-hero-logo { font-size: 1.6rem; }
   .auth-hero-tagline { font-size: 0.85rem; }
@@ -503,3 +537,27 @@
   color: rgb(var(--primary-foreground));
   font-size: 0.68rem;
 }
+/* Uploaded picture (ProfileAvatar with an "img:<id>" value): fills the circle; the inset ring of the
+   motif version would sit under the photo, so it is redrawn on top. */
+.profile-avatar--photo { position: relative; overflow: hidden; }
+.profile-avatar--photo img { display: block; width: 100%; height: 100%; max-width: none; object-fit: cover; border-radius: inherit; }
+.profile-avatar--photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(var(--foreground) / 0.12);
+  pointer-events: none;
+}
+/* The «upload» option of AvatarPicker: a dashed circle the size of the avatars next to it. */
+.avatar-picker-upload {
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1.5px dashed rgb(var(--muted-foreground) / 0.6);
+  border-radius: 999px;
+  color: rgb(var(--muted-foreground));
+}
+.avatar-picker-upload svg { width: 1.25rem; height: 1.25rem; }
+.avatar-picker-option:disabled { opacity: 0.55; cursor: not-allowed; }

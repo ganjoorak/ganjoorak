@@ -7,7 +7,9 @@ import PoetsContent from '@/components/PoetsContent';
 import { logger } from '@/utils/logger';
 import { getStaticGanjoorCenturies, getStaticPoetsBySource } from '@/data/static-poets';
 
-export const dynamic = 'force-dynamic';
+// ISR: rendered at build time and re-rendered in the background every 6 hours (same TTL as the
+// centuries/poets catalog in ganjoorCache.ts), so a visit never waits for api.ganjoor.net.
+export const revalidate = 21600;
 
 async function getCenturies(): Promise<Century[]> {
     try {

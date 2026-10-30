@@ -1,20 +1,21 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
-import { FaPaperPlane, FaSearch } from "react-icons/fa";
+import { useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
+import { ArrowUp } from "lucide-react";
+import { FaSearch } from "react-icons/fa";
 import SearchHelper from "@/components/moshaere/SearchHelper";
 import { chipClass } from "@/components/moshaere/shared";
 import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/form-error";
 import { Toggle } from "@/components/ui/toggle";
-import { checkVerse, firstLetter, lastLetter, MAX_VERSE_LINES } from "@/utils/moshaereLetters";
+import { checkVerse, firstLetter, lastLetter } from "@/utils/moshaereLetters";
 import type { VerseInput } from "@/utils/moshaereApi";
 import "@/styles/searchStyles";
 import "../../styles/Moshaere.css";
 
 /**
- * The docked composer: chips for the letter the verse must start with, a two-line field (two
- * mesras) with the send button on the inline-start side (the right, in RTL); optionally the
+ * The docked composer: chips for the letter the verse must start with, a card with one input per
+ * mesra and the send button on the inline-start side (the right, in RTL); optionally the
  * search helper. `onSend` resolves to true when the verse was accepted
  * (the draft is then cleared); on failure the draft stays so a lost race costs nothing.
  */
@@ -41,37 +42,66 @@ export default function Composer({
   /** Why sending is paused right now (e.g. you spoke last); the draft stays editable. */
   lockedReason?: string;
 }) {
-  const [draft, setDraft] = useState("");
-  const areaRef = useRef<HTMLTextAreaElement>(null);
+  const [first, setFirst] = useState("");
+  const [second, setSecond] = useState("");
+  const firstRef = useRef<HTMLTextAreaElement>(null);
+  const secondRef = useRef<HTMLTextAreaElement>(null);
 
-  const lines = draft.split("\n");
-  const typed = firstLetter(lines);
+  // A long mesra wraps instead of being clipped, so each field grows with its text.
+  useLayoutEffect(() => {
+    for (const field of [firstRef.current, secondRef.current]) {
+      if (!field) continue;
+      field.style.height = "auto";
+      field.style.height = `${field.scrollHeight}px`;
+    }
+  }, [first, second]);
+
+  const lines = [first, second].filter((line) => line.trim());
+  const typed = lines.length > 0 ? firstLetter(lines) : "";
   const wrongStart = Boolean(required && typed && typed !== required);
   const issue = checkVerse(lines, required);
   const ending = issue === null || issue === "tooShort" ? lastLetter(lines) : "";
 
-  const updateDraft = (value: string) => {
-    const clean = value.replaceAll("\r", "").split("\n").slice(0, MAX_VERSE_LINES).join("\n");
-    setDraft(clean);
+  const edit = (update: (value: string) => void) => (value: string) => {
+    update(value);
     onEdit();
   };
 
   const send = async () => {
     if (sending || issue !== null || lockedReason) return;
-    const accepted = await onSend({ lines: lines.map((line) => line.trim()).filter(Boolean) });
-    if (accepted) setDraft("");
-    else areaRef.current?.focus({ preventScroll: true });
+    const accepted = await onSend({ lines: lines.map((line) => line.trim()) });
+    if (accepted) {
+      setFirst("");
+      setSecond("");
+    } else {
+      firstRef.current?.focus({ preventScroll: true });
+    }
   };
 
+  // Enter walks from the first mesra to the second; there it sends.
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-    if (event.ctrlKey || event.metaKey) {
+    if (event.nativeEvent.isComposing) return;
+    const inSecond = event.currentTarget === secondRef.current;
+    if (event.key === "Backspace" && inSecond && !second) {
       event.preventDefault();
-      void send();
-    } else if (draft.includes("\n")) {
-      // Two mesras make a verse: no third line.
-      event.preventDefault();
+      firstRef.current?.focus();
+      return;
     }
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (inSecond || event.ctrlKey || event.metaKey) void send();
+    else secondRef.current?.focus();
+  };
+
+  // A pasted couplet lands in both inputs, which would otherwise flatten it into one line.
+  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const pasted = event.clipboardData.getData("text").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (pasted.length < 2) return;
+    event.preventDefault();
+    setFirst(pasted[0]);
+    setSecond(pasted[1]);
+    onEdit();
+    secondRef.current?.focus();
   };
 
   const pickVerse = async (verse: VerseInput) => {
@@ -133,32 +163,48 @@ export default function Composer({
       )}
       {error && <FormError>{error}</FormError>}
 
-      <div className="search-field msh-field">
+      <div className="msh-composer" data-invalid={wrongStart || undefined}>
         <Button
           type="button"
           size="icon-lg"
-          className="mb-0.5 shrink-0 rounded-full"
+          className="msh-send"
           disabled={sending || issue !== null || Boolean(lockedReason)}
           onClick={() => void send()}
           aria-label="ارسال بیت"
         >
-          <FaPaperPlane className="-scale-x-100" aria-hidden="true" />
+          <ArrowUp aria-hidden="true" />
         </Button>
-        <textarea
-          ref={areaRef}
-          className="min-w-0 flex-1 resize-none border-0 bg-transparent py-1 text-base leading-8 text-foreground outline-none placeholder:text-muted-foreground"
-          dir="rtl"
-          rows={2}
-          value={draft}
-          onChange={(event) => updateDraft(event.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={"مصراع اول\nمصراع دوم"}
-          aria-label="بیت شما؛ هر مصراع در یک خط"
-          aria-invalid={wrongStart || undefined}
-          enterKeyHint="enter"
-          autoComplete="off"
-          spellCheck={false}
-        />
+        <div className="msh-composer-lines">
+          <textarea
+            ref={firstRef}
+            dir="rtl"
+            rows={1}
+            value={first}
+            onChange={(event) => edit(setFirst)(event.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder={required ? `مصراع اول، با «${required}»` : "مصراع اول"}
+            aria-label="مصراع اول"
+            aria-invalid={wrongStart || undefined}
+            enterKeyHint="next"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <textarea
+            ref={secondRef}
+            dir="rtl"
+            rows={1}
+            value={second}
+            onChange={(event) => edit(setSecond)(event.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder="مصراع دوم"
+            aria-label="مصراع دوم"
+            enterKeyHint="send"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
       </div>
     </div>
   );

@@ -6,7 +6,8 @@ import { Palette } from "lucide-react";
 import AppPage from "@/components/AppPage";
 import AppearanceSheet from "@/components/profile/AppearanceSheet";
 import { PasswordField } from "@/components/AccountPages";
-import ProfileAvatar, { AVATAR_MOTIFS, resolveAvatar, type AvatarKey } from "@/components/ProfileAvatar";
+import AvatarPicker from "@/components/profile/AvatarPicker";
+import type { AvatarValue } from "@/components/ProfileAvatar";
 import RecoveryCodePanel from "@/components/RecoveryCodePanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -63,38 +64,6 @@ const SettingsSection = ({
   </section>
 );
 
-const AvatarPicker = ({
-  username,
-  value,
-  onChange,
-}: {
-  username: string;
-  value: AvatarKey | "";
-  onChange: (value: AvatarKey | "") => void;
-}) => {
-  const options: { key: AvatarKey | ""; label: string }[] = [
-    { key: "", label: `خودکار (${resolveAvatar(username).name})` },
-    ...AVATAR_MOTIFS.map((motif) => ({ key: motif.key, label: motif.name })),
-  ];
-  return (
-    <div className="avatar-picker" role="radiogroup" aria-label="تصویر نمایه">
-      {options.map((option) => (
-        <button
-          key={option.key || "auto"}
-          type="button"
-          role="radio"
-          aria-checked={value === option.key}
-          className="avatar-picker-option"
-          onClick={() => onChange(option.key)}
-        >
-          <ProfileAvatar username={username} avatar={option.key || undefined} />
-          <span>{option.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-};
-
 /** /profile/settings: picture, name and username, password, recovery code. */
 export default function AccountSettingsPage() {
   const router = useRouter();
@@ -104,7 +73,7 @@ export default function AccountSettingsPage() {
 
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
-  const [avatar, setAvatar] = useState<AvatarKey | "">("");
+  const [avatar, setAvatar] = useState<AvatarValue>("");
   const [profileState, setProfileState] = useState({ busy: false, error: "", done: "" });
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -114,6 +83,12 @@ export default function AccountSettingsPage() {
   const [codePassword, setCodePassword] = useState("");
   const [issuedCode, setIssuedCode] = useState("");
   const [codeState, setCodeState] = useState({ busy: false, error: "", done: "" });
+
+  // The appearance sheet uploads (and removes) pictures on its own; follow the stored value.
+  const storedAvatar = user?.avatar;
+  useEffect(() => {
+    if (storedAvatar !== undefined) setAvatar(storedAvatar);
+  }, [storedAvatar]);
 
   useEffect(() => {
     fetchAccount()
@@ -211,7 +186,13 @@ export default function AccountSettingsPage() {
         error={profileState.error}
         done={profileState.done}
       >
-        <AvatarPicker username={username || user.username} value={avatar} onChange={setAvatar} />
+        <AvatarPicker
+          username={username || user.username}
+          value={avatar}
+          onChange={setAvatar}
+          uploaded={user.avatar}
+          onUpload={() => setAppearanceOpen(true)}
+        />
         <Label className="flex flex-col">
           <span>نام نمایشی</span>
           <Input

@@ -93,10 +93,6 @@
     transition: width 0.1s linear;
 }
 
-[data-theme="paper"] .audio-player .audio-progress-bar {
-    background: #000;
-}
-
 .audio-time {
     font-size: 0.7rem;
     color: rgb(var(--foreground) / 0.7);

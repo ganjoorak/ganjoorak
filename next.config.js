@@ -89,10 +89,8 @@ const nextConfig = {
                 source: '/api/ganjoor/search/semantic',
                 destination: 'https://ganjgah.ir/api/ganjoor/search/semantic',
             },
-            {
-                source: '/api/ganjoor/:path*',
-                destination: `${ganjoorApiBaseUrl}/api/ganjoor/:path*`,
-            },
+            // No /api/ganjoor/:path* rewrite on purpose: an external afterFiles rewrite beats the
+            // dynamic route src/app/api/ganjoor/[...path], which holds the server-side cache.
             {
                 source: '/api/audio/verses/:path*',
                 destination: `${ganjoorApiBaseUrl}/api/audio/verses/:path*`,
