@@ -132,17 +132,18 @@ is lost.
 
 ## 7. Backups
 
-SQLite runs in WAL mode, so copy it with `.backup`, not `cp`:
+SQLite runs in WAL mode, so copy it with `.backup`, not `cp`. Uploaded avatars and banners
+live next to it in `/data/media`, so archive those too:
 
 ```bash
 mkdir -p /opt/ganjoorak/backups
 docker run --rm -v ganjoorak_accounts-data:/data -v /opt/ganjoorak/backups:/backup alpine \
-  sh -c 'apk add -q sqlite && sqlite3 /data/accounts.db ".backup /backup/accounts-$(date +%F).db"'
+  sh -c 'apk add -q sqlite && sqlite3 /data/accounts.db ".backup /backup/accounts-$(date +%F).db" && tar -czf /backup/media-$(date +%F).tar.gz -C /data media'
 ```
 
-Put that in `crontab -e` (e.g. `0 3 * * *`) and copy `/opt/ganjoorak/backups` off the server
-now and then. To restore: stop `server`, copy a backup to `/data/accounts.db` in the volume,
-start it again.
+Put that in `crontab -e` (e.g. `0 3 * * *`; escape each `%` as `\%` in a crontab line) and copy
+`/opt/ganjoorak/backups` off the server now and then. To restore: stop `server`, copy a backup
+to `/data/accounts.db` in the volume, unpack the media archive into `/data`, start it again.
 
 ## Building on the VPS instead (no registry)
 
