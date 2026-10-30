@@ -37,6 +37,7 @@ func newTestAPI(t *testing.T, poems fakePoems) *testAPI {
 	t.Cleanup(func() { store.db.Close() })
 	s := newServer(store)
 	s.poems = poems
+	s.mediaDir = filepath.Join(t.TempDir(), "media")
 	return &testAPI{t: t, server: s, handler: s.routes()}
 }
 

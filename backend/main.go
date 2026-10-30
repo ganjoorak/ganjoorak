@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 	_ "time/tzdata" // Asia/Tehran for reading days, even in a scratch container
@@ -29,9 +30,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("open store %s: %v", dbPath, err)
 	}
+	accounts := newServer(store)
+	accounts.mediaDir = filepath.Join(filepath.Dir(dbPath), "media")
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           newServer(store).routes(),
+		Handler:           accounts.routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

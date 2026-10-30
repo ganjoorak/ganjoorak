@@ -146,12 +146,14 @@ func validPassword(password string) bool {
 }
 
 // validateProfile returns the cleaned input or a Persian, user-facing error.
-func validateProfile(in ProfileInput) (ProfileInput, error) {
+// An uploaded avatar ("img:<id>") is only accepted when it is the user's
+// current one, passed as currentAvatar.
+func validateProfile(in ProfileInput, currentAvatar string) (ProfileInput, error) {
 	username := normalizeUsername(in.Username)
 	if !usernamePattern.MatchString(username) {
 		return in, errBadUsername
 	}
-	if !validAvatars[in.Avatar] {
+	if !validAvatars[in.Avatar] && !keepsUpload(in.Avatar, currentAvatar) {
 		return in, errBadAvatar
 	}
 	displayName := cleanText(in.DisplayName, maxDisplayName)

@@ -37,6 +37,12 @@ type server struct {
 	// Each argon2id run holds 19 MiB; cap concurrent runs so a burst of
 	// logins cannot exhaust memory.
 	hashSlots chan struct{}
+	// Uploaded avatar/banner images (media.go): where they live, a per-user
+	// hourly budget, and a cap on concurrent decodes (a 36-megapixel image
+	// takes a lot of memory).
+	mediaDir      string
+	uploadLimiter *rateLimiter
+	imageSlots    chan struct{}
 }
 
 func newServer(store *Store) *server {
@@ -46,6 +52,8 @@ func newServer(store *Store) *server {
 		limiter:         newRateLimiter(20, 15*time.Minute),
 		feedbackLimiter: newRateLimiter(5, time.Hour),
 		hashSlots:       make(chan struct{}, 4),
+		uploadLimiter:   newRateLimiter(uploadsPerHour, time.Hour),
+		imageSlots:      make(chan struct{}, 2),
 	}
 }
 
@@ -73,6 +81,12 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/account/read", s.handleRead)
 	mux.HandleFunc("GET /api/account/catalog", s.handleCatalog)
 	mux.HandleFunc("PUT /api/account/appearance", s.handleAppearance)
+	// uploaded avatar and banner images (media.go)
+	mux.HandleFunc("POST /api/account/uploads/avatar", s.handleUpload(avatarKind))
+	mux.HandleFunc("POST /api/account/uploads/banner", s.handleUpload(bannerKind))
+	mux.HandleFunc("DELETE /api/account/uploads/avatar", s.handleDeleteUpload(avatarKind))
+	mux.HandleFunc("DELETE /api/account/uploads/banner", s.handleDeleteUpload(bannerKind))
+	mux.HandleFunc("GET /api/account/media/{name}", s.handleMedia)
 	// quotes (quotes.go)
 	mux.HandleFunc("POST /api/account/quotes", s.handleCreateQuote)
 	mux.HandleFunc("DELETE /api/account/quotes/{id}", s.handleDeleteQuote)
@@ -262,7 +276,7 @@ func (s *server) handleProfile(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
-	in, err := validateProfile(in)
+	in, err := validateProfile(in, user.Avatar)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -273,6 +287,9 @@ func (s *server) handleProfile(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		internalError(w, err)
 		return
+	}
+	if user.Avatar != in.Avatar {
+		s.removeUpload(user.Avatar)
 	}
 	user.Username, user.DisplayName, user.Avatar = in.Username, in.DisplayName, in.Avatar
 	writeJSON(w, http.StatusOK, map[string]any{"user": user})

@@ -72,9 +72,11 @@ type AppearanceInput struct {
 }
 
 // validateAppearance cleans the input; the error text is ready to show.
-func validateAppearance(in AppearanceInput) (AppearanceInput, string) {
+// An uploaded banner ("img:<id>") is only accepted when it is the user's
+// current one, passed as currentBanner.
+func validateAppearance(in AppearanceInput, currentBanner string) (AppearanceInput, string) {
 	in.Bio = cleanText(bioNewlines.Replace(in.Bio), maxBioLen)
-	if !validBanner(in.Banner) {
+	if !validBanner(in.Banner) && !keepsUpload(in.Banner, currentBanner) {
 		return in, badBannerMessage
 	}
 	for _, c := range []*string{&in.Accent, &in.Background} {
@@ -136,7 +138,7 @@ func (s *server) handleAppearance(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
-	in, problem := validateAppearance(in)
+	in, problem := validateAppearance(in, user.Banner)
 	if problem != "" {
 		writeError(w, http.StatusBadRequest, problem)
 		return
@@ -146,6 +148,9 @@ func (s *server) handleAppearance(w http.ResponseWriter, r *http.Request) {
 		in.Bio, in.Banner, in.Accent, in.Background, user.ID); err != nil {
 		internalError(w, err)
 		return
+	}
+	if user.Banner != in.Banner {
+		s.removeUpload(user.Banner)
 	}
 	user.Bio, user.Banner, user.Accent, user.Background = in.Bio, in.Banner, in.Accent, in.Background
 	writeJSON(w, http.StatusOK, map[string]any{"user": user})

@@ -305,12 +305,12 @@ func TestRecoveryCodes(t *testing.T) {
 }
 
 func TestValidateProfile(t *testing.T) {
-	in, err := validateProfile(ProfileInput{Username: " Saadi ", DisplayName: "", Avatar: "tulip"})
+	in, err := validateProfile(ProfileInput{Username: " Saadi ", DisplayName: "", Avatar: "tulip"}, "")
 	if err != nil || in.Username != "saadi" || in.DisplayName != "saadi" || in.Avatar != "tulip" {
 		t.Fatalf("valid profile rejected or not cleaned: %+v %v", in, err)
 	}
 	for _, bad := range []ProfileInput{{Username: "ab"}, {Username: "saadi", Avatar: "moon"}} {
-		if _, err := validateProfile(bad); err == nil {
+		if _, err := validateProfile(bad, ""); err == nil {
 			t.Errorf("expected rejection for %+v", bad)
 		}
 	}
