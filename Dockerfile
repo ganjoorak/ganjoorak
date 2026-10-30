@@ -4,6 +4,8 @@ ENV NODE_ENV=production
 ENV PORT=3000
 # Matches CI / production upstream; overrides client bundle URLs use workflow env at `next build` time only.
 ENV GANJOOR_API_BASE_URL=https://api.ganjoor.net
+# Read at runtime by server components (/@username). The /api/account/* rewrite got its own copy at `next build`.
+ENV ACCOUNTS_API_URL=http://server:8787
 
 COPY .next/standalone ./
 COPY .next/static ./.next/static

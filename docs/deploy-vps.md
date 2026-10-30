@@ -12,7 +12,9 @@ which `web` forwards to `server`. Do not point nginx at `server` directly.
 
 The names `web` and `server` matter:
 - `ACCOUNTS_API_URL=http://server:8787` is **baked into the web image at build time** (the
-  `/api/account/*` rewrite), so the accounts container must be called `server`.
+  `/api/account/*` rewrite) and is also the image's runtime default (profile pages at
+  `/@username` fetch it from the server), so the accounts container must be called `server`.
+  See [troubleshooting-profile-404.md](troubleshooting-profile-404.md) if profiles answer 404.
 - The accounts service reads poem text from the web app (`POEMS_API_URL=http://web:3000`) for
   quotes and moshaere.
 
@@ -60,7 +62,8 @@ services:
     ports: ["127.0.0.1:3100:3000"]
     environment:
       GANJOOR_API_BASE_URL: https://api.ganjoor.net
-      # Server components call the accounts service directly at runtime.
+      # Server components call the accounts service directly at runtime. Without
+      # this (on images older than the Dockerfile default), /@username answers 404.
       ACCOUNTS_API_URL: http://server:8787
     depends_on: [server]
 
