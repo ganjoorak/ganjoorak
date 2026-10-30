@@ -1,12 +1,14 @@
 # Deploying Ganjoorak on a VPS
 
-Three containers on one Docker network:
+Two containers on one Docker network, behind the nginx already running on the VPS:
 
-| Service | Image | Port (inside the network) | Job |
+| Service | Image | Port | Job |
 |---|---|---|---|
-| `web` | `ghcr.io/hadi7546/ganjoorak:<tag>` | 3000 | Next.js app |
-| `server` | `ghcr.io/hadi7546/ganjoorak-server:<tag>` | 8787 | Go accounts service + SQLite |
-| `caddy` | `caddy:2` | 80, 443 (public) | HTTPS and reverse proxy to `web` |
+| `web` | `ghcr.io/hadi7546/ganjoorak:<tag>` | 3000 (published on `127.0.0.1:3100`) | Next.js app |
+| `server` | `ghcr.io/hadi7546/ganjoorak-server:<tag>` | 8787 (inside the network only) | Go accounts service + SQLite |
+
+nginx on the host terminates HTTPS and proxies everything to `web`, including `/api/account/*`,
+which `web` forwards to `server`. Do not point nginx at `server` directly.
 
 The names `web` and `server` matter:
 - `ACCOUNTS_API_URL=http://server:8787` is **baked into the web image at build time** (the
@@ -21,7 +23,7 @@ HTTPS is required: the session cookie is `Secure`, so sign-in does not work over
 ## 1. Prepare the VPS (once)
 
 Ubuntu 22.04/24.04, 1 GB RAM is enough. Point your domain's `A` record (and `AAAA` if you
-have IPv6) at the VPS first, so Caddy can get a certificate.
+have IPv6) at the VPS first, so certbot can get a certificate.
 
 ```bash
 curl -fsSL https://get.docker.com | sh
@@ -54,6 +56,8 @@ services:
   web:
     image: ghcr.io/hadi7546/ganjoorak:v3
     restart: unless-stopped
+    # Reachable only by nginx on this host. Change 3100 if it is taken, here and in the nginx site.
+    ports: ["127.0.0.1:3100:3000"]
     environment:
       GANJOOR_API_BASE_URL: https://api.ganjoor.net
       # Server components call the accounts service directly at runtime.
@@ -66,34 +70,11 @@ services:
     environment:
       POEMS_API_URL: http://web:3000
     volumes:
-      - accounts-data:/data       # the SQLite database with every account
-
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    ports: ["80:80", "443:443", "443:443/udp"]
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on: [web]
+      - accounts-data:/data       # the SQLite database and uploaded images
 
 volumes:
   accounts-data:
-  caddy-data:
-  caddy-config:
 ```
-
-`/opt/ganjoorak/Caddyfile` (replace the domain):
-
-```
-ganjoorak.example.com {
-	encode zstd gzip
-	reverse_proxy web:3000
-}
-```
-
-Only Caddy publishes ports; `web` and `server` are reachable only inside the Docker network.
 
 ## 4. Start
 
@@ -104,7 +85,64 @@ docker compose up -d
 docker compose logs -f --tail=50
 ```
 
-## 5. Check it works
+Check it answers locally before touching nginx:
+
+```bash
+curl -sI http://127.0.0.1:3100 | head -1
+```
+
+## 5. nginx
+
+`/etc/nginx/sites-available/ganjoorak` (replace the domain):
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ganjoorak.example.com;
+
+    # Banner uploads are up to 4 MB. nginx's 1 MB default would answer them with 413.
+    client_max_body_size 5m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3100;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        # The accounts service rate-limits sign-in by the last hop of this header, and Next.js
+        # passes it through unchanged. Without this line every visitor shares one limit.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Next.js streams pages.
+        proxy_buffering off;
+    }
+}
+```
+
+Enable it and get a certificate. certbot adds the HTTPS server block and the redirect:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/ganjoorak /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d ganjoorak.example.com
+```
+
+**Behind Cloudflare,** nginx sees Cloudflare's address instead of the visitor's, so add this once
+(it also has to be rerun if Cloudflare's ranges change), and set the SSL mode to Full (strict):
+
+```bash
+{ for ip in $(curl -s https://www.cloudflare.com/ips-v4) $(curl -s https://www.cloudflare.com/ips-v6); do
+    echo "set_real_ip_from $ip;"
+  done
+  echo "real_ip_header CF-Connecting-IP;"
+} | sudo tee /etc/nginx/conf.d/cloudflare-real-ip.conf
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+If nginx itself runs in a container, drop the `ports` line from `web`, attach nginx to the
+`ganjoorak_default` network and use `proxy_pass http://web:3000;`.
+
+## 6. Check it works
 
 ```bash
 curl -s https://ganjoorak.example.com/api/account/catalog | head -c 200   # badges + banners JSON
@@ -112,10 +150,10 @@ curl -s "https://ganjoorak.example.com/api/poem-lines?key=ganjoor:hafez:2131" | 
 ```
 
 Then in a browser: sign up, open a poem for 15 s (streak), select two lines → «در صفحهٔ من»
-(quote; this one proves `server` → `web` works), open `/@yourname`, and post a verse in
-`/moshaere`.
+(quote; this one proves `server` → `web` works), open `/@yourname`, post a verse in
+`/moshaere`, and upload a banner of 2 MB or more (proves `client_max_body_size`).
 
-## 6. Updating
+## 7. Updating
 
 Push to `v3`, wait for the workflow, then:
 
@@ -130,7 +168,7 @@ If an older accounts service is already running with real users, keep using **it
 volume** (put that volume's name under `accounts-data`, with `external: true`), so no account
 is lost.
 
-## 7. Backups
+## 8. Backups
 
 SQLite runs in WAL mode, so copy it with `.backup`, not `cp`. Uploaded avatars and banners
 live next to it in `/data/media`, so archive those too:
