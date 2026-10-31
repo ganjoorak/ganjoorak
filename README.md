@@ -1,6 +1,8 @@
-# Ganjoorak (گنجورک)
+# گنجورک
 
-راحت‌تر شعر بخوانیم و شعر گوش دهیم. A Next.js app for reading Persian poetry, with a Go service for accounts, quotes, and مشاعره.
+راحت‌تر شعر بخوانیم و شعر گوش دهیم.
+
+وب‌اپ Next.js برای خواندن شعر فارسی، با سرویس Go برای حساب‌ها، نقل‌قول‌ها و مشاعره.
 
 The **code** is [GNU AGPL-3.0-or-later](LICENSE). If you run a modified version as a network service, you must offer users the corresponding source (AGPL section 13). Poem text, audio, and third-party mirrors are not part of that grant. Read [CONTENT.md](CONTENT.md) before you redistribute or host this tree.
 
