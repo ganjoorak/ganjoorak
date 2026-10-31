@@ -159,6 +159,28 @@ const DEFAULT_POEM_VIEWER_VISIBILITY: PoemViewerComponentVisibility = {
 
 const VALID_THEMES: ThemeOption[] = ["dark", "light", "paper"];
 
+const isThemeOption = (value: unknown): value is ThemeOption =>
+  typeof value === "string" &&
+  (VALID_THEMES as readonly string[]).includes(value);
+
+// No saved theme follows the OS: dark only when it prefers dark, otherwise
+// light (including when matchMedia is missing). The inline script in
+// app/layout.tsx uses the same rule before paint.
+const systemTheme = (): ThemeOption =>
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+
+const themeFromStorage = (...candidates: unknown[]): ThemeOption => {
+  for (const candidate of candidates) {
+    if (isThemeOption(candidate)) {
+      return candidate;
+    }
+  }
+  return systemTheme();
+};
+
 // The browser bar follows the theme's page colour.
 const THEME_COLORS: Record<ThemeOption, string> = {
   dark: "#0a0a0a",
@@ -231,10 +253,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as Partial<SettingsState>;
-        const nextTheme =
-          parsed.theme && VALID_THEMES.includes(parsed.theme)
-            ? parsed.theme
-            : DEFAULT_SETTINGS.theme;
+        // Same order as the layout script: a present settings theme wins, even
+        // if it is invalid (then the OS fallback), and the legacy key is only
+        // read when settings have no theme.
+        const storedTheme = parsed.theme
+          ? parsed.theme
+          : window.localStorage.getItem("theme");
+        const nextTheme = themeFromStorage(storedTheme);
         const nextFontFamily =
           parsed.fontFamily && FONT_OPTIONS.includes(parsed.fontFamily)
             ? parsed.fontFamily
@@ -314,20 +339,11 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         applyPoemFontSize(nextPoemFontSize);
         window.localStorage.setItem("theme", nextTheme);
       } else {
-        const legacyTheme = window.localStorage.getItem("theme");
-        if (
-          legacyTheme === "light" ||
-          legacyTheme === "dark" ||
-          legacyTheme === "paper"
-        ) {
-          setSettings((prev) => ({ ...prev, theme: legacyTheme }));
-          document.documentElement.setAttribute("data-theme", legacyTheme);
-        } else {
-          document.documentElement.setAttribute(
-            "data-theme",
-            DEFAULT_SETTINGS.theme,
-          );
-        }
+        const legacyTheme = themeFromStorage(
+          window.localStorage.getItem("theme"),
+        );
+        setSettings((prev) => ({ ...prev, theme: legacyTheme }));
+        document.documentElement.setAttribute("data-theme", legacyTheme);
       }
     } catch (error) {
       logger.error("Failed to load settings", error);
@@ -354,11 +370,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [isHydrated, settings]);
 
   useEffect(() => {
+    if (!isHydrated) return;
     document.documentElement.setAttribute("data-theme", settings.theme);
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute("content", THEME_COLORS[settings.theme]);
-  }, [settings.theme]);
+  }, [isHydrated, settings.theme]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-font", settings.fontFamily);

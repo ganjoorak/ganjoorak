@@ -44,9 +44,18 @@ jspm_packages
 scrapes/
 
 #‌ .env
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
 tsconfig.tsbuildinfo
+
+# Local mirrors (clone from sibling repos)
+/data/echolalia/**
+!/data/echolalia/README.md
+/public/videos/**
+!/public/videos/README.md
+.codex
+AGENTS.md

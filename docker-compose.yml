@@ -1,0 +1,24 @@
+# Clone the sibling repos first (see README):
+#   git clone https://github.com/ganjoorak/echolalia-data.git data/echolalia
+#   git clone https://github.com/ganjoorak/videos.git public/videos
+# then: docker compose up --build
+name: ganjoorak
+services:
+  web:
+    build: .
+    ports: ["3000:3000"]
+    environment:
+      ACCOUNTS_API_URL: http://server:8787
+      GANJOOR_API_BASE_URL: https://api.ganjoor.net
+    volumes:
+      - ./data/echolalia:/app/data/echolalia:ro
+      - ./public/videos:/app/public/videos:ro
+    depends_on: [server]
+    restart: unless-stopped
+  server:
+    build: ./backend
+    ports: ["8787:8787"]
+    volumes: ["accounts-data:/data"]
+    restart: unless-stopped
+volumes:
+  accounts-data:

@@ -2,7 +2,7 @@
 #   docker build -t ganjoorak-accounts backend
 #   docker run -v ganjoorak-accounts:/data -p 127.0.0.1:8787:8787 ganjoorak-accounts
 # Keep /data on a volume: it holds the SQLite database with every account.
-FROM golang:1.27-alpine AS build
+FROM golang:1.26-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

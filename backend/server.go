@@ -9,6 +9,8 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -672,14 +674,65 @@ func internalError(w http.ResponseWriter, err error) {
 	writeError(w, http.StatusInternalServerError, "خطایی رخ داد. دوباره امتحان کنید.")
 }
 
-// clientIP uses the last X-Forwarded-For hop, the one added by the Next.js
-// proxy in front of us; earlier hops are client-controlled.
-// shortcut: behind another reverse proxy every user shares that proxy's IP,
-// set up a trusted-hop count if the service is deployed that way.
+// trustedProxyHops selects the client address used for rate limits.
+// TRUSTED_PROXY_HOPS configures it (see parseTrustedProxyHops).
+//
+// Next.js external rewrites forward X-Forwarded-For unchanged: they do not
+// strip a client-supplied value and they do not append their own hop (Next
+// 16 proxyRequest). The documented nginx deploy replaces the header with
+// $remote_addr, so the default of 0 keeps that single visitor address as
+// the rate-limit key. A self-host with no proxy rewriting the header should
+// set "none"; otherwise a caller can choose the key.
+var trustedProxyHops int
+
+func init() {
+	hops, err := parseTrustedProxyHops(os.Getenv("TRUSTED_PROXY_HOPS"))
+	if err != nil {
+		log.Fatalf("accounts: %v", err)
+	}
+	trustedProxyHops = hops
+}
+
+// parseTrustedProxyHops reads TRUSTED_PROXY_HOPS.
+//
+//	"" or "0" — the rightmost X-Forwarded-For entry is the client.
+//	N > 0 — skip N rightmost entries appended by trusted proxies. A chain
+//	  shorter than N+1 entries is ignored and the TCP peer is used.
+//	"none" — ignore the header and use the TCP peer.
+func parseTrustedProxyHops(value string) (int, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "0":
+		return 0, nil
+	case "none":
+		return -1, nil
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || n < 0 {
+		return 0, fmt.Errorf("TRUSTED_PROXY_HOPS must be a non-negative integer or \"none\", got %q", value)
+	}
+	return n, nil
+}
+
 func clientIP(r *http.Request) string {
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		hops := strings.Split(forwarded, ",")
-		return strings.TrimSpace(hops[len(hops)-1])
+	return clientIPFrom(r, trustedProxyHops)
+}
+
+func clientIPFrom(r *http.Request, trustedHops int) string {
+	if trustedHops >= 0 {
+		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+			parts := strings.Split(forwarded, ",")
+			chain := make([]string, 0, len(parts))
+			for _, part := range parts {
+				part = strings.TrimSpace(part)
+				if part != "" {
+					chain = append(chain, part)
+				}
+			}
+			idx := len(chain) - 1 - trustedHops
+			if idx >= 0 && idx < len(chain) {
+				return chain[idx]
+			}
+		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {

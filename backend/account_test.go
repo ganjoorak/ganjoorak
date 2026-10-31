@@ -249,6 +249,61 @@ func TestPublicProfile(t *testing.T) {
 	}
 }
 
+func TestClientIP(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "192.0.2.10:4242"
+
+	req.Header.Set("X-Forwarded-For", "203.0.113.5")
+	if got := clientIPFrom(req, 0); got != "203.0.113.5" {
+		t.Fatalf("nginx single hop: got %q", got)
+	}
+	req.Header.Set("X-Forwarded-For", "198.51.100.4, 203.0.113.5")
+	if got := clientIPFrom(req, 0); got != "203.0.113.5" {
+		t.Fatalf("rightmost hop: got %q", got)
+	}
+	req.Header.Del("X-Forwarded-For")
+	if got := clientIPFrom(req, 0); got != "192.0.2.10" {
+		t.Fatalf("missing header: got %q", got)
+	}
+
+	req.Header.Set("X-Forwarded-For", "198.51.100.4")
+	if got := clientIPFrom(req, -1); got != "192.0.2.10" {
+		t.Fatalf("none must ignore the header: got %q", got)
+	}
+
+	req.Header.Set("X-Forwarded-For", "203.0.113.9, 192.0.2.1")
+	if got := clientIPFrom(req, 1); got != "203.0.113.9" {
+		t.Fatalf("skip one appended hop: got %q", got)
+	}
+	req.Header.Set("X-Forwarded-For", "203.0.113.9")
+	if got := clientIPFrom(req, 1); got != "192.0.2.10" {
+		t.Fatalf("short chain must not trust the client: got %q", got)
+	}
+}
+
+func TestParseTrustedProxyHops(t *testing.T) {
+	for _, value := range []string{"", "0", " 0 "} {
+		n, err := parseTrustedProxyHops(value)
+		if err != nil || n != 0 {
+			t.Fatalf("%q: %d %v", value, n, err)
+		}
+	}
+	n, err := parseTrustedProxyHops("none")
+	if err != nil || n != -1 {
+		t.Fatalf("none: %d %v", n, err)
+	}
+	n, err = parseTrustedProxyHops("2")
+	if err != nil || n != 2 {
+		t.Fatalf("2: %d %v", n, err)
+	}
+	if _, err := parseTrustedProxyHops("lots"); err == nil {
+		t.Fatal("expected error")
+	}
+	if _, err := parseTrustedProxyHops("-1"); err == nil {
+		t.Fatal("negative counts are not the none switch")
+	}
+}
+
 func TestRateLimiter(t *testing.T) {
 	l := newRateLimiter(2, 60_000_000_000)
 	if !l.allow("ip") || !l.allow("ip") || l.allow("ip") || !l.allow("other") {
