@@ -1,18 +1,21 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import PoemViewer from '@/components/PoemViewer';
+import FeedLinkChip from '@/components/poem-viewer/FeedLinkChip';
 import LoadingScreen from '@/components/LoadingScreen';
 import ErrorScreen from '@/components/ErrorScreen';
 import ganjoorApi from '@/api/GanjoorApi';
 import type { Poem } from '@/types/poem';
 import { logger } from '@/utils/logger';
+import { SINGLE_POEM_PARAM } from '@/utils/poemLibrary';
 import { fetchRandomGanjoorPoem } from '@/utils/poemIndex';
 
 export default function PoemPage() {
     const params = useParams();
     const router = useRouter();
+    const isSingle = useSearchParams().has(SINGLE_POEM_PARAM);
     const [poem, setPoem] = useState<Poem | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -69,7 +72,7 @@ export default function PoemPage() {
 
     const poemId = poem?.id ?? null;
     useEffect(() => {
-        if (poemId === null || upcomingForRef.current === poemId) return;
+        if (isSingle || poemId === null || upcomingForRef.current === poemId) return;
         const forId = poemId;
         upcomingForRef.current = forId;
         setUpcoming(null);
@@ -79,7 +82,7 @@ export default function PoemPage() {
                 if (upcomingForRef.current === forId && next.id !== forId) setUpcoming(next);
             })
             .catch((err) => logger.error('Error preloading next poem:', err));
-    }, [poemId]);
+    }, [poemId, isSingle]);
 
     const showPoem = (next: Poem) => {
         setPoem(next);
@@ -120,9 +123,10 @@ export default function PoemPage() {
                 isFirst={true}
                 isLast={true}
                 isModern={false}
-                pullToNext
+                pullToNext={!isSingle}
                 nextPoemPeek={upcoming}
                 isPreparingNext={!upcoming}
+                titleEyebrow={isSingle ? <FeedLinkChip poem={poem} /> : undefined}
             />
         </main>
     ) : null;

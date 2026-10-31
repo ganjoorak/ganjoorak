@@ -46,7 +46,7 @@ import {
   type PublicProfile,
 } from "@/utils/accountApi";
 import { readLovedCollections } from "@/utils/collectionLibrary";
-import { readFavorites, readHistory, type PoemLibraryEntry } from "@/utils/poemLibrary";
+import { getSinglePoemHref, readFavorites, readHistory, type PoemLibraryEntry } from "@/utils/poemLibrary";
 import { profileThemeStyle } from "@/utils/profileTheme";
 import { fetchCatalog, type Badge, type Streak } from "@/utils/progressApi";
 import "../styles/PoemLibrary.css";
@@ -410,7 +410,7 @@ const PROFILE_TABS: { id: ProfileTab; label: string }[] = [
 
 const ProfilePoem = ({ entry, live }: { entry: PoemLibraryEntry; live?: boolean }) => (
   <Link
-    href={entry.href}
+    href={getSinglePoemHref(entry.href)}
     prefetch={false}
     className={`app-row profile-poem${live ? " profile-poem--live" : ""}`}
   >

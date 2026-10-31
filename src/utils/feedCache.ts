@@ -38,6 +38,14 @@ export const readCachedFeed = () => {
     }
 };
 
+/** Marks a cache holding a poem handed to the feed: it fits any feed mode and is kept instead of refetched. */
+export const HANDED_OFF_FEED_KEY = 'handed-off';
+
+/** Makes the poem the one the home feed opens on; the feed then fills up behind it. */
+export const handOffPoemToFeed = (poem: Poem) => {
+    writeCachedFeedPoems([poem], 0, HANDED_OFF_FEED_KEY);
+};
+
 export const writeCachedFeedPoems = (
     poems: Poem[],
     currentIndex: number,

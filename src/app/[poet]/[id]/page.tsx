@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import PoemViewer from '@/components/PoemViewer';
+import FeedLinkChip from '@/components/poem-viewer/FeedLinkChip';
 import LoadingScreen from '@/components/LoadingScreen';
 import ErrorScreen from '@/components/ErrorScreen';
 import customApi from '@/api/CustomApi';
@@ -10,10 +11,12 @@ import echolaliaApi from '@/api/EcholaliaApi';
 import type { Poem } from '@/types/poem';
 import { PoetSlug, isValidPoetSlug } from '@/types/poet';
 import { logger } from '@/utils/logger';
+import { SINGLE_POEM_PARAM } from '@/utils/poemLibrary';
 
 export default function PoemPage() {
     const params = useParams();
     const router = useRouter();
+    const isSingle = useSearchParams().has(SINGLE_POEM_PARAM);
     const [poem, setPoem] = useState<Poem | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -109,7 +112,8 @@ export default function PoemPage() {
             poem={poem}
             onNext={handleNext}
             poetSlug={poem.poetSlug || (params?.poet as string)}
-            showNext={true}
+            showNext={!isSingle}
+            titleEyebrow={isSingle ? <FeedLinkChip poem={poem} /> : undefined}
         />
     );
 }

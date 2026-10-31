@@ -21,7 +21,7 @@ import { fetchSimilarPoem } from '@/utils/interestFeed';
 import { fetchRandomGanjoorPoem, fetchRandomPoemByPoetId } from '@/utils/poemIndex';
 import { useLovedCollections } from '@/hooks/useLovedCollections';
 import { fetchRandomPoemFromCollection } from '@/utils/collectionFeed';
-import { readCachedFeed, writeCachedFeedPoems } from '@/utils/feedCache';
+import { HANDED_OFF_FEED_KEY, readCachedFeed, writeCachedFeedPoems } from '@/utils/feedCache';
 import { getPoetDisplayName, parsePreferredPoetKey, getIndexedGanjoorPoetId } from '@/utils/feedPoets';
 import FeedPoetDialog from '@/components/FeedPoetDialog';
 
@@ -344,6 +344,8 @@ export default function Home() {
         const cachedInterestMismatch =
             previousSignature === null &&
             cachedInterestKeyRef.current !== feedSignature;
+        // The poem was just cached by the link that opened the feed; `poems` only has it from the next render.
+        const isHandedOff = cachedInterestKeyRef.current === HANDED_OFF_FEED_KEY;
 
         cachedInterestKeyRef.current = feedSignature;
 
@@ -356,7 +358,7 @@ export default function Home() {
             return;
         }
 
-        if (poems.length > 0 && !feedChanged && !cachedInterestMismatch) {
+        if (isHandedOff || (poems.length > 0 && !feedChanged && !cachedInterestMismatch)) {
             setLoading(false);
             return;
         }

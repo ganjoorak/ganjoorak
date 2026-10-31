@@ -39,6 +39,10 @@ export const getPoemHref = (poem: Pick<Poem, "id" | "source" | "poetSlug" | "ful
   return slug ? `/${slug}/${poem.id}` : `/poem/${poem.id}`;
 };
 
+/** The poem on its own: no next poem, with a chip that continues in the home feed (see FeedLinkChip). */
+export const SINGLE_POEM_PARAM = "single";
+export const getSinglePoemHref = (href: string) => `${href}?${SINGLE_POEM_PARAM}=1`;
+
 const getPoemTitle = (poem: Poem) => {
   const parts = poem.fullTitle
     .split(" » ")
