@@ -15,6 +15,7 @@ import { FaRegStar } from 'react-icons/fa';
 import Link from 'next/link';
 import FeedModeSwitch from '@/components/FeedModeSwitch';
 import FeedModeEmpty from '@/components/FeedModeEmpty';
+import FollowingFeed from '@/components/FollowingFeed';
 import { buttonVariants } from '@/components/ui/button';
 import { FeedMode } from '@/context/SettingsContext';
 import { fetchSimilarPoem } from '@/utils/interestFeed';
@@ -39,6 +40,7 @@ export default function Home() {
     } = useSettings();
     const feedMode = settings.feedMode;
     const isPreferredMode = feedMode === 'preferred';
+    const isFollowedMode = feedMode === 'followed';
     // The «علاقه‌مندی‌ها» feed draws from preferred poets and loved books alike.
     const { collections: lovedCollections } = useLovedCollections();
     const hasNoPreferred = settings.preferredPoetKeys.length === 0 && lovedCollections.length === 0;
@@ -349,7 +351,7 @@ export default function Home() {
 
         cachedInterestKeyRef.current = feedSignature;
 
-        if (isPreferredEmpty) {
+        if (isPreferredEmpty || isFollowedMode) {
             // Nothing to fetch; the empty state links to /poets.
             feedVersionRef.current += 1;
             fetchMorePromiseRef.current = null;
@@ -368,6 +370,7 @@ export default function Home() {
         areSettingsHydrated,
         feedSignature,
         fetchInitialPoems,
+        isFollowedMode,
         isPreferredEmpty,
         poems.length,
     ]);
@@ -376,6 +379,7 @@ export default function Home() {
         const shouldFetchMore =
             !loading &&
             !isPreferredEmpty &&
+            !isFollowedMode &&
             currentPoemIndex >= poems.length - PREFETCH_THRESHOLD &&
             poems.length > 0 &&
             !isFetchingMore;
@@ -388,6 +392,7 @@ export default function Home() {
         poems.length,
         loading,
         isFetchingMore,
+        isFollowedMode,
         isPreferredEmpty,
         fetchMorePoems,
     ]);
@@ -447,6 +452,10 @@ export default function Home() {
             isLoading={loading && Boolean(currentPoem)}
         />
     );
+
+    if (isFollowedMode && areSettingsHydrated) {
+        return <FollowingFeed switcher={feedModeSwitch} />;
+    }
 
     if (isPreferredEmpty && areSettingsHydrated) {
         return (

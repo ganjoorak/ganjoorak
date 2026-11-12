@@ -46,11 +46,11 @@ interface SettingsState {
   interestKeys: string[];
   activeInterestKeys: string[];
   hasChosenInterests: boolean;
-  /** Home feed source: everything («همه») or only the reader's preferred poets («علاقه‌مندی‌ها»). */
+  /** Home feed source: «همه», preferred poets («علاقه‌مندی‌ها»), or followed users («دنبال‌شده‌ها»). */
   feedMode: FeedMode;
 }
 
-export type FeedMode = "all" | "preferred";
+export type FeedMode = "all" | "preferred" | "followed";
 
 interface SettingsContextValue {
   settings: SettingsState;
@@ -312,7 +312,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         const storedFeedMode =
           (parsed.feedMode as string) === "following" ? "preferred" : parsed.feedMode;
         const nextFeedMode: FeedMode =
-          storedFeedMode === "all" || storedFeedMode === "preferred"
+          storedFeedMode === "all" || storedFeedMode === "preferred" || storedFeedMode === "followed"
             ? storedFeedMode
             : nextPreferredPoetKeys.length > 0
               ? "preferred"
